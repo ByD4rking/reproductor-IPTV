@@ -48,6 +48,23 @@ void main() {
     expect(result.uris.last, Uri.parse('https://example.com/high/index.m3u8'));
   });
 
+  test('supports BOM and low-latency HLS parts', () {
+    final result = parser.parse(
+      '\uFEFF#EXTM3U\n'
+      '#EXT-X-TARGETDURATION:2\n'
+      '#EXT-X-PART:DURATION=0.5,URI="parts/p1.m4s"\n'
+      '#EXT-X-PRELOAD-HINT:TYPE=PART,URI="parts/p2.m4s"\n',
+      Uri.parse('https://example.com/live/index.m3u8'),
+    );
+
+    expect(result.isValid, isTrue);
+    expect(result.isLive, isTrue);
+    expect(result.uris, <Uri>[
+      Uri.parse('https://example.com/live/parts/p1.m4s'),
+      Uri.parse('https://example.com/live/parts/p2.m4s'),
+    ]);
+  });
+
   test('rejects non-HLS text', () {
     final result = parser.parse(
       'not a playlist',
