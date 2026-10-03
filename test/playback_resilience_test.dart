@@ -1,38 +1,29 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:reproductor_iptv/core/playback/diagnostics/playback_error.dart';
 import 'package:reproductor_iptv/core/playback/engine/stream_kind.dart';
 import 'package:reproductor_iptv/core/playback/recovery/backoff.dart';
+import 'package:reproductor_iptv/core/playback/recovery/recovery_coordinator.dart';
 import 'package:reproductor_iptv/core/playback/recovery/recovery_policy.dart';
 import 'package:reproductor_iptv/core/playback/session/playback_session.dart';
 
 void main() {
   test('stream kind uses MIME when URL has no useful extension', () {
     const detector = StreamKindDetector();
-    expect(
-      detector.detect(Uri.parse('https://example.test/live?id=1'), contentType: 'application/vnd.apple.mpegurl'),
-      StreamKind.hls,
-    );
-    expect(
-      detector.detect(Uri.parse('https://example.test/channel'), contentType: 'application/dash+xml'),
-      StreamKind.dash,
-    );
+    expect(detector.detect(Uri.parse('https://example.test/live?id=1'), contentType: 'application/vnd.apple.mpegurl'), StreamKind.hls);
+    expect(detector.detect(Uri.parse('https://example.test/channel'), contentType: 'application/dash+xml'), StreamKind.dash);
   });
 
   test('backoff is bounded and deterministic with injected jitter value', () {
     const backoff = ExponentialBackoff();
-    final first = backoff.delay(0, randomValue: 0.5);
-    final later = backoff.delay(10, randomValue: 1.0);
-    expect(first, const Duration(seconds: 1));
-    expect(later, lessThanOrEqualTo(const Duration(seconds: 8)));
+    expect(backoff.delay(0, randomValue: 0.5), const Duration(seconds: 1));
+    expect(backoff.delay(10, randomValue: 1.0), lessThanOrEqualTo(const Duration(seconds: 8)));
   });
 
   test('user stop is terminal and never becomes a retry', () {
     const policy = RecoveryPolicy();
-    expect(
-      policy.decide(userStopped: true, retryable: true, retryCount: 0, sourceChanges: 0).level,
-      RecoveryLevel.stopped,
-    );
+    expect(policy.decide(userStopped: true, retryable: true, retryCount: 0, sourceChanges: 0).level, RecoveryLevel.stopped);
   });
 
   test('stopped session invalidates old operations', () {
@@ -45,133 +36,61 @@ void main() {
     expect(session.isCurrentOperation(operation), isFalse);
     expect(session.beginOperation(), -1);
   });
-  test('recovery counters survive a reprepare and reset only after stable playback', () {
+
+  test('recovery policy escalates retry, reprepare and source switch', () {
     const policy = RecoveryPolicy();
-    final first = policy.decide(
-      userStopped: false,
-      retryable: true,
-      retryCount: 0,
-      sourceChanges: 0,
-    );
-    expect(first.level, RecoveryLevel.retry);
-
-    final second = policy.decide(
-      userStopped: false,
-      retryable: true,
-      retryCount: 1,
-      sourceChanges: 0,
-    );
-    expect(second.level, RecoveryLevel.reprepare);
-
-    final failover = policy.decide(
-      userStopped: false,
-      retryable: true,
-      retryCount: 2,
-      sourceChanges: 0,
-    );
-    expect(failover.level, RecoveryLevel.switchSource);
+    expect(policy.decide(userStopped: false, retryable: true, retryCount: 0, sourceChanges: 0).level, RecoveryLevel.retry);
+    expect(policy.decide(userStopped: false, retryable: true, retryCount: 1, sourceChanges: 0).level, RecoveryLevel.reprepare);
+    expect(policy.decide(userStopped: false, retryable: true, retryCount: 2, sourceChanges: 0).level, RecoveryLevel.switchSource);
   });
-
 
   test('classifies HTTP auth, missing, transient and timeout failures', () {
     const classifier = PlaybackErrorClassifier();
-
-    expect(
-      classifier.classify(401, null).kind,
-      PlaybackErrorKind.unauthorized,
-    );
-    expect(
-      classifier.classify(404, null).disposition,
-      ErrorDisposition.switchSource,
-    );
-    expect(
-      classifier.classify(503, null).disposition,
-      ErrorDisposition.retry,
-    );
-    expect(
-      classifier.classify(null, TimeoutException('timeout')).kind,
-      PlaybackErrorKind.timeout,
-    );
+    expect(classifier.classify(401, null).kind, PlaybackErrorKind.unauthorized);
+    expect(classifier.classify(404, null).disposition, ErrorDisposition.switchSource);
+    expect(classifier.classify(503, null).disposition, ErrorDisposition.retry);
+    expect(classifier.classify(null, TimeoutException('timeout')).kind, PlaybackErrorKind.timeout);
     expect(classifier.stalled().kind, PlaybackErrorKind.stalled);
   });
 
-}
+  test('classifies runtime player messages conservatively', () {
+    const classifier = PlaybackErrorClassifier();
+    expect(classifier.classifyMessage('HTTP 404 Not Found').kind, PlaybackErrorKind.notFound);
+    expect(classifier.classifyMessage('network timeout').kind, PlaybackErrorKind.timeout);
+    expect(classifier.classifyMessage('decoder codec failure').kind, PlaybackErrorKind.decoder);
+    expect(classifier.classifyMessage('behind live window').kind, PlaybackErrorKind.stalled);
+  });
 
   test('recovery coordinator serializes recovery and preserves escalation', () async {
     final coordinator = RecoveryCoordinator();
     var reparses = 0;
     var switches = 0;
-
-    final first = await coordinator.recover(
-      userStopped: false,
-      retryable: true,
-      reprepare: () async => reparses++,
-      switchSource: () async => switches++,
-    );
+    final first = await coordinator.recover(userStopped: false, retryable: true, reprepare: () async => reparses++, switchSource: () async => switches++);
     expect(first?.level, RecoveryLevel.retry);
-    expect(reparses, 1);
-
-    final second = await coordinator.recover(
-      userStopped: false,
-      retryable: true,
-      reprepare: () async => reparses++,
-      switchSource: () async => switches++,
-    );
+    final second = await coordinator.recover(userStopped: false, retryable: true, reprepare: () async => reparses++, switchSource: () async => switches++);
     expect(second?.level, RecoveryLevel.reprepare);
-    expect(reparses, 2);
-
-    final third = await coordinator.recover(
-      userStopped: false,
-      retryable: true,
-      reprepare: () async => reparses++,
-      switchSource: () async => switches++,
-    );
+    final third = await coordinator.recover(userStopped: false, retryable: true, reprepare: () async => reparses++, switchSource: () async => switches++);
     expect(third?.level, RecoveryLevel.switchSource);
+    expect(reparses, 2);
     expect(switches, 1);
   });
 
   test('cancel invalidates a delayed recovery', () async {
     final coordinator = RecoveryCoordinator();
     var called = false;
-
-    final future = coordinator.recover(
-      userStopped: false,
-      retryable: true,
-      reprepare: () async => called = true,
-      switchSource: () async {},
-    );
+    final future = coordinator.recover(userStopped: false, retryable: true, reprepare: () async => called = true, switchSource: () async {});
     coordinator.cancel();
-    final result = await future;
-
-    expect(result, isNull);
+    expect(await future, isNull);
     expect(called, isFalse);
   });
 
   test('stable playback resets recovery budget', () async {
     final coordinator = RecoveryCoordinator();
-
-    await coordinator.recover(
-      userStopped: false,
-      retryable: true,
-      reprepare: () async {},
-      switchSource: () async {},
-    );
-    await coordinator.recover(
-      userStopped: false,
-      retryable: true,
-      reprepare: () async {},
-      switchSource: () async {},
-    );
+    await coordinator.recover(userStopped: false, retryable: true, reprepare: () async {}, switchSource: () async {});
+    await coordinator.recover(userStopped: false, retryable: true, reprepare: () async {}, switchSource: () async {});
     expect(coordinator.retryCount, 2);
-
     coordinator.resetAfterStablePlayback();
-
-    final result = await coordinator.recover(
-      userStopped: false,
-      retryable: true,
-      reprepare: () async {},
-      switchSource: () async {},
-    );
+    final result = await coordinator.recover(userStopped: false, retryable: true, reprepare: () async {}, switchSource: () async {});
     expect(result?.level, RecoveryLevel.retry);
     expect(coordinator.retryCount, 1);
   });
