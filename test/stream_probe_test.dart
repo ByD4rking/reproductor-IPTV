@@ -7,6 +7,26 @@ import 'package:reproductor_iptv/core/playback/engine/stream_probe.dart';
 import 'package:reproductor_iptv/core/playback/engine/stream_kind.dart';
 
 void main() {
+  test('rejects unsafe stream URLs before making a request', () async {
+    var requests = 0;
+    final client = MockClient((request) async {
+      requests++;
+      return http.Response('', 200);
+    });
+    final probe = StreamProbe(client: client);
+    addTearDown(probe.dispose);
+
+    final result = await probe.probe(
+      StreamSource(
+        id: 'unsafe',
+        url: Uri.parse('file:///tmp/secret.m3u8'),
+      ),
+    );
+
+    expect(result, isNull);
+    expect(requests, 0);
+  });
+
   test('deeply validates HLS master and child playlist', () async {
     final client = MockClient((request) async {
       if (request.url.path == '/master.m3u8') {
