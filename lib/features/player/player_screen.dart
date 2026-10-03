@@ -39,6 +39,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late final DateTime _startedAt;
 
   Timer? _healthTimer;
+  StreamSubscription<PlaybackEngineError>? _playbackErrorSubscription;
   Duration _lastPosition = Duration.zero;
   DateTime _lastProgress = DateTime.now();
   Duration _lastBufferedAhead = Duration.zero;
@@ -58,8 +59,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.initState();
     _startedAt = DateTime.now();
     _session.start();
+    _playbackErrorSubscription = _engine.errors.listen(_handleEngineError);
     _loadSettingsAndOpen();
     _healthTimer = Timer.periodic(const Duration(seconds: 3), (_) => _checkHealth());
+  }
+
+  Future<void> _handleEngineError(PlaybackEngineError event) async {
+    if (_session.isStopped || _recovering) return;
+    if (widget.entry.sources.isEmpty ||
+        widget.entry.sources[_sourceIndex].id != event.sourceId) {
+      return;
+    }
+
+    final classified = _errorClassifier.classifyMessage(event.message);
+    _error = classified.message;
+    if (mounted) {
+      setState(() => _status = 'Error de reproducción: ${classified.kind.name}');
+    }
+    if (!_autoRecovery) return;
+
+    await _recover(retryable: classified.disposition == ErrorDisposition.retry);
   }
 
   Future<void> _loadSettingsAndOpen() async {
@@ -194,7 +213,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (stalled && _autoRecovery) await _recover();
   }
 
-  Future<void> _recover() async {
+  Future<void> _recover({bool retryable = true}) async {
     if (_recovering || _session.isStopped) return;
     final source = widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex];
     if (source != null) {
@@ -215,7 +234,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await _engine.stop();
       final decision = await _recoveryCoordinator.recover(
         userStopped: _session.isStopped,
-        retryable: true,
+        retryable: retryable,
         reprepare: () async {
           if (_session.isCurrentOperation(operation)) {
             await _openSource(automatic: true, operationId: operation);
@@ -254,6 +273,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     _session.stop();
     _recoveryCoordinator.cancel();
+    _playbackErrorSubscription?.cancel();
     _healthTimer?.cancel();
     _engine.dispose();
     super.dispose();
