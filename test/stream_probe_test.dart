@@ -62,6 +62,51 @@ void main() {
   });
 
 
+
+  test('rejects a valid HLS child playlist when its media segment is dead', () async {
+    final client = MockClient((request) async {
+      if (request.url.path == '/master.m3u8') {
+        return http.Response(
+          '#EXTM3U\n'
+          '#EXT-X-STREAM-INF:BANDWIDTH=800000\n'
+          '/variant.m3u8\n',
+          200,
+          headers: {'content-type': 'application/vnd.apple.mpegurl'},
+        );
+      }
+      if (request.url.path == '/variant.m3u8') {
+        return http.Response(
+          '#EXTM3U\n'
+          '#EXT-X-TARGETDURATION:6\n'
+          '#EXTINF:6,\n'
+          '/dead.ts\n',
+          200,
+          headers: {'content-type': 'application/vnd.apple.mpegurl'},
+        );
+      }
+      return http.Response('', 404);
+    });
+
+    final probe = StreamProbe(
+      client: client,
+      timeout: const Duration(seconds: 1),
+      maxHlsRequests: 1,
+    );
+    addTearDown(probe.dispose);
+
+    final result = await probe.probe(
+      StreamSource(
+        id: 'test',
+        url: Uri.parse('https://example.com/master.m3u8'),
+      ),
+    );
+
+    expect(result, isNotNull);
+    expect(result!.hlsValid, isTrue);
+    expect(result.hlsDeepValid, isFalse);
+    expect(result.isAvailable, isFalse);
+  });
+
   test('accepts a master when one rendition is healthy and another is down', () async {
     final client = MockClient((request) async {
       if (request.url.path == '/master.m3u8') {
