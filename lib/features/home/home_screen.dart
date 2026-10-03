@@ -132,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           const Text('TV en directo', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 6),
-                          Text(playlist.entries.length.toString() + ' canales · ' + (_categories.length - 1).toString() + ' categorías'),
+                          Text('${playlist.entries.length} canales · ${_categories.length - 1} categorías'),
                           const SizedBox(height: 16),
                           TextField(
                             onChanged: (value) => setState(() => _query = value),
