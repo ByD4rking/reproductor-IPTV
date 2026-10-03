@@ -1,5 +1,6 @@
 import 'package:video_player/video_player.dart';
 import 'playback_engine.dart';
+import 'playback_engine_error.dart';
 import 'playback_request.dart';
 import 'playback_tracks.dart';
 import 'stream_kind.dart';
@@ -9,12 +10,34 @@ class VideoPlayerEngine implements PlaybackEngine {
   VideoPlayerEngine({StreamProbe? probe}) : _probe = probe ?? StreamProbe();
 
   final StreamProbe _probe;
-  VideoPlayerController? _controller; int _prepareGeneration = 0; VideoPlayerController? get controller => _controller;
+  final StreamController<PlaybackEngineError> _errors =
+      StreamController<PlaybackEngineError>.broadcast();
+  VideoPlayerController? _controller;
+  int _prepareGeneration = 0;
+  String? _activeSourceId;
+  String? _lastErrorDescription;
+
+  VideoPlayerController? get controller => _controller;
+
+  @override
+  Stream<PlaybackEngineError> get errors => _errors.stream;
+
+  int get generation => _prepareGeneration;
   @override Future<void> prepare(PlaybackRequest request) async {
-    final previous = _controller; final generation = ++_prepareGeneration;
+    final previous = _controller;
+    previous?.removeListener(_handleControllerValue);
+    final generation = ++_prepareGeneration;
+    _activeSourceId = request.source.id;
+    _lastErrorDescription = null;
     final formatHint = await _formatHint(request);
     if (generation != _prepareGeneration) return;
-    final controller = VideoPlayerController.networkUrl(request.source.url, formatHint: formatHint, httpHeaders: request.effectiveHeaders, videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false));
+    final controller = VideoPlayerController.networkUrl(
+      request.source.url,
+      formatHint: formatHint,
+      httpHeaders: request.effectiveHeaders,
+      videoPlayerOptions: const VideoPlayerOptions(mixWithOthers: false),
+    );
+    controller.addListener(_handleControllerValue);
     try { await controller.initialize(); if (generation != _prepareGeneration) { await controller.dispose(); return; } if (previous != null && identical(_controller, previous)) await previous.dispose(); _controller = controller; } catch (_) { await controller.dispose(); rethrow; }
   }
   @override Future<PlaybackTracks> tracks() async {
