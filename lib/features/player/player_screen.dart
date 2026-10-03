@@ -269,6 +269,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  Future<void> _togglePlayback() async {
+    final controller = _engine.controller;
+    if (controller == null) return;
+    if (controller.value.isPlaying) {
+      await _engine.pause();
+    } else {
+      await _engine.play();
+    }
+    if (mounted) setState(() {});
+  }
+
   Future<void> _recover({bool retryable = true, bool markFailure = false}) async {
     if (_recovering || _session.isStopped) return;
     final source = widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex];
@@ -400,14 +411,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   event.logicalKey == LogicalKeyboardKey.numpadEnter ||
                   event.logicalKey == LogicalKeyboardKey.select ||
                   event.logicalKey == LogicalKeyboardKey.space)) {
-            () async {
-              if (activeController.value.isPlaying) {
-                await _engine.pause();
-              } else {
-                await _engine.play();
-              }
-              if (mounted) setState(() {});
-            }();
+            unawaited(_togglePlayback());
             return KeyEventResult.handled;
           }
           return KeyEventResult.ignored;
