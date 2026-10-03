@@ -80,16 +80,31 @@ class VideoPlayerEngine implements PlaybackEngine {
     final sourceId = _activeSourceId;
     if (sourceId == null || _errors.isClosed) return;
 
+    final lower = description.toLowerCase();
+    final statusCode = _statusCodeFrom(description);
     _errors.add(
       PlaybackEngineError(
         generation: _prepareGeneration,
         sourceId: sourceId,
         message: description,
+        code: lower.contains('decoder')
+            ? 'decoder'
+            : lower.contains('timeout')
+                ? 'timeout'
+                : null,
+        statusCode: statusCode,
+        behindLiveWindow: lower.contains('behind live window') ||
+            lower.contains('live window'),
       ),
     );
   }
 
   @override
+  int? _statusCodeFrom(String message) {
+    final match = RegExp(r'\\b(4\\d{2}|5\\d{2})\\b').firstMatch(message);
+    return match == null ? null : int.tryParse(match.group(1)!);
+  }
+
   Future<PlaybackTracks> tracks() async {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) {
