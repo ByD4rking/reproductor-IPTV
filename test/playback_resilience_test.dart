@@ -43,4 +43,31 @@ void main() {
     expect(session.isCurrentOperation(operation), isFalse);
     expect(session.beginOperation(), -1);
   });
+  test('recovery counters survive a reprepare and reset only after stable playback', () {
+    const policy = RecoveryPolicy();
+    final first = policy.decide(
+      userStopped: false,
+      retryable: true,
+      retryCount: 0,
+      sourceChanges: 0,
+    );
+    expect(first.level, RecoveryLevel.retry);
+
+    final second = policy.decide(
+      userStopped: false,
+      retryable: true,
+      retryCount: 1,
+      sourceChanges: 0,
+    );
+    expect(second.level, RecoveryLevel.reprepare);
+
+    final failover = policy.decide(
+      userStopped: false,
+      retryable: true,
+      retryCount: 2,
+      sourceChanges: 0,
+    );
+    expect(failover.level, RecoveryLevel.switchSource);
+  });
+
 }
