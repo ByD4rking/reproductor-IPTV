@@ -20,10 +20,11 @@ class SourceHealthManager {
       _breaker.canAttempt(healthOf(sourceId), now);
 
   Future<void> load() async {
-    if (_repository == null) return;
+    final repository = _repository;
+    if (repository == null) return;
     _health
       ..clear()
-      ..addAll(await _repository!.load());
+      ..addAll(await repository.load());
   }
 
   bool beginAttempt(String sourceId, DateTime now) {
