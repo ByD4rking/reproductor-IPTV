@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reproductor_iptv/core/playback/diagnostics/playback_error.dart';
-import 'package:reproductor_iptv/core/playback/monitor/stall_detector.dart';
+import 'package:reproductor_iptv/core/playback/monitor/stall_detector.dart';\nimport 'package:reproductor_iptv/core/playback/monitor/buffer_health_monitor.dart';
 import 'package:reproductor_iptv/core/playback/engine/stream_kind.dart';
 import 'package:reproductor_iptv/core/playback/engine/playback_engine_state.dart';
 import 'package:reproductor_iptv/core/playback/recovery/backoff.dart';
@@ -11,6 +11,64 @@ import 'package:reproductor_iptv/core/playback/recovery/recovery_policy.dart';
 import 'package:reproductor_iptv/core/playback/session/playback_session.dart';
 
 void main() {
+  test('buffer monitor ignores a brief low-buffer transient', () {
+    const monitor = BufferHealthMonitor();
+    final start = DateTime(2026, 1, 1);
+    final first = monitor.sample(
+      bufferedAhead: const Duration(milliseconds: 400),
+      playheadMoving: true,
+      buffering: true,
+      now: start,
+    );
+    expect(first.degraded, isFalse);
+
+    final transient = monitor.sample(
+      bufferedAhead: const Duration(milliseconds: 800),
+      playheadMoving: true,
+      buffering: true,
+      now: start.add(const Duration(seconds: 3)),
+    );
+    expect(transient.degraded, isFalse);
+  });
+
+  test('buffer monitor detects sustained starvation while playback still moves', () {
+    const monitor = BufferHealthMonitor();
+    final start = DateTime(2026, 1, 1);
+    monitor.sample(
+      bufferedAhead: const Duration(milliseconds: 300),
+      playheadMoving: true,
+      buffering: true,
+      now: start,
+    );
+    final snapshot = monitor.sample(
+      bufferedAhead: const Duration(milliseconds: 250),
+      playheadMoving: true,
+      buffering: true,
+      now: start.add(const Duration(seconds: 6)),
+    );
+    expect(snapshot.degraded, isTrue);
+    expect(snapshot.severe, isTrue);
+  });
+
+  test('buffer monitor resets when the buffer recovers', () {
+    const monitor = BufferHealthMonitor();
+    final start = DateTime(2026, 1, 1);
+    monitor.sample(
+      bufferedAhead: const Duration(milliseconds: 300),
+      playheadMoving: true,
+      buffering: true,
+      now: start,
+    );
+    final recovered = monitor.sample(
+      bufferedAhead: const Duration(seconds: 4),
+      playheadMoving: true,
+      buffering: false,
+      now: start.add(const Duration(seconds: 3)),
+    );
+    expect(recovered.degraded, isFalse);
+    expect(recovered.lowDuration, Duration.zero);
+  });
+
   test('stall detector ignores healthy incoming data before hard stall', () {
     const detector = StallDetector();
     expect(
