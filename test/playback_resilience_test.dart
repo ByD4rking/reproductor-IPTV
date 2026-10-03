@@ -61,6 +61,22 @@ void main() {
     expect(classifier.classifyMessage('behind live window').kind, PlaybackErrorKind.stalled);
   });
 
+  test('classifies common upstream and unsupported-format runtime failures', () {
+    const classifier = PlaybackErrorClassifier();
+    expect(
+      classifier.classifyMessage('HTTP 503 Service Unavailable').disposition,
+      ErrorDisposition.retry,
+    );
+    expect(
+      classifier.classifyMessage('connection reset by peer').kind,
+      PlaybackErrorKind.network,
+    );
+    expect(
+      classifier.classifyMessage('UnrecognizedInputFormatException').kind,
+      PlaybackErrorKind.unsupportedFormat,
+    );
+  });
+
   test('recovery coordinator serializes recovery and preserves escalation', () async {
     final coordinator = RecoveryCoordinator();
     var reparses = 0;
