@@ -11,8 +11,10 @@ class SourceHealthRepository {
   static const _key = 'source-health.v1';
   final SharedPreferencesAsync _preferences;
   Future<void> _writeQueue = Future<void>.value();
+  bool _disposed = false;
 
   Future<Map<String, SourceHealth>> load() async {
+    if (_disposed) return const <String, SourceHealth>{};
     final raw = await _preferences.getStringList(_key) ?? const <String>[];
     final result = <String, SourceHealth>{};
     for (final item in raw) {
@@ -35,10 +37,16 @@ class SourceHealthRepository {
         )
         .toList(growable: false);
 
+    if (_disposed) return Future<void>.value();
     _writeQueue = _writeQueue.then((_) async {
+      if (_disposed) return;
       await _preferences.setStringList(_key, snapshot);
     });
     return _writeQueue;
+  }
+
+  void dispose() {
+    _disposed = true;
   }
 
   Map<String, dynamic> _encode(SourceHealth value) => {
