@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/domain/entities/playlist.dart';
@@ -11,6 +12,7 @@ import '../../core/playback/diagnostics/playback_error.dart';
 import '../../core/playback/engine/video_player_engine.dart';
 import '../../core/playback/monitor/stall_detector.dart';
 import '../../core/playback/recovery/recovery_coordinator.dart';
+import '../../core/playback/recovery/recovery_policy.dart';
 import '../../core/playback/session/playback_session.dart';
 import '../../core/playback/source_health/source_health_manager.dart';
 import '../../core/playback/source_health/source_health_repository.dart';
@@ -48,7 +50,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   String _status = 'Preparando';
   String? _error;
   int _sourceIndex = 0;
-    DateTime? _stablePlaybackSince;
+  DateTime? _stablePlaybackSince;
   bool _recovering = false;
   bool _autoRecovery = true;
   bool _autoSourceSwitching = true;
