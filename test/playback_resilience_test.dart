@@ -33,7 +33,7 @@ void main() {
   });
 
   test('buffer monitor detects sustained starvation while playback still moves', () {
-    const monitor = BufferHealthMonitor();
+    final monitor = BufferHealthMonitor();
     final start = DateTime(2026, 1, 1);
     monitor.sample(
       bufferedAhead: const Duration(milliseconds: 300),
