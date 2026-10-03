@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/domain/entities/playlist.dart';
-import '../../core/playback/engine/playback_request.dart';
 import '../../core/playback/engine/playback_engine_error.dart';
+import '../../core/playback/engine/playback_request.dart';
 import '../../core/playback/engine/playback_engine_state.dart';
+import '../../core/playback/diagnostics/playback_error.dart';
 import '../../core/playback/engine/video_player_engine.dart';
 import '../../core/playback/monitor/stall_detector.dart';
 import '../../core/playback/recovery/recovery_coordinator.dart';
-import '../../core/playback/diagnostics/playback_error.dart';
 import '../../core/playback/session/playback_session.dart';
 import '../../core/playback/source_health/source_health_manager.dart';
 import '../../core/playback/source_health/source_health_repository.dart';
@@ -240,7 +240,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           _recoveryCoordinator.resetAfterStablePlayback();
           _stablePlaybackSince = progressAt;
         }
-        final source = widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex];
+        final source = widget.entry.sources.isEmpty
+            ? null
+            : widget.entry.sources[_sourceIndex];
         final started = _sourceAttemptStarted;
         if (source != null && started != null) {
           await _health.recordSuccess(
@@ -299,7 +301,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Future<void> _recover({bool retryable = true, bool markFailure = false}) async {
     if (_recovering || _session.isStopped) return;
-    final source = widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex];
+    final source = widget.entry.sources.isEmpty
+        ? null
+        : widget.entry.sources[_sourceIndex];
     if (markFailure && source != null) {
       await _health.recordFailure(source.id, DateTime.now());
       _sourceAttemptStarted = null;
@@ -436,11 +440,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
         },
         child: Center(
           child: AspectRatio(
-          aspectRatio: activeController.value.aspectRatio,
+            aspectRatio: activeController.value.aspectRatio,
             child: Stack(
               fit: StackFit.expand,
               children: [
-              VideoPlayer(activeController),
+                VideoPlayer(activeController),
                 if (activeController.value.isBuffering)
                   const Center(child: CircularProgressIndicator()),
               ],
@@ -453,9 +457,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: FloatingActionButton(
           onPressed: null,
           child: Icon(
-          activeController.value.isPlaying
-              ? Icons.pause
-              : Icons.play_arrow,
+            activeController.value.isPlaying
+                ? Icons.pause
+                : Icons.play_arrow,
           ),
         ),
       ),
