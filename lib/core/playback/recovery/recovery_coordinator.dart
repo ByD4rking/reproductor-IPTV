@@ -24,6 +24,7 @@ class RecoveryCoordinator {
     required bool retryable,
     required Future<void> Function() reprepare,
     required Future<void> Function() switchSource,
+    bool allowSourceSwitch = true,
   }) async {
     if (_running || userStopped) {
       return userStopped
@@ -45,6 +46,13 @@ class RecoveryCoordinator {
         retryCount: _retryCount,
         sourceChanges: _sourceChanges,
       );
+
+      if (decision.level == RecoveryLevel.switchSource && !allowSourceSwitch) {
+        return const RecoveryDecision(
+          level: RecoveryLevel.degraded,
+          delay: Duration.zero,
+        );
+      }
 
       if (decision.level == RecoveryLevel.retry ||
           decision.level == RecoveryLevel.reprepare) {
