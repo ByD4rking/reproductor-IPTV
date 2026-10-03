@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../../domain/entities/stream_source.dart';
+import 'hls_playlist_parser.dart';
 import 'stream_kind.dart';
 
 class StreamProbeResult {
@@ -13,14 +14,22 @@ class StreamProbeResult {
     required this.statusCode,
     required this.contentType,
     required this.bytesRead,
+    this.hlsValid = false,
+    this.hlsIsMaster = false,
+    this.hlsUriCount = 0,
   });
 
   final StreamKind kind;
   final int statusCode;
   final String? contentType;
   final int bytesRead;
+  final bool hlsValid;
+  final bool hlsIsMaster;
+  final int hlsUriCount;
 
-  bool get isAvailable => statusCode >= 200 && statusCode < 400;
+  bool get isAvailable =>
+      statusCode >= 200 && statusCode < 400 &&
+      (kind != StreamKind.hls || hlsValid);
 }
 
 class StreamProbe {
@@ -55,6 +64,7 @@ class StreamProbe {
         contentType: contentType,
       );
       var bytesRead = 0;
+      final body = BytesBuilder(copy: false);
 
       await for (final chunk in response.stream.timeout(timeout)) {
         if (chunk.isEmpty) continue;
@@ -64,6 +74,7 @@ class StreamProbe {
             ? chunk
             : Uint8List.sublistView(Uint8List.fromList(chunk), 0, remaining);
         bytesRead += sample.length;
+        body.add(sample);
 
         if (kind == StreamKind.unknown || kind == StreamKind.progressive) {
           final text = utf8.decode(sample, allowMalformed: true).trimLeft();
@@ -79,11 +90,27 @@ class StreamProbe {
         if (kind != StreamKind.unknown && bytesRead >= 4096) break;
       }
 
+      var hlsValid = false;
+      var hlsIsMaster = false;
+      var hlsUriCount = 0;
+      if (kind == StreamKind.hls) {
+        final playlist = const HlsPlaylistParser().parse(
+          utf8.decode(body.takeBytes(), allowMalformed: true),
+          source.url,
+        );
+        hlsValid = playlist.isValid;
+        hlsIsMaster = playlist.isMaster;
+        hlsUriCount = playlist.uris.length;
+      }
+
       return StreamProbeResult(
         kind: kind,
         statusCode: response.statusCode,
         contentType: contentType,
         bytesRead: bytesRead,
+        hlsValid: hlsValid,
+        hlsIsMaster: hlsIsMaster,
+        hlsUriCount: hlsUriCount,
       );
     } on TimeoutException {
       return null;
