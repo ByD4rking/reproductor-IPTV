@@ -76,3 +76,35 @@ void main() {
     expect(recovered.consecutiveFailures, 0);
   });
 }
+
+
+  test('paused and ended playback are never classified as stalls', () {
+    const d = StallDetector();
+    expect(
+      d.isStalled(
+        lastProgressAge: const Duration(seconds: 60),
+        buffering: true,
+        dataArriving: false,
+        playheadMoving: false,
+        userPaused: true,
+      ),
+      isFalse,
+    );
+    expect(
+      d.isStalled(
+        lastProgressAge: const Duration(seconds: 60),
+        buffering: true,
+        dataArriving: false,
+        playheadMoving: false,
+        ended: true,
+      ),
+      isFalse,
+    );
+    expect(
+      d.isHardStall(
+        const Duration(seconds: 60),
+        userPaused: true,
+      ),
+      isFalse,
+    );
+  });
