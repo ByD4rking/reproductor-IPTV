@@ -50,9 +50,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   String _status = 'Preparando';
   String? _error;
   int _sourceIndex = 0;
-  int _retryCount = 0;
-  int _sourceChanges = 0;
-  DateTime? _stablePlaybackSince;
+    DateTime? _stablePlaybackSince;
   bool _recovering = false;
   bool _autoRecovery = true;
   bool _autoSourceSwitching = true;
@@ -159,27 +157,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _error = 'Fuente ${_sourceIndex + 1}: $error';
         attempts++;
         final classified = _errorClassifier.classify(null, error);
-        final decision = _recoveryPolicy.decide(
+        final decision = await _recoveryCoordinator.recover(
           userStopped: _session.isStopped,
           retryable: classified.disposition == ErrorDisposition.retry,
-          retryCount: _retryCount,
-          sourceChanges: _sourceChanges,
+          reprepare: () async {
+            if (_session.isCurrentOperation(operation)) {
+              await _engine.stop();
+              await _engine.prepare(PlaybackRequest(source: source));
+              await _engine.play();
+            }
+          },
+          allowSourceSwitch:
+              _autoSourceSwitching && widget.entry.sources.length > 1,
+          switchSource: () async {
+            if (_autoSourceSwitching && widget.entry.sources.length > 1) {
+              _advanceSource();
+              final next = widget.entry.sources[_sourceIndex];
+              await _engine.prepare(PlaybackRequest(source: next));
+              await _engine.play();
+            }
+          },
         );
-        if (decision.level == RecoveryLevel.retry ||
-            decision.level == RecoveryLevel.reprepare) {
-          _retryCount++;
-          if (decision.delay > Duration.zero) {
-            await Future<void>.delayed(decision.delay);
-          }
-          continue;
+        if (decision == null || decision.level == RecoveryLevel.degraded) {
+          break;
         }
-        if (decision.level == RecoveryLevel.switchSource &&
-            _autoSourceSwitching &&
-            widget.entry.sources.length > 1) {
-          _retryCount = 0;
-          _sourceChanges++;
-          _advanceSource();
-          continue;
+        if (decision.level == RecoveryLevel.failed ||
+            decision.level == RecoveryLevel.stopped) {
+          break;
+        }
+        if (decision.level == RecoveryLevel.retry ||
+            decision.level == RecoveryLevel.reprepare ||
+            decision.level == RecoveryLevel.switchSource) {
+          if (_session.isCurrentOperation(operation)) continue;
+          break;
         }
         break;
       }
@@ -218,8 +228,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _stablePlaybackSince ??= progressAt;
         if (_stablePlaybackSince != null &&
             progressAt.difference(_stablePlaybackSince!) >= const Duration(seconds: 15)) {
-          _retryCount = 0;
-          _sourceChanges = 0;
           _recoveryCoordinator.resetAfterStablePlayback();
           _stablePlaybackSince = progressAt;
         }
