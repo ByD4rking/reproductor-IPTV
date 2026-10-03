@@ -27,7 +27,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final _session = PlaybackSession('player-session');
   final _stallDetector = const StallDetector();
   final _recoveryPolicy = const RecoveryPolicy();
-  final _health = SourceHealthManager();
+  final _health = SourceHealthManager(
+    repository: SourceHealthRepository(),
+  );
   final _history = HistoryRepository();
   final _settingsRepository = SettingsRepository();
   final _errorClassifier = const PlaybackErrorClassifier();
@@ -56,6 +58,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _loadSettingsAndOpen() async {
+    await _health.load();
     final settings = await _settingsRepository.load();
     if (_session.isStopped) return;
     _autoRecovery = settings.autoRecovery;
