@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reproductor_iptv/core/playback/monitor/stall_detector.dart';
 import 'package:reproductor_iptv/core/playback/source_health/circuit_breaker.dart';
+import 'package:reproductor_iptv/core/playback/source_health/source_health_manager.dart';
 import 'package:reproductor_iptv/core/domain/entities/stream_source.dart';
 import 'package:reproductor_iptv/core/playback/diagnostics/playback_error.dart';
 import 'package:reproductor_iptv/core/playback/recovery/recovery_policy.dart';
