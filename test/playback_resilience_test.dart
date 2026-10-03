@@ -13,7 +13,7 @@ import 'package:reproductor_iptv/core/playback/session/playback_session.dart';
 
 void main() {
   test('buffer monitor ignores a brief low-buffer transient', () {
-    const monitor = BufferHealthMonitor();
+    final monitor = BufferHealthMonitor();
     final start = DateTime(2026, 1, 1);
     final first = monitor.sample(
       bufferedAhead: const Duration(milliseconds: 400),
