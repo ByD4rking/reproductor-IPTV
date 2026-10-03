@@ -15,7 +15,7 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
   final _url = TextEditingController();
   final _name = TextEditingController(text: 'Mi playlist');
   final _text = TextEditingController();
-  final _service = const PlaylistImportService();
+  final _service = PlaylistImportService();
   bool _busy = false;
   String? _message;
 
