@@ -1,7 +1,10 @@
 import '../../domain/entities/stream_source.dart';
 
 class CircuitBreaker {
-  const CircuitBreaker({this.failureThreshold = 3, this.cooldown = const Duration(seconds: 30)});
+  const CircuitBreaker({
+    this.failureThreshold = 3,
+    this.cooldown = const Duration(seconds: 30),
+  });
 
   final int failureThreshold;
   final Duration cooldown;
@@ -21,16 +24,25 @@ class CircuitBreaker {
     return current.failure(now);
   }
 
-  SourceHealth onSuccess(SourceHealth current, DateTime now, Duration response) => current.success(now, response);
+  SourceHealth onSuccess(
+    SourceHealth current,
+    DateTime now,
+    Duration response,
+  ) =>
+      current.success(now, response);
 
   bool canAttempt(SourceHealth health, DateTime now) {
-    final until = health.cooldownUntil;
+    if (health.state == SourceHealthState.halfOpen) return false;
     if (health.state != SourceHealthState.cooldown) return true;
+    final until = health.cooldownUntil;
     return until == null || !now.isBefore(until);
   }
 
   SourceHealth beginProbe(SourceHealth health, DateTime now) {
-    if (!canAttempt(health, now) || health.state != SourceHealthState.cooldown) return health;
+    if (health.state != SourceHealthState.cooldown) return health;
+    final until = health.cooldownUntil;
+    if (until != null && now.isBefore(until)) return health;
+
     return SourceHealth(
       state: SourceHealthState.halfOpen,
       consecutiveFailures: health.consecutiveFailures,
@@ -40,4 +52,25 @@ class CircuitBreaker {
       cooldownUntil: null,
     );
   }
+
+  SourceHealth probeFailure(SourceHealth current, DateTime now) {
+    if (current.state != SourceHealthState.halfOpen) {
+      return onFailure(current, now);
+    }
+    return SourceHealth(
+      state: SourceHealthState.cooldown,
+      consecutiveFailures: current.consecutiveFailures + 1,
+      lastSuccess: current.lastSuccess,
+      lastFailure: now,
+      responseTime: current.responseTime,
+      cooldownUntil: now.add(cooldown),
+    );
+  }
+
+  SourceHealth probeSuccess(
+    SourceHealth current,
+    DateTime now,
+    Duration response,
+  ) =>
+      onSuccess(current, now, response);
 }
