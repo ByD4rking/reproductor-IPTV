@@ -3,7 +3,6 @@ import '../../core/domain/entities/playlist.dart';
 import '../../core/playlists/m3u/m3u_parser.dart';
 import '../../core/search/search_index.dart';
 import '../player/player_screen.dart';
-import '../playlists/playlist_screen.dart';
 import '../playlists/playlist_import_screen.dart';
 import '../../core/playlists/repository/persistent_playlist_repository.dart';
 import '../favorites/favorites_screen.dart';
@@ -232,7 +231,7 @@ class _ChannelCardState extends State<_ChannelCard> {
     clipBehavior: Clip.antiAlias,
     child: InkWell(
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => PlayerScreen(entry: entry)),
+        MaterialPageRoute(builder: (_) => PlayerScreen(entry: widget.entry)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,7 +244,7 @@ class _ChannelCardState extends State<_ChannelCard> {
           ),
           ListTile(
             dense: true,
-            title: Text(widget.widget.entry.channel.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: Text(widget.entry.channel.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
             trailing: IconButton(
               tooltip: _favorite ? 'Quitar favorito' : 'Agregar favorito',
               onPressed: _toggleFavorite,
