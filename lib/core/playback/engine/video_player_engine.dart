@@ -104,6 +104,7 @@ class VideoPlayerEngine implements PlaybackEngine {
     return match == null ? null : int.tryParse(match.group(1)!);
   }
 
+  @override
   Future<PlaybackTracks> tracks() async {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) {
