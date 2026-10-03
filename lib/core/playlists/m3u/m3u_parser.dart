@@ -152,6 +152,17 @@ class M3uParser {
     );
   }
 
+  Playlist parseLines(
+    Iterable<String> lines, {
+    String playlistId = 'imported',
+    String name = 'Imported playlist',
+  }) =>
+      parse(
+        lines.join('\n'),
+        playlistId: playlistId,
+        name: name,
+      );
+
   Map<String, String> _attributes(String line) {
     final out = <String, String>{};
     final regex = RegExp(
