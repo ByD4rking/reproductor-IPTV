@@ -74,7 +74,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         attempts < widget.entry.sources.length + 3) {
       final source = widget.entry.sources[_sourceIndex];
       final now = DateTime.now();
-      if (!_health.beginAttempt(source.id, now) || !_health.canAttempt(source.id, now)) {
+      if (!_health.beginAttempt(source.id, now)) {
         _advanceSource();
         attempts++;
         continue;
