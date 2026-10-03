@@ -1,16 +1,44 @@
 import '../../domain/entities/playlist.dart';
 
-class PlaylistValidationResult {\n  const PlaylistValidationResult({required this.valid, required this.reason});\n\n  final bool valid;\n  final String reason;\n}
+class PlaylistValidationResult {
+  const PlaylistValidationResult({
+    required this.valid,
+    required this.reason,
+  });
+
+  final bool valid;
+  final String reason;
+}
+
 class PlaylistValidator {
   const PlaylistValidator();
+
   PlaylistValidationResult validate(Playlist playlist) {
-    if (playlist.entries.isEmpty) {\n      return const PlaylistValidationResult(\n        valid: false,\n        reason: 'Playlist contains no playable entries',\n      );\n    }
+    if (playlist.entries.isEmpty) {
+      return const PlaylistValidationResult(
+        valid: false,
+        reason: 'Playlist contains no playable entries',
+      );
+    }
+
     for (final entry in playlist.entries) {
-      if (entry.sources.isEmpty) {\n        return PlaylistValidationResult(\n          valid: false,\n          reason: 'Entry ' + entry.id + ' has no source',\n        );\n      }
+      if (entry.sources.isEmpty) {
+        return PlaylistValidationResult(
+          valid: false,
+          reason: 'Entry ${entry.id} has no source',
+        );
+      }
+
       for (final source in entry.sources) {
-        if (!(source.url.isScheme('http') ||\n            source.url.isScheme('https'))) {\n          return const PlaylistValidationResult(\n            valid: false,\n            reason: 'Unsupported URL scheme',\n          );\n        }
+        if (!(source.url.isScheme('http') || source.url.isScheme('https'))) {
+          return const PlaylistValidationResult(
+            valid: false,
+            reason: 'Unsupported URL scheme',
+          );
+        }
       }
     }
+
     return const PlaylistValidationResult(valid: true, reason: 'ok');
   }
 }
