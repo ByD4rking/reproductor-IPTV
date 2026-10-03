@@ -26,6 +26,8 @@ jobs:
 
       - run: flutter --version
       - run: flutter pub get
+      - name: Check Dart formatting
+        run: dart format --output=none --set-exit-if-changed .
       - run: flutter analyze
       - run: flutter test
 
@@ -45,6 +47,11 @@ jobs:
           test -s build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
           test -s build/app/outputs/flutter-apk/app-x86_64-release.apk
           ls -lh build/app/outputs/flutter-apk/*.apk
+
+      - name: Build Web
+        run: |
+          flutter config --enable-web
+          flutter build web --release
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
