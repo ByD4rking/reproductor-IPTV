@@ -7,7 +7,7 @@ class VideoPlayerEngine implements PlaybackEngine {
   VideoPlayerController? _controller; int _prepareGeneration = 0; VideoPlayerController? get controller => _controller;
   @override Future<void> prepare(PlaybackRequest request) async {
     final previous = _controller; final generation = ++_prepareGeneration;
-    final controller = VideoPlayerController.networkUrl(request.source.url, formatHint: _formatHint(request), httpHeaders: request.effectiveHeaders, videoPlayerOptions: const VideoPlayerOptions(mixWithOthers: false));
+    final controller = VideoPlayerController.networkUrl(request.source.url, formatHint: _formatHint(request), httpHeaders: request.effectiveHeaders, videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false));
     try { await controller.initialize(); if (generation != _prepareGeneration) { await controller.dispose(); return; } if (previous != null && identical(_controller, previous)) await previous.dispose(); _controller = controller; } catch (_) { await controller.dispose(); rethrow; }
   }
   @override Future<PlaybackTracks> tracks() async {
@@ -24,8 +24,8 @@ class VideoPlayerEngine implements PlaybackEngine {
   @override Future<void> selectAudioTrack(String trackId) async { final controller = _controller; if (controller == null || !controller.value.isInitialized || !controller.isAudioTrackSupportAvailable()) return; await controller.selectAudioTrack(trackId); }
   String _videoLabel(VideoTrack track) {
     if (track.label != null && track.label!.trim().isNotEmpty) return track.label!;
-    if (track.height != null) { final bitrate = track.bitrate; final suffix = bitrate == null ? '' : ' · ' + (bitrate / 1000000).toStringAsFixed(1) + ' Mbps'; return track.height.toString() + 'p' + suffix; }
-    if (track.bitrate != null) return (track.bitrate! / 1000).round().toString() + ' kbps'; return 'Auto';
+    if (track.height != null) { final bitrate = track.bitrate; final suffix = bitrate == null ? '' : ' · ${(bitrate / 1000000).toStringAsFixed(1)} Mbps'; return '${track.height}p$suffix'; }
+    if (track.bitrate != null) return '${(track.bitrate! / 1000).round()} kbps'; return 'Auto';
   }
   VideoFormat? _formatHint(PlaybackRequest request) { final path = request.source.url.path.toLowerCase(); if (path.endsWith('.m3u8')) return VideoFormat.hls; if (path.endsWith('.mpd')) return VideoFormat.dash; return null; }
   @override Future<void> play() async => _controller?.play(); @override Future<void> pause() async => _controller?.pause(); @override Future<void> stop() async => _controller?.pause();
