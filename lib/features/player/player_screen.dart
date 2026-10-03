@@ -8,6 +8,7 @@ import '../../core/playback/engine/playback_request.dart';
 import '../../core/playback/engine/video_player_engine.dart';
 import '../../core/playback/monitor/stall_detector.dart';
 import '../../core/playback/recovery/recovery_policy.dart';
+import '../../core/playback/recovery/recovery_coordinator.dart';
 import '../../core/playback/diagnostics/playback_error.dart';
 import '../../core/playback/session/playback_session.dart';
 import '../../core/playback/source_health/source_health_manager.dart';
@@ -28,6 +29,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final _session = PlaybackSession('player-session');
   final _stallDetector = const StallDetector();
   final _recoveryPolicy = const RecoveryPolicy();
+  final _recoveryCoordinator = RecoveryCoordinator();
   final _health = SourceHealthManager(
     repository: SourceHealthRepository(),
   );
@@ -161,6 +163,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           progressAt.difference(_stablePlaybackSince!) >= const Duration(seconds: 15)) {
         _retryCount = 0;
         _sourceChanges = 0;
+        _recoveryCoordinator.resetAfterStablePlayback();
         _stablePlaybackSince = progressAt;
       }
       final source = widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex];
@@ -198,6 +201,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await _health.recordFailure(source.id, DateTime.now());
       _sourceAttemptStarted = null;
     }
+
     _recovering = true;
     _stablePlaybackSince = null;
     final operation = _session.beginOperation();
@@ -206,29 +210,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return;
     }
     if (mounted) setState(() => _status = 'Recuperando conexión...');
+
     try {
       await _engine.stop();
-      final decision = _recoveryPolicy.decide(
-        userStopped: false,
+      final decision = await _recoveryCoordinator.recover(
+        userStopped: _session.isStopped,
         retryable: true,
-        retryCount: _retryCount,
-        sourceChanges: _sourceChanges,
+        reprepare: () async {
+          if (_session.isCurrentOperation(operation)) {
+            await _openSource(automatic: true, operationId: operation);
+          }
+        },
+        switchSource: () async {
+          if (!_autoSourceSwitching || widget.entry.sources.length <= 1) {
+            return;
+          }
+          if (_session.isCurrentOperation(operation)) {
+            _advanceSource();
+            await _openSource(automatic: true, operationId: operation);
+          }
+        },
       );
-      if (decision.delay > Duration.zero) {
-        await Future<void>.delayed(decision.delay);
-      }
-      if (!_session.isCurrentOperation(operation)) return;
 
-      if (decision.level == RecoveryLevel.switchSource &&
-          _autoSourceSwitching &&
-          widget.entry.sources.length > 1) {
-        _sourceChanges++;
-        _advanceSource();
-      } else if (decision.level == RecoveryLevel.retry ||
-          decision.level == RecoveryLevel.reprepare) {
-        _retryCount++;
+      if (decision?.level == RecoveryLevel.switchSource &&
+          (!_autoSourceSwitching || widget.entry.sources.length <= 1)) {
+        if (mounted) setState(() => _status = 'Fuente bloqueada por configuración');
       }
-      await _openSource(automatic: true, operationId: operation);
     } finally {
       _recovering = false;
     }
@@ -246,6 +253,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ));
     }
     _session.stop();
+    _recoveryCoordinator.cancel();
     _healthTimer?.cancel();
     _engine.dispose();
     super.dispose();
