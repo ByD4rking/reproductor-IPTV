@@ -23,6 +23,7 @@ class VideoPlayerEngine implements PlaybackEngine {
   int _prepareGeneration = 0;
   String? _activeSourceId;
   String? _lastErrorDescription;
+  PlaybackEngineState? _lastState;
 
   VideoPlayerController? get controller => _controller;
 
@@ -42,6 +43,7 @@ class VideoPlayerEngine implements PlaybackEngine {
     final generation = ++_prepareGeneration;
     _emitState(PlaybackEngineState.preparing, generation);
     _activeSourceId = request.source.id;
+    _lastState = null;
     _lastErrorDescription = null;
 
     final formatHint = await _formatHint(request);
@@ -273,7 +275,8 @@ class VideoPlayerEngine implements PlaybackEngine {
   }
 
   void _emitState(PlaybackEngineState state, int generation) {
-    if (_states.isClosed) return;
+    if (_states.isClosed || _lastState == state) return;
+    _lastState = state;
     _states.add(PlaybackEngineStateEvent(generation: generation, state: state));
   }
 
