@@ -71,3 +71,83 @@ void main() {
   });
 
 }
+
+  test('recovery coordinator serializes recovery and preserves escalation', () async {
+    final coordinator = RecoveryCoordinator();
+    var reparses = 0;
+    var switches = 0;
+
+    final first = await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async => reparses++,
+      switchSource: () async => switches++,
+    );
+    expect(first?.level, RecoveryLevel.retry);
+    expect(reparses, 1);
+
+    final second = await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async => reparses++,
+      switchSource: () async => switches++,
+    );
+    expect(second?.level, RecoveryLevel.reprepare);
+    expect(reparses, 2);
+
+    final third = await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async => reparses++,
+      switchSource: () async => switches++,
+    );
+    expect(third?.level, RecoveryLevel.switchSource);
+    expect(switches, 1);
+  });
+
+  test('cancel invalidates a delayed recovery', () async {
+    final coordinator = RecoveryCoordinator();
+    var called = false;
+
+    final future = coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async => called = true,
+      switchSource: () async {},
+    );
+    coordinator.cancel();
+    final result = await future;
+
+    expect(result, isNull);
+    expect(called, isFalse);
+  });
+
+  test('stable playback resets recovery budget', () async {
+    final coordinator = RecoveryCoordinator();
+
+    await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async {},
+      switchSource: () async {},
+    );
+    await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async {},
+      switchSource: () async {},
+    );
+    expect(coordinator.retryCount, 2);
+
+    coordinator.resetAfterStablePlayback();
+
+    final result = await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async {},
+      switchSource: () async {},
+    );
+    expect(result?.level, RecoveryLevel.retry);
+    expect(coordinator.retryCount, 1);
+  });
+}
