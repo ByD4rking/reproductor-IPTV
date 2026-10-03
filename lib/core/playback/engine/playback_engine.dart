@@ -1,9 +1,11 @@
 import 'playback_engine_error.dart';
+import 'playback_engine_state.dart';
 import 'playback_request.dart';
 import 'playback_tracks.dart';
 
 abstract interface class PlaybackEngine {
   Stream<PlaybackEngineError> get errors;
+  Stream<PlaybackEngineStateEvent> get states;
 
   Future<void> prepare(PlaybackRequest request);
   Future<void> play();
