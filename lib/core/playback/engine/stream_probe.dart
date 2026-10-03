@@ -127,8 +127,9 @@ class StreamProbe {
   Future<bool> _checkHlsChild(
     Uri uri,
     StreamSource source,
-    Map<String, String> headers,
-  ) async {
+    Map<String, String> headers, {
+    int depth = 0,
+  }) async {
     try {
       final response = await _send(uri, source, headers);
       if (response.statusCode < 200 || response.statusCode >= 400) {
@@ -148,7 +149,21 @@ class StreamProbe {
         utf8.decode(body, allowMalformed: true),
         uri,
       );
-      return playlist.isValid;
+      if (!playlist.isValid) return false;
+      if (playlist.uris.isEmpty || depth >= 1) return true;
+
+      final children = playlist.uris.take(maxHlsRequests).toList();
+      final checks = await Future.wait(
+        children.map(
+          (child) => _checkHlsChild(
+            child,
+            source,
+            headers,
+            depth: depth + 1,
+          ),
+        ),
+      );
+      return checks.any((value) => value);
     } on TimeoutException {
       return false;
     } catch (_) {
