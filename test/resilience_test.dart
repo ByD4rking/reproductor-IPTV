@@ -31,6 +31,17 @@ void main() {
     expect(p.accepts(Uri.parse('https://user:pass@example.com')), isFalse);
     expect(p.acceptsRedirectCount(6), isFalse);
   });
+  test('recovery policy rejects invalid counters', () {
+    const policy = RecoveryPolicy();
+    final decision = policy.decide(
+      userStopped: false,
+      retryable: true,
+      retryCount: -1,
+      sourceChanges: 0,
+    );
+    expect(decision.level, RecoveryLevel.failed);
+  });
+
   test('circuit breaker permits one half-open probe', () {
     final breaker = const CircuitBreaker();
     final now = DateTime(2026, 10, 3, 12);
