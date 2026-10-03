@@ -231,7 +231,43 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = _engine.controller;
-    final ready = controller?.value.isInitialized == true;
+    if (controller == null || !controller.value.isInitialized) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(widget.entry.channel.displayName),
+          actions: [
+            IconButton(
+              tooltip: 'Recuperar',
+              onPressed: _recovering ? null : _recover,
+              icon: const Icon(Icons.refresh),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Center(child: Text(_status)),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.tv_off, size: 64),
+              const SizedBox(height: 12),
+              Text(_error ?? _status),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _recovering ? null : _recover,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Recuperar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final activeController = controller;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.entry.channel.displayName),
@@ -249,48 +285,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ),
       backgroundColor: Colors.black,
       body: Center(
-        child: ready
-            ? AspectRatio(
-                aspectRatio: controller.value.aspectRatio,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    VideoPlayer(controller),
-                    if (controller.value.isBuffering)
-                      const Center(child: CircularProgressIndicator()),
-                  ],
-                ),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.tv_off, size: 64),
-                  const SizedBox(height: 12),
-                  Text(_error ?? _status),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: _recovering ? null : _recover,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Recuperar'),
-                  ),
-                ],
-              ),
+        child: AspectRatio(
+          aspectRatio: activeController.value.aspectRatio,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              VideoPlayer(activeController),
+              if (activeController.value.isBuffering)
+                const Center(child: CircularProgressIndicator()),
+            ],
+          ),
+        ),
       ),
-      floatingActionButton: ready
-          ? FloatingActionButton(
-              onPressed: () async {
-                if (controller!.value.isPlaying) {
-                  await _engine.pause();
-                } else {
-                  await _engine.play();
-                }
-                if (mounted) setState(() {});
-              },
-              child: Icon(
-                controller!.value.isPlaying ? Icons.pause : Icons.play_arrow,
-              ),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          if (activeController.value.isPlaying) {
+            await _engine.pause();
+          } else {
+            await _engine.play();
+          }
+          if (mounted) setState(() {});
+        },
+        child: Icon(
+          activeController.value.isPlaying
+              ? Icons.pause
+              : Icons.play_arrow,
+        ),
+      ),
     );
   }
 }
