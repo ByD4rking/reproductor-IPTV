@@ -27,5 +27,8 @@ void main() {
     final safe=const SecretRedactor().url(Uri.parse('https://x.test/live?token=abc&channel=1'));
     expect(safe, isNot(contains('abc')));
     expect(safe, contains('[REDACTED]'));
+    final headers = const SecretRedactor().headers({'Authorization': 'Bearer abc', 'X-Test': 'ok'});
+    expect(headers['Authorization'], '[REDACTED]');
+    expect(headers['X-Test'], 'ok');
   });
 }
