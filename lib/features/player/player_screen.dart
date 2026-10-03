@@ -9,6 +9,8 @@ import '../../core/playback/monitor/stall_detector.dart';
 import '../../core/playback/recovery/recovery_policy.dart';
 import '../../core/playback/session/playback_session.dart';
 import '../../core/playback/source_health/source_health_manager.dart';
+import '../../core/history/history_repository.dart';
+import '../../core/domain/entities/watch_history.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({required this.entry, super.key});
@@ -23,6 +25,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final _stallDetector = const StallDetector();
   final _recoveryPolicy = const RecoveryPolicy();
   final _health = SourceHealthManager();
+  final _history = HistoryRepository();
+  late final DateTime _startedAt;
 
   Timer? _healthTimer;
   Duration _lastPosition = Duration.zero;
@@ -39,6 +43,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
+    _startedAt = DateTime.now();
     _session.start();
     _openSource(automatic: false);
     _healthTimer = Timer.periodic(const Duration(seconds: 3), (_) => _checkHealth());
@@ -185,6 +190,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
+    final duration = DateTime.now().difference(_startedAt);
+    if (duration > const Duration(seconds: 2)) {
+      _history.add(WatchHistoryEntry(
+        channelId: widget.entry.channel.id,
+        startedAt: _startedAt,
+        duration: duration,
+        sourceId: widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex].id,
+      ));
+    }
     _session.stop();
     _healthTimer?.cancel();
     _engine.dispose();
