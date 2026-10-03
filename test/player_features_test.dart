@@ -45,7 +45,7 @@ void main() {
   });
 
   test('search prioritizes exact and prefix channel matches', () {
-    const index = SearchIndex();
+    final index = SearchIndex();
     index.addAll(const [
       Channel(id: '1', displayName: 'CNN Chile', tvgId: 'cnn.cl'),
       Channel(id: '2', displayName: 'Chilevisión', tvgId: 'chv.cl'),
