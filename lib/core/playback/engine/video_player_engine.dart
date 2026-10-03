@@ -209,7 +209,12 @@ class VideoPlayerEngine implements PlaybackEngine {
   Future<void> pause() async => _controller?.pause();
 
   @override
-  Future<void> stop() async => _controller?.pause();
+  Future<void> stop() async {
+    _prepareGeneration++;
+    _activeSourceId = null;
+    _lastErrorDescription = null;
+    await _controller?.pause();
+  }
 
   @override
   Future<void> dispose() async {
