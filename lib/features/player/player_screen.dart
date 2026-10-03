@@ -418,27 +418,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
           return KeyEventResult.ignored;
         },
         child: Center(
-        child: AspectRatio(
+          child: AspectRatio(
           aspectRatio: activeController.value.aspectRatio,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
               VideoPlayer(activeController),
-              if (activeController.value.isBuffering)
-                const Center(child: CircularProgressIndicator()),
-            ],
+                if (activeController.value.isBuffering)
+                  const Center(child: CircularProgressIndicator()),
+              ],
+            ),
           ),
         ),
       ),
       floatingActionButton: TvFocusable(
-        onActivate: () async {
-          if (activeController.value.isPlaying) {
-            await _engine.pause();
-          } else {
-            await _engine.play();
-          }
-          if (mounted) setState(() {});
-        },
+        onActivate: () => unawaited(_togglePlayback()),
         child: FloatingActionButton(
           onPressed: null,
           child: Icon(
