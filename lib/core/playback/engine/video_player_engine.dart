@@ -99,9 +99,8 @@ class VideoPlayerEngine implements PlaybackEngine {
     );
   }
 
-  @override
   int? _statusCodeFrom(String message) {
-    final match = RegExp(r'\\b(4\\d{2}|5\\d{2})\\b').firstMatch(message);
+    final match = RegExp(r'\b(4\d{2}|5\d{2})\b').firstMatch(message);
     return match == null ? null : int.tryParse(match.group(1)!);
   }
 
