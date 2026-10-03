@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:video_player/video_player.dart';
 
 import 'playback_engine.dart';
-import 'playback_engine_state.dart';
 import 'playback_engine_error.dart';
+import 'playback_engine_state.dart';
 import 'playback_request.dart';
 import 'playback_tracks.dart';
 import 'stream_kind.dart';
@@ -41,9 +41,9 @@ class VideoPlayerEngine implements PlaybackEngine {
     previous?.removeListener(_handleControllerValue);
 
     final generation = ++_prepareGeneration;
+    _lastState = null;
     _emitState(PlaybackEngineState.preparing, generation);
     _activeSourceId = request.source.id;
-    _lastState = null;
     _lastErrorDescription = null;
 
     final formatHint = await _formatHint(request);
@@ -89,6 +89,7 @@ class VideoPlayerEngine implements PlaybackEngine {
     }
     if (!controller.value.hasError) return;
 
+    _emitState(PlaybackEngineState.failed, _prepareGeneration);
     final description = controller.value.errorDescription;
     if (description == null || description.trim().isEmpty) return;
     if (description == _lastErrorDescription) return;
@@ -269,7 +270,7 @@ class VideoPlayerEngine implements PlaybackEngine {
     _controller = null;
     controller?.removeListener(_handleControllerValue);
     controller?.dispose();
-    await _probe.dispose();
+    _probe.dispose();
     await _errors.close();
     await _states.close();
   }
