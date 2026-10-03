@@ -15,7 +15,7 @@ class PlaylistScreen extends StatelessWidget {
           child: ListTile(
             leading: const CircleAvatar(child: Icon(Icons.playlist_play)),
             title: Text(playlist.name),
-            subtitle: Text(playlist.entries.length.toString() + ' canales'),
+            subtitle: Text('${playlist.entries.length} canales'),
             trailing: const Icon(Icons.check_circle, color: Colors.green),
           ),
         ),
@@ -25,7 +25,7 @@ class PlaylistScreen extends StatelessWidget {
         ...playlist.entries.map((entry) => ListTile(
           leading: const Icon(Icons.live_tv),
           title: Text(entry.channel.displayName),
-          subtitle: Text((entry.category ?? 'Sin categoría') + ' · ' + entry.sources.length.toString() + ' fuente(s)'),
+          subtitle: Text('${entry.category ?? 'Sin categoría'} · ${entry.sources.length} fuente(s)'),
         )),
       ],
     ),
