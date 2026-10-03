@@ -40,9 +40,10 @@ class _HomeScreenState extends State<HomeScreen> {
       await _repository.upsert(playlist);
     }
     if (!mounted) return;
+    final loadedPlaylist = playlist;
     setState(() {
-      _playlist = playlist;
-      _searchIndex = SearchIndex()..replace(playlist.entries.map((e) => e.channel));
+      _playlist = loadedPlaylist;
+      _searchIndex = SearchIndex()..replace(loadedPlaylist.entries.map((e) => e.channel));
       _loading = false;
     });
   }
