@@ -1,7 +1,7 @@
 name: reproductor_iptv
-description: Cross-platform IPTV player core with resilient playback, playlists and EPG.
+description: Cross-platform IPTV player with resilient playback, playlists, EPG and diagnostics.
 publish_to: "none"
-version: 0.1.0+1
+version: 0.2.0+1
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   crypto: ^3.0.7
+  video_player: ^2.14.1
 
 dev_dependencies:
   flutter_test:
