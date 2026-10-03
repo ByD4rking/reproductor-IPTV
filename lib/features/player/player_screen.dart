@@ -45,6 +45,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _sourceIndex = 0;
   int _retryCount = 0;
   int _sourceChanges = 0;
+  DateTime? _stablePlaybackSince;
   bool _recovering = false;
   bool _autoRecovery = true;
   bool _autoSourceSwitching = true;
@@ -92,7 +93,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         await _engine.prepare(PlaybackRequest(source: source));
         if (!_session.isCurrentOperation(operation) || _session.isStopped) return;
         await _engine.play();
-        _retryCount = 0;
         _lastPosition = _engine.position;
         _lastBufferedAhead = _engine.buffered;
         _lastProgress = DateTime.now();
@@ -154,7 +154,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (position > _lastPosition) {
       _lastPosition = position;
-      _lastProgress = DateTime.now();
+      final progressAt = DateTime.now();
+      _lastProgress = progressAt;
+      _stablePlaybackSince ??= progressAt;
+      if (_stablePlaybackSince != null &&
+          progressAt.difference(_stablePlaybackSince!) >= const Duration(seconds: 15)) {
+        _retryCount = 0;
+        _sourceChanges = 0;
+        _stablePlaybackSince = progressAt;
+      }
       final source = widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex];
       final started = _sourceAttemptStarted;
       if (source != null && started != null) {
@@ -191,6 +199,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _sourceAttemptStarted = null;
     }
     _recovering = true;
+    _stablePlaybackSince = null;
     final operation = _session.beginOperation();
     if (operation < 0) {
       _recovering = false;
@@ -214,9 +223,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           _autoSourceSwitching &&
           widget.entry.sources.length > 1) {
         _sourceChanges++;
-        _retryCount = 0;
         _advanceSource();
-      } else {
+      } else if (decision.level == RecoveryLevel.retry ||
+          decision.level == RecoveryLevel.reprepare) {
         _retryCount++;
       }
       await _openSource(automatic: true, operationId: operation);
