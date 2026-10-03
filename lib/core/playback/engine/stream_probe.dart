@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../../domain/entities/stream_source.dart';
+import '../../network/url_policy.dart';
 import 'hls_playlist_parser.dart';
 import 'stream_kind.dart';
 
@@ -51,11 +52,13 @@ class StreamProbe {
   final Duration timeout;
   final int maxBytes;
   final int maxHlsRequests;
+  static const _urlPolicy = UrlPolicy();
 
   Future<StreamProbeResult?> probe(
     StreamSource source, {
     Map<String, String> headers = const <String, String>{},
   }) async {
+    if (!_urlPolicy.accepts(source.url)) return null;
     try {
       final response = await _send(source.url, source, headers);
       final contentType = response.headers['content-type'];
@@ -130,6 +133,7 @@ class StreamProbe {
     Map<String, String> headers, {
     int depth = 0,
   }) async {
+    if (!_urlPolicy.accepts(uri)) return false;
     try {
       final response = await _send(uri, source, headers);
       if (response.statusCode < 200 || response.statusCode >= 400) {
