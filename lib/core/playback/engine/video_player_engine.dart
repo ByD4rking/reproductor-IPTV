@@ -15,12 +15,13 @@ class VideoPlayerEngine implements PlaybackEngine {
       httpHeaders: request.effectiveHeaders,
       videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
     );
-    _controller = controller;
-    await previous?.dispose();
     try {
       await controller.initialize();
+      if (previous != null && identical(_controller, previous)) {
+        await previous.dispose();
+      }
+      _controller = controller;
     } catch (_) {
-      if (identical(_controller, controller)) _controller = null;
       await controller.dispose();
       rethrow;
     }
