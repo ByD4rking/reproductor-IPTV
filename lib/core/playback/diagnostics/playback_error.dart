@@ -52,6 +52,9 @@ class PlaybackErrorClassifier {
         disposition: ErrorDisposition.retry,
       );
     }
+    if (error is String) {
+      return classifyMessage(error);
+    }
     if (error is TimeoutException) {
       return const PlaybackError(
         kind: PlaybackErrorKind.timeout,
@@ -77,6 +80,61 @@ class PlaybackErrorClassifier {
       return const PlaybackError(
         kind: PlaybackErrorKind.decoder,
         message: 'Playback state/decoder failure',
+        disposition: ErrorDisposition.retry,
+      );
+    }
+    return const PlaybackError(
+      kind: PlaybackErrorKind.unknown,
+      message: 'Unknown playback error',
+      disposition: ErrorDisposition.retry,
+    );
+  }
+
+  PlaybackError classifyMessage(String message) {
+    final value = message.toLowerCase();
+    if (value.contains('401') || value.contains('403') ||
+        value.contains('unauthorized') || value.contains('forbidden')) {
+      return const PlaybackError(
+        kind: PlaybackErrorKind.unauthorized,
+        message: 'Authentication required',
+        disposition: ErrorDisposition.switchSource,
+      );
+    }
+    if (value.contains('404') || value.contains('410') ||
+        value.contains('not found')) {
+      return const PlaybackError(
+        kind: PlaybackErrorKind.notFound,
+        message: 'Stream not found',
+        disposition: ErrorDisposition.switchSource,
+      );
+    }
+    if (value.contains('timeout') || value.contains('timed out')) {
+      return const PlaybackError(
+        kind: PlaybackErrorKind.timeout,
+        message: 'Network timeout',
+        disposition: ErrorDisposition.retry,
+      );
+    }
+    if (value.contains('behind live window') ||
+        value.contains('live window')) {
+      return const PlaybackError(
+        kind: PlaybackErrorKind.stalled,
+        message: 'Playback fell behind the live window',
+        disposition: ErrorDisposition.retry,
+      );
+    }
+    if (value.contains('format') || value.contains('manifest') ||
+        value.contains('m3u8') || value.contains('mpd')) {
+      return const PlaybackError(
+        kind: PlaybackErrorKind.malformedStream,
+        message: 'Malformed media or manifest',
+        disposition: ErrorDisposition.switchSource,
+      );
+    }
+    if (value.contains('decoder') || value.contains('codec')) {
+      return const PlaybackError(
+        kind: PlaybackErrorKind.decoder,
+        message: 'Decoder failure',
         disposition: ErrorDisposition.retry,
       );
     }
