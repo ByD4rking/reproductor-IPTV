@@ -66,7 +66,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         continue;
       }
 
-      if (mounted) setState(() => _status = 'Conectando fuente ${{_sourceIndex + 1}');
+      if (mounted) setState(() => _status = 'Conectando fuente ${_sourceIndex + 1}');
       final started = DateTime.now();
       try {
         await _engine.prepare(PlaybackRequest(source: source));
@@ -85,7 +85,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         return;
       } catch (error) {
         _health.recordFailure(source.id, DateTime.now());
-        _error = 'Fuente ${{_sourceIndex + 1}: ${{error}';
+        _error = 'Fuente ${_sourceIndex + 1}: $error';
         attempts++;
         final decision = _recoveryPolicy.decide(
           userStopped: _session.isStopped,
