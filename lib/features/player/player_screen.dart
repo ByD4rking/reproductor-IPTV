@@ -11,6 +11,7 @@ import '../../core/playback/engine/playback_engine_state.dart';
 import '../../core/playback/diagnostics/playback_error.dart';
 import '../../core/playback/engine/video_player_engine.dart';
 import '../../core/playback/monitor/stall_detector.dart';
+import '../../core/playback/monitor/buffer_health_monitor.dart';
 import '../../core/playback/recovery/recovery_coordinator.dart';
 import '../../core/playback/recovery/recovery_policy.dart';
 import '../../core/playback/session/playback_session.dart';
@@ -32,6 +33,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final _engine = VideoPlayerEngine();
   final _session = PlaybackSession('player-session');
   final _stallDetector = const StallDetector();
+  final _bufferHealthMonitor = const BufferHealthMonitor();
   final _recoveryCoordinator = RecoveryCoordinator();
   final _health = SourceHealthManager(
     repository: SourceHealthRepository(),
@@ -118,7 +120,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     await _openSource(automatic: false);
   }
 
-  Future<void> _openSource({required bool automatic, int? operationId}) async {
+  Future<void> _openSource({
+    required bool automatic,
+    int? operationId,
+    bool allowNestedRecovery = true,
+  }) async {
     if (_session.isStopped || widget.entry.sources.isEmpty) return;
     final operation = operationId ?? _session.beginOperation();
     if (operation < 0) return;
@@ -157,6 +163,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _error = 'Fuente ${_sourceIndex + 1}: $error';
         attempts++;
         final classified = _errorClassifier.classify(null, error);
+        if (!allowNestedRecovery) {
+          break;
+        }
+
         final decision = await _recoveryCoordinator.recover(
           userStopped: _session.isStopped,
           retryable: classified.disposition == ErrorDisposition.retry,
@@ -217,6 +227,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _lastPosition = Duration.zero;
     _lastBufferedAhead = Duration.zero;
     _lastProgress = DateTime.now();
+    _bufferHealthMonitor.reset();
     _stablePlaybackSince = null;
     _sourceAttemptStarted = null;
   }
@@ -232,6 +243,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final position = _engine.position;
       final playheadMoving = position > _lastPosition;
       final progressAt = DateTime.now();
+
+      final bufferedAhead = _engine.buffered;
+      final dataArriving = bufferedAhead > _lastBufferedAhead;
+      _lastBufferedAhead = bufferedAhead;
+      final buffering = controller.value.isBuffering;
+      final ended = controller.value.isCompleted;
+
+      final buffer = _bufferHealthMonitor.sample(
+        bufferedAhead: bufferedAhead,
+        playheadMoving: playheadMoving,
+        buffering: buffering,
+        now: progressAt,
+      );
 
       if (playheadMoving) {
         _lastPosition = position;
@@ -254,18 +278,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           );
           _sourceAttemptStarted = null;
         }
-        if (mounted && _status != 'Reproduciendo') {
+        if (mounted && _status != 'Reproduciendo' && !buffer.degraded) {
           setState(() => _status = 'Reproduciendo');
         }
-        return;
       }
 
       final age = progressAt.difference(_lastProgress);
-      final bufferedAhead = _engine.buffered;
-      final dataArriving = bufferedAhead > _lastBufferedAhead;
-      _lastBufferedAhead = bufferedAhead;
-      final buffering = controller.value.isBuffering;
-      final ended = controller.value.isCompleted;
       if (ended) {
         if (mounted && _status != 'Finalizado') {
           setState(() => _status = 'Finalizado');
@@ -281,8 +299,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ended: ended,
       );
 
-      if (mounted && buffering && !stalled) setState(() => _status = 'Buffering');
-      if (stalled && _autoRecovery) {
+      if (mounted && buffering && !stalled) {
+        setState(() => _status = buffer.degraded
+            ? 'Buffer bajo · recuperando...'
+            : 'Buffering');
+      }
+      if ((stalled || buffer.severe) && _autoRecovery) {
         await _recover(markFailure: true);
       }
     } finally {
@@ -327,7 +349,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         retryable: retryable,
         reprepare: () async {
           if (_session.isCurrentOperation(operation)) {
-            await _openSource(automatic: true, operationId: operation);
+            await _openSource(automatic: true, operationId: operation, allowNestedRecovery: false);
           }
         },
         allowSourceSwitch: _autoSourceSwitching && widget.entry.sources.length > 1,
@@ -337,7 +359,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           }
           if (_session.isCurrentOperation(operation)) {
             _advanceSource();
-            await _openSource(automatic: true, operationId: operation);
+            await _openSource(automatic: true, operationId: operation, allowNestedRecovery: false);
           }
         },
       );
