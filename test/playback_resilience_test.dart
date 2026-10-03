@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reproductor_iptv/core/playback/diagnostics/playback_error.dart';
 import 'package:reproductor_iptv/core/playback/engine/stream_kind.dart';
+import 'package:reproductor_iptv/core/playback/engine/playback_engine_state.dart';
 import 'package:reproductor_iptv/core/playback/recovery/backoff.dart';
 import 'package:reproductor_iptv/core/playback/recovery/recovery_coordinator.dart';
 import 'package:reproductor_iptv/core/playback/recovery/recovery_policy.dart';
@@ -13,6 +14,15 @@ void main() {
     const detector = StreamKindDetector();
     expect(detector.detect(Uri.parse('https://example.test/live?id=1'), contentType: 'application/vnd.apple.mpegurl'), StreamKind.hls);
     expect(detector.detect(Uri.parse('https://example.test/channel'), contentType: 'application/dash+xml'), StreamKind.dash);
+  });
+
+  test('playback engine state event preserves generation and state', () {
+    const event = PlaybackEngineStateEvent(
+      generation: 7,
+      state: PlaybackEngineState.buffering,
+    );
+    expect(event.generation, 7);
+    expect(event.state, PlaybackEngineState.buffering);
   });
 
   test('backoff is bounded and deterministic with injected jitter value', () {
