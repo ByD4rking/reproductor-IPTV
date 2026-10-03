@@ -32,10 +32,10 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
-      # Generate the Android host project from the pinned Flutter toolchain.
-      # This keeps the Dart core platform-neutral while CI verifies a real APK.
-      - name: Generate Android platform
-        run: flutter create --platforms=android --project-name reproductor_iptv .
+      # Generate native hosts needed by CI from the pinned Flutter toolchain.
+      # The Dart core remains platform-neutral and can be packaged for each target.
+      - name: Generate Android and Web platforms
+        run: flutter create --platforms=android,web --project-name reproductor_iptv .
 
       - name: Build Android APKs
         run: flutter build apk --release --split-per-abi
@@ -50,14 +50,28 @@ jobs:
           ls -lh build/app/outputs/flutter-apk/*.apk
 
       - name: Build Web
+        run: flutter build web --release
+
+      - name: Verify Web artifact
+        shell: bash
         run: |
-          flutter config --enable-web
-          flutter build web --release
+          set -euo pipefail
+          test -s build/web/index.html
+          test -s build/web/flutter.js
+          ls -lh build/web/index.html
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
           name: reproductor-iptv-android-apks
           path: build/app/outputs/flutter-apk/*-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reproductor-iptv-web
+          path: build/web
           if-no-files-found: error
           retention-days: 14
