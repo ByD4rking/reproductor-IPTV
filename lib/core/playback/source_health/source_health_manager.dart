@@ -9,6 +9,13 @@ class SourceHealthManager {
   SourceHealth healthOf(String sourceId) => _health[sourceId] ?? SourceHealth.initial();
   bool canAttempt(String sourceId, DateTime now) => _breaker.canAttempt(healthOf(sourceId), now);
 
+  bool beginAttempt(String sourceId, DateTime now) {
+    final current = healthOf(sourceId);
+    final next = _breaker.beginProbe(current, now);
+    _health[sourceId] = next;
+    return _breaker.canAttempt(next, now) || next.state == SourceHealthState.halfOpen;
+  }
+
   void recordSuccess(String sourceId, DateTime now, Duration response) {
     _health[sourceId] = _breaker.onSuccess(healthOf(sourceId), now, response);
   }
