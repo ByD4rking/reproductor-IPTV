@@ -221,6 +221,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             await _openSource(automatic: true, operationId: operation);
           }
         },
+        allowSourceSwitch: _autoSourceSwitching && widget.entry.sources.length > 1,
         switchSource: () async {
           if (!_autoSourceSwitching || widget.entry.sources.length <= 1) {
             return;
@@ -232,9 +233,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
         },
       );
 
-      if (decision?.level == RecoveryLevel.switchSource &&
-          (!_autoSourceSwitching || widget.entry.sources.length <= 1)) {
-        if (mounted) setState(() => _status = 'Fuente bloqueada por configuración');
+      if (decision?.level == RecoveryLevel.degraded && mounted) {
+        setState(() => _status = 'Reproducción degradada');
       }
     } finally {
       _recovering = false;
