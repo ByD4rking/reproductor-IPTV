@@ -150,7 +150,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
         return;
       } catch (error) {
-        _health.recordFailure(source.id, DateTime.now());
+        await _health.recordFailure(source.id, DateTime.now());
         _error = 'Fuente ${_sourceIndex + 1}: $error';
         attempts++;
         final classified = _errorClassifier.classify(null, error);
