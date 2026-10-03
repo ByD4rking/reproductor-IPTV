@@ -66,6 +66,5 @@ void main() {
     expect(window.isValid, isTrue);
     expect(window.contains(DateTime.utc(2026, 10, 3, 12)), isTrue);
     expect(window.contains(DateTime.utc(2026, 10, 3, 13)), isFalse);
-  );
   });
 }
