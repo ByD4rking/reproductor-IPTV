@@ -55,6 +55,7 @@ class VideoPlayerEngine implements PlaybackEngine {
   Duration get buffered {
     final values = _controller?.value.buffered ?? const <DurationRange>[];
     if (values.isEmpty) return Duration.zero;
-    return values.last.end - position;
+    final ahead = values.last.end - position;
+    return ahead.isNegative ? Duration.zero : ahead;
   }
 }
