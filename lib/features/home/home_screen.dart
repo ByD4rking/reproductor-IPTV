@@ -4,6 +4,8 @@ import '../../core/playlists/m3u/m3u_parser.dart';
 import '../../core/search/search_index.dart';
 import '../player/player_screen.dart';
 import '../playlists/playlist_screen.dart';
+import '../playlists/playlist_import_screen.dart';
+import '../../core/playlists/repository/persistent_playlist_repository.dart';
 import '../favorites/favorites_screen.dart';
 import '../history/history_screen.dart';
 import '../epg/epg_screen.dart';
@@ -16,37 +18,56 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late final Playlist _playlist;
-  late final SearchIndex _searchIndex;
+  final _repository = PersistentPlaylistRepository();
+  Playlist? _playlist;
+  SearchIndex? _searchIndex;
+  bool _loading = true;
   String _query = '';
   String _category = 'Todos';
 
   @override
   void initState() {
     super.initState();
-    _playlist = const M3uParser().parse(
-      _demoM3u(), playlistId: 'demo', name: 'Demo IPTV',
-    );
-    _searchIndex = SearchIndex()..replace(_playlist.entries.map((e) => e.channel));
+    _loadLibrary();
+  }
+
+  Future<void> _loadLibrary() async {
+    await _repository.load();
+    var playlist = _repository.playlists.isEmpty ? null : _repository.playlists.first;
+    if (playlist == null) {
+      playlist = const M3uParser().parse(_demoM3u(), playlistId: 'demo', name: 'Demo IPTV');
+      await _repository.upsert(playlist);
+    }
+    if (!mounted) return;
+    setState(() {
+      _playlist = playlist;
+      _searchIndex = SearchIndex()..replace(playlist!.entries.map((e) => e.channel));
+      _loading = false;
+    });
   }
 
   List<String> get _categories {
-    final values = _playlist.entries.map((e) => e.category)
+    final playlist = _playlist!;
+    final values = playlist.entries.map((e) => e.category)
         .whereType<String>().where((v) => v.isNotEmpty).toSet().toList()..sort();
     return ['Todos', ...values];
   }
 
   List<PlaylistEntry> get _visibleEntries {
+    final playlist = _playlist!;
+    final index = _searchIndex!;
     final candidates = _query.trim().isEmpty
-        ? _playlist.entries
-        : _searchIndex.search(_query).map((channel) => _playlist.entries.firstWhere(
-              (entry) => entry.channel.id == channel.id,
-            ));
+        ? playlist.entries
+        : index.search(_query).map((channel) => playlist.entries.where((entry) => entry.channel.id == channel.id).firstOrNull).whereType<PlaylistEntry>();
     return candidates.where((e) => _category == 'Todos' || e.category == _category).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading || _playlist == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    final playlist = _playlist!;
     final entries = _visibleEntries;
     return Scaffold(
       appBar: AppBar(
@@ -54,9 +75,10 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             tooltip: 'Playlists',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => PlaylistScreen(playlist: _playlist)),
-            ),
+            onPressed: () async {
+              await Navigator.of(context).push(MaterialPageRoute(builder: (_) => PlaylistImportScreen(repository: _repository)));
+              await _loadLibrary();
+            },
             icon: const Icon(Icons.playlist_play),
           ),
         ],
@@ -103,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           const Text('TV en directo', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 6),
-                          Text(_playlist.entries.length.toString() + ' canales · ' + (_categories.length - 1).toString() + ' categorías'),
+                          Text(playlist.entries.length.toString() + ' canales · ' + (_categories.length - 1).toString() + ' categorías'),
                           const SizedBox(height: 16),
                           TextField(
                             onChanged: (value) => setState(() => _query = value),
