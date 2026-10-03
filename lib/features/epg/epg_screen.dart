@@ -38,9 +38,9 @@ class _EpgScreenState extends State<EpgScreen> {
     try {
       final count = await _repository.importXmltv(_xml.text);
       await _load();
-      if (mounted) setState(() => _message = 'EPG importado: ' + count.toString() + ' programas');
+      if (mounted) setState(() => _message = 'EPG importado: $count programas');
     } catch (error) {
-      if (mounted) setState(() => _message = 'Error: ' + error.toString());
+      if (mounted) setState(() => _message = 'Error: $error');
     } finally {
       if (mounted) setState(() => _importing = false);
     }
@@ -83,11 +83,11 @@ class _EpgScreenState extends State<EpgScreen> {
           const SizedBox(height: 20),
           Text(_programmes.isEmpty
               ? 'No hay EPG cargado.'
-              : _programmes.length.toString() + ' programas almacenados.'),
+              : '${_programmes.length} programas almacenados.'),
           ..._programmes.take(30).map((programme) => ListTile(
             leading: const Icon(Icons.event),
             title: Text(programme.title),
-            subtitle: Text(programme.channelId + ' · ' + programme.start.toLocal().toString()),
+            subtitle: Text('${programme.channelId} · ${programme.start.toLocal()}'),
           )),
         ],
       ),
