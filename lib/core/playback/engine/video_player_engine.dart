@@ -5,11 +5,13 @@ import 'playback_request.dart';
 
 class VideoPlayerEngine implements PlaybackEngine {
   VideoPlayerController? _controller;
+  int _prepareGeneration = 0;
   VideoPlayerController? get controller => _controller;
 
   @override
   Future<void> prepare(PlaybackRequest request) async {
     final previous = _controller;
+    final generation = ++_prepareGeneration;
     final controller = VideoPlayerController.networkUrl(
       request.source.url,
       httpHeaders: request.effectiveHeaders,
@@ -17,6 +19,10 @@ class VideoPlayerEngine implements PlaybackEngine {
     );
     try {
       await controller.initialize();
+      if (generation != _prepareGeneration) {
+        await controller.dispose();
+        return;
+      }
       if (previous != null && identical(_controller, previous)) {
         await previous.dispose();
       }
@@ -36,6 +42,7 @@ class VideoPlayerEngine implements PlaybackEngine {
 
   @override
   Future<void> dispose() async {
+    _prepareGeneration++;
     final controller = _controller;
     _controller = null;
     await controller?.dispose();
