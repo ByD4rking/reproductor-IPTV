@@ -11,6 +11,7 @@ import '../epg/epg_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../core/favorites/favorite_repository.dart';
 import '../../core/domain/entities/favorite.dart';
+import '../../core/platform/tv_focus.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -178,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     childAspectRatio: 1.45,
                   ),
                   itemCount: entries.length,
-                  itemBuilder: (_, index) => _ChannelCard(entry: entries[index]),
+                  itemBuilder: (_, index) => _ChannelCard(entry: entries[index], autofocus: index == 0),
                 ),
               ),
             ],
@@ -198,8 +199,9 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _ChannelCard extends StatefulWidget {
-  const _ChannelCard({required this.entry});
+  const _ChannelCard({required this.entry, this.autofocus = false});
   final PlaylistEntry entry;
+  final bool autofocus;
 
   @override
   State<_ChannelCard> createState() => _ChannelCardState();
@@ -232,32 +234,40 @@ class _ChannelCardState extends State<_ChannelCard> {
     if (mounted) setState(() => _favorite = !_favorite);
   }
 
+  void _openPlayer() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => PlayerScreen(entry: widget.entry)),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => Card(
-    clipBehavior: Clip.antiAlias,
-    child: InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => PlayerScreen(entry: widget.entry)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Expanded(
-            child: ColoredBox(
-              color: Color(0xFF151B24),
-              child: Center(child: Icon(Icons.live_tv, size: 48)),
+  Widget build(BuildContext context) => TvFocusable(
+    autofocus: widget.autofocus,
+    onActivate: _openPlayer,
+    child: Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _openPlayer,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Expanded(
+              child: ColoredBox(
+                color: Color(0xFF151B24),
+                child: Center(child: Icon(Icons.live_tv, size: 48)),
+              ),
             ),
-          ),
-          ListTile(
-            dense: true,
-            title: Text(widget.entry.channel.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
-            trailing: IconButton(
-              tooltip: _favorite ? 'Quitar favorito' : 'Agregar favorito',
-              onPressed: _toggleFavorite,
-              icon: Icon(_favorite ? Icons.star : Icons.star_outline),
+            ListTile(
+              dense: true,
+              title: Text(widget.entry.channel.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+              trailing: IconButton(
+                tooltip: _favorite ? 'Quitar favorito' : 'Agregar favorito',
+                onPressed: _toggleFavorite,
+                icon: Icon(_favorite ? Icons.star : Icons.star_outline),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
