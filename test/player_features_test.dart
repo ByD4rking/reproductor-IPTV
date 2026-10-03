@@ -9,13 +9,13 @@ import 'package:reproductor_iptv/core/search/search_index.dart';
 
 void main() {
   test('playback request merges source headers, cookies and user agent', () {
-    const source = StreamSource(
+    final source = StreamSource(
       id: 's1',
       url: Uri.parse('https://example.com/live'),
       userAgent: 'source-agent',
       headers: {'X-Source': 'yes'},
     );
-    const request = PlaybackRequest(
+    final request = PlaybackRequest(
       source: source,
       userAgent: 'player-agent',
       headers: {'X-Player': 'yes'},
