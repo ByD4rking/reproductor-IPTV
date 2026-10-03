@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reproductor_iptv/core/playback/diagnostics/playback_error.dart';
+import 'package:reproductor_iptv/core/playback/monitor/stall_detector.dart';
 import 'package:reproductor_iptv/core/playback/engine/stream_kind.dart';
 import 'package:reproductor_iptv/core/playback/engine/playback_engine_state.dart';
 import 'package:reproductor_iptv/core/playback/recovery/backoff.dart';
@@ -10,6 +11,28 @@ import 'package:reproductor_iptv/core/playback/recovery/recovery_policy.dart';
 import 'package:reproductor_iptv/core/playback/session/playback_session.dart';
 
 void main() {
+  test('stall detector ignores healthy incoming data before hard stall', () {
+    const detector = StallDetector();
+    expect(
+      detector.isStalled(
+        lastProgressAge: const Duration(seconds: 10),
+        buffering: true,
+        dataArriving: true,
+        playheadMoving: false,
+      ),
+      isFalse,
+    );
+    expect(
+      detector.isStalled(
+        lastProgressAge: const Duration(seconds: 16),
+        buffering: true,
+        dataArriving: true,
+        playheadMoving: false,
+      ),
+      isTrue,
+    );
+  });
+
   test('stream kind uses MIME when URL has no useful extension', () {
     const detector = StreamKindDetector();
     expect(detector.detect(Uri.parse('https://example.test/live?id=1'), contentType: 'application/vnd.apple.mpegurl'), StreamKind.hls);
