@@ -10,6 +10,8 @@ import '../favorites/favorites_screen.dart';
 import '../history/history_screen.dart';
 import '../epg/epg_screen.dart';
 import '../settings/settings_screen.dart';
+import '../../core/favorites/favorite_repository.dart';
+import '../../core/domain/entities/favorite.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -190,9 +192,40 @@ class _HomeScreenState extends State<HomeScreen> {
       'https://storage.googleapis.com/coverr-main/mp4/Mt_Baker.mp4\n';
 }
 
-class _ChannelCard extends StatelessWidget {
+class _ChannelCard extends StatefulWidget {
   const _ChannelCard({required this.entry});
   final PlaylistEntry entry;
+
+  @override
+  State<_ChannelCard> createState() => _ChannelCardState();
+}
+
+class _ChannelCardState extends State<_ChannelCard> {
+  final _favorites = FavoriteRepository();
+  bool _favorite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavorite();
+  }
+
+  Future<void> _loadFavorite() async {
+    final values = await _favorites.load();
+    if (mounted) setState(() => _favorite = values.any((f) => f.channelId == widget.entry.channel.id));
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_favorite) {
+      await _favorites.remove(widget.entry.channel.id);
+    } else {
+      await _favorites.setFavorite(Favorite(
+        channelId: widget.entry.channel.id,
+        preferredSourceId: widget.entry.sources.isEmpty ? null : widget.entry.sources.first.id,
+      ));
+    }
+    if (mounted) setState(() => _favorite = !_favorite);
+  }
 
   @override
   Widget build(BuildContext context) => Card(
@@ -210,9 +243,14 @@ class _ChannelCard extends StatelessWidget {
               child: Center(child: Icon(Icons.live_tv, size: 48)),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-            child: Text(entry.channel.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ListTile(
+            dense: true,
+            title: Text(widget.widget.entry.channel.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+            trailing: IconButton(
+              tooltip: _favorite ? 'Quitar favorito' : 'Agregar favorito',
+              onPressed: _toggleFavorite,
+              icon: Icon(_favorite ? Icons.star : Icons.star_outline),
+            ),
           ),
         ],
       ),
