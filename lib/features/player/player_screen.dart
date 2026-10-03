@@ -181,10 +181,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
               _autoSourceSwitching && widget.entry.sources.length > 1,
           switchSource: () async {
             if (_autoSourceSwitching && widget.entry.sources.length > 1) {
+              // Only select the next source here. The main loop performs the
+              // tracked beginAttempt/prepare/play sequence so source health
+              // and circuit-breaker state cannot be bypassed.
               _advanceSource();
-              final next = widget.entry.sources[_sourceIndex];
-              await _engine.prepare(PlaybackRequest(source: next));
-              await _engine.play();
             }
           },
         );
