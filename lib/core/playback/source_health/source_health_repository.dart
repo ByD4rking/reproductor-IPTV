@@ -10,6 +10,7 @@ class SourceHealthRepository {
 
   static const _key = 'source-health.v1';
   final SharedPreferencesAsync _preferences;
+  Future<void> _writeQueue = Future<void>.value();
 
   Future<Map<String, SourceHealth>> load() async {
     final raw = await _preferences.getStringList(_key) ?? const <String>[];
@@ -24,18 +25,20 @@ class SourceHealthRepository {
     return Map.unmodifiable(result);
   }
 
-  Future<void> save(Map<String, SourceHealth> health) async {
-    await _preferences.setStringList(
-      _key,
-      health.entries
-          .map(
-            (entry) => jsonEncode({
-              'sourceId': entry.key,
-              'health': _encode(entry.value),
-            }),
-          )
-          .toList(),
-    );
+  Future<void> save(Map<String, SourceHealth> health) {
+    final snapshot = health.entries
+        .map(
+          (entry) => jsonEncode({
+            'sourceId': entry.key,
+            'health': _encode(entry.value),
+          }),
+        )
+        .toList(growable: false);
+
+    _writeQueue = _writeQueue.then((_) async {
+      await _preferences.setStringList(_key, snapshot);
+    });
+    return _writeQueue;
   }
 
   Map<String, dynamic> _encode(SourceHealth value) => {
