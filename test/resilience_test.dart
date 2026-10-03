@@ -59,6 +59,12 @@ void main() {
     );
     expect(probe.state, SourceHealthState.halfOpen);
     expect(breaker.canAttempt(probe, now.add(const Duration(seconds: 30))), isFalse);
+    final manager = SourceHealthManager();
+    manager.recordFailure('s1', now);
+    manager.recordFailure('s1', now);
+    manager.recordFailure('s1', now);
+    expect(manager.beginAttempt('s1', now.add(const Duration(seconds: 30))), isTrue);
+    expect(manager.beginAttempt('s1', now.add(const Duration(seconds: 30))), isFalse);
 
     final recovered = breaker.probeSuccess(
       probe,
