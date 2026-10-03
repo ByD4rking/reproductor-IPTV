@@ -343,6 +343,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _playbackErrorSubscription?.cancel();
     _playbackStateSubscription?.cancel();
     _healthTimer?.cancel();
+    _health.dispose();
     _engine.dispose();
     super.dispose();
   }
