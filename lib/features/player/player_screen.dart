@@ -18,6 +18,7 @@ import '../../core/playback/source_health/source_health_repository.dart';
 import '../../core/history/history_repository.dart';
 import '../../core/domain/entities/watch_history.dart';
 import '../../core/settings/settings_repository.dart';
+import '../../core/platform/tv_focus.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({required this.entry, super.key});
@@ -391,7 +392,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ],
       ),
       backgroundColor: Colors.black,
-      body: Center(
+      body: Focus(
+        autofocus: true,
+        onKeyEvent: (_, event) {
+          if (event is KeyDownEvent &&
+              (event.logicalKey == LogicalKeyboardKey.enter ||
+                  event.logicalKey == LogicalKeyboardKey.numpadEnter ||
+                  event.logicalKey == LogicalKeyboardKey.select ||
+                  event.logicalKey == LogicalKeyboardKey.space)) {
+            () async {
+              if (activeController.value.isPlaying) {
+                await _engine.pause();
+              } else {
+                await _engine.play();
+              }
+              if (mounted) setState(() {});
+            }();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Center(
         child: AspectRatio(
           aspectRatio: activeController.value.aspectRatio,
           child: Stack(
@@ -404,8 +425,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
+      floatingActionButton: TvFocusable(
+        onActivate: () async {
           if (activeController.value.isPlaying) {
             await _engine.pause();
           } else {
@@ -413,10 +434,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           }
           if (mounted) setState(() {});
         },
-        child: Icon(
+        child: FloatingActionButton(
+          onPressed: null,
+          child: Icon(
           activeController.value.isPlaying
               ? Icons.pause
               : Icons.play_arrow,
+          ),
         ),
       ),
     );
