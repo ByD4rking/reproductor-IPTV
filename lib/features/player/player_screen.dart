@@ -56,6 +56,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _autoRecovery = true;
   bool _autoSourceSwitching = true;
   DateTime? _sourceAttemptStarted;
+  bool _healthCheckRunning = false;
 
   @override
   void initState() {
@@ -103,7 +104,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     if (!_autoRecovery) return;
 
-    await _recover(retryable: classified.disposition == ErrorDisposition.retry);
+    await _recover(
+      retryable: classified.disposition == ErrorDisposition.retry,
+      markFailure: true,
+    );
   }
 
   Future<void> _loadSettingsAndOpen() async {
@@ -188,69 +192,86 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _advanceSource() {
     if (widget.entry.sources.isEmpty) return;
     _sourceIndex = (_sourceIndex + 1) % widget.entry.sources.length;
+    _lastPosition = Duration.zero;
+    _lastBufferedAhead = Duration.zero;
+    _lastProgress = DateTime.now();
+    _stablePlaybackSince = null;
+    _sourceAttemptStarted = null;
   }
 
   Future<void> _checkHealth() async {
-    if (_session.isStopped || _recovering) return;
+    if (_session.isStopped || _recovering || _healthCheckRunning) return;
     final controller = _engine.controller;
     if (controller == null || !controller.value.isInitialized) return;
-
-    final position = _engine.position;
     if (!controller.value.isPlaying) return;
 
-    if (position > _lastPosition) {
-      _lastPosition = position;
+    _healthCheckRunning = true;
+    try {
+      final position = _engine.position;
+      final playheadMoving = position > _lastPosition;
       final progressAt = DateTime.now();
-      _lastProgress = progressAt;
-      _stablePlaybackSince ??= progressAt;
-      if (_stablePlaybackSince != null &&
-          progressAt.difference(_stablePlaybackSince!) >= const Duration(seconds: 15)) {
-        _retryCount = 0;
-        _sourceChanges = 0;
-        _recoveryCoordinator.resetAfterStablePlayback();
-        _stablePlaybackSince = progressAt;
+
+      if (playheadMoving) {
+        _lastPosition = position;
+        _lastProgress = progressAt;
+        _stablePlaybackSince ??= progressAt;
+        if (_stablePlaybackSince != null &&
+            progressAt.difference(_stablePlaybackSince!) >= const Duration(seconds: 15)) {
+          _retryCount = 0;
+          _sourceChanges = 0;
+          _recoveryCoordinator.resetAfterStablePlayback();
+          _stablePlaybackSince = progressAt;
+        }
+        final source = widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex];
+        final started = _sourceAttemptStarted;
+        if (source != null && started != null) {
+          await _health.recordSuccess(
+            source.id,
+            progressAt,
+            progressAt.difference(started),
+          );
+          _sourceAttemptStarted = null;
+        }
+        if (mounted && _status != 'Reproduciendo') {
+          setState(() => _status = 'Reproduciendo');
+        }
+        return;
       }
-      final source = widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex];
-      final started = _sourceAttemptStarted;
-      if (source != null && started != null) {
-        await _health.recordSuccess(source.id, DateTime.now(), DateTime.now().difference(started));
-        _sourceAttemptStarted = null;
+
+      final age = progressAt.difference(_lastProgress);
+      final bufferedAhead = _engine.buffered;
+      final dataArriving = bufferedAhead > _lastBufferedAhead;
+      _lastBufferedAhead = bufferedAhead;
+      final buffering = controller.value.isBuffering;
+      final ended = controller.value.isCompleted;
+      if (ended) {
+        if (mounted && _status != 'Finalizado') {
+          setState(() => _status = 'Finalizado');
+        }
+        return;
       }
-      if (mounted && _status != 'Reproduciendo') {
-        setState(() => _status = 'Reproduciendo');
+
+      final stalled = _stallDetector.isStalled(
+        lastProgressAge: age,
+        buffering: buffering,
+        dataArriving: dataArriving,
+        playheadMoving: playheadMoving,
+        ended: ended,
+      );
+
+      if (mounted && buffering && !stalled) setState(() => _status = 'Buffering');
+      if (stalled && _autoRecovery) {
+        await _recover(markFailure: true);
       }
-      return;
+    } finally {
+      _healthCheckRunning = false;
     }
-
-    final age = DateTime.now().difference(_lastProgress);
-    final bufferedAhead = _engine.buffered;
-    final dataArriving = bufferedAhead > _lastBufferedAhead;
-    _lastBufferedAhead = bufferedAhead;
-    final buffering = controller.value.isBuffering;
-    final ended = controller.value.isCompleted;
-    if (ended) {
-      if (mounted && _status != 'Finalizado') {
-        setState(() => _status = 'Finalizado');
-      }
-      return;
-    }
-
-    final stalled = _stallDetector.isStalled(
-      lastProgressAge: age,
-      buffering: buffering,
-      dataArriving: dataArriving,
-      playheadMoving: false,
-      ended: ended,
-    );
-
-    if (mounted && buffering && !stalled) setState(() => _status = 'Buffering');
-    if (stalled && _autoRecovery) await _recover();
   }
 
-  Future<void> _recover({bool retryable = true}) async {
+  Future<void> _recover({bool retryable = true, bool markFailure = false}) async {
     if (_recovering || _session.isStopped) return;
     final source = widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex];
-    if (source != null) {
+    if (markFailure && source != null) {
       await _health.recordFailure(source.id, DateTime.now());
       _sourceAttemptStarted = null;
     }
