@@ -11,6 +11,7 @@ import '../../core/playback/recovery/recovery_policy.dart';
 import '../../core/playback/diagnostics/playback_error.dart';
 import '../../core/playback/session/playback_session.dart';
 import '../../core/playback/source_health/source_health_manager.dart';
+import '../../core/playback/source_health/source_health_repository.dart';
 import '../../core/history/history_repository.dart';
 import '../../core/domain/entities/watch_history.dart';
 import '../../core/settings/settings_repository.dart';
@@ -286,7 +287,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 if (mounted) setState(() {});
               },
               child: Icon(
-                controller!.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
               ),
             )
           : null,
