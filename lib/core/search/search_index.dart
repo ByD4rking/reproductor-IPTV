@@ -4,7 +4,6 @@ class SearchIndex {
   final Map<String, Channel> _channels = <String, Channel>{};
 
   void clear() => _channels.clear();
-
   void add(Channel channel) => _channels[channel.id] = channel;
 
   void addAll(Iterable<Channel> channels) {
@@ -13,16 +12,19 @@ class SearchIndex {
     }
   }
 
+  void replace(Iterable<Channel> channels) {
+    clear();
+    addAll(channels);
+  }
+
   List<Channel> query(String text, {int limit = 50}) {
     final needle = Channel.normalizeIdentity(text);
     if (needle.isEmpty || limit <= 0) return const <Channel>[];
-
     final matches = _channels.values.where((channel) {
       final name = channel.normalizedName;
       final id = Channel.normalizeIdentity(channel.tvgId ?? '');
       return name.contains(needle) || id.contains(needle);
     }).toList();
-
     matches.sort((a, b) {
       final an = a.normalizedName;
       final bn = b.normalizedName;
@@ -34,7 +36,8 @@ class SearchIndex {
       if (aPrefix != bPrefix) return aPrefix ? -1 : 1;
       return an.compareTo(bn);
     });
-
     return matches.take(limit).toList(growable: false);
   }
+
+  List<Channel> search(String text, {int limit = 50}) => query(text, limit: limit);
 }
