@@ -1,6 +1,6 @@
 import 'backoff.dart';
 
-enum RecoveryLevel { wait, retry, reprepare, switchSource, degraded, failed }
+enum RecoveryLevel { wait, retry, reprepare, switchSource, degraded, failed, stopped }
 
 class RecoveryDecision {
   const RecoveryDecision({required this.level, required this.delay});
@@ -27,7 +27,7 @@ class RecoveryPolicy {
     double randomValue = 0.5,
   }) {
     if (userStopped) {
-      return const RecoveryDecision(level: RecoveryLevel.failed, delay: Duration.zero);
+      return const RecoveryDecision(level: RecoveryLevel.stopped, delay: Duration.zero);
     }
     if (!retryable) {
       return sourceChanges < maxSourceChanges
