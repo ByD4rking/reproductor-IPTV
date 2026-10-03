@@ -29,15 +29,13 @@ class SourceHealthManager {
 
   Future<bool> beginAttempt(String sourceId, DateTime now) async {
     final current = healthOf(sourceId);
-    if (current.state == SourceHealthState.halfOpen) return false;
     final next = _breaker.beginProbe(current, now);
     _health[sourceId] = next;
     if (next.state != current.state ||
         next.cooldownUntil != current.cooldownUntil) {
       await _repository?.save(_health);
     }
-    return _breaker.canAttempt(next, now) ||
-        next.state == SourceHealthState.halfOpen;
+    return _breaker.canAttempt(next, now) || next.state == SourceHealthState.halfOpen;
   }
 
   Future<void> recordSuccess(
