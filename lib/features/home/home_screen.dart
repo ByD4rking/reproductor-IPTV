@@ -4,6 +4,10 @@ import '../../core/playlists/m3u/m3u_parser.dart';
 import '../../core/search/search_index.dart';
 import '../player/player_screen.dart';
 import '../playlists/playlist_screen.dart';
+import '../favorites/favorites_screen.dart';
+import '../history/history_screen.dart';
+import '../epg/epg_screen.dart';
+import '../settings/settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -58,6 +62,19 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       drawer: NavigationDrawer(
+        onDestinationSelected: (index) {
+          Navigator.of(context).pop();
+          final pages = <Widget>[
+            const HomeScreen(),
+            const FavoritesScreen(),
+            const HistoryScreen(),
+            const EpgScreen(),
+            const SettingsScreen(),
+          ];
+          if (index < pages.length && index > 0) {
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => pages[index]));
+          }
+        },
         children: const [
           Padding(
             padding: EdgeInsets.fromLTRB(24, 28, 24, 12),
