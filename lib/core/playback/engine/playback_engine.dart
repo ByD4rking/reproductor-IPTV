@@ -1,7 +1,7 @@
-import '../../domain/entities/stream_source.dart';
+import 'playback_request.dart';
 
 abstract interface class PlaybackEngine {
-  Future<void> prepare(StreamSource source);
+  Future<void> prepare(PlaybackRequest request);
   Future<void> play();
   Future<void> pause();
   Future<void> stop();
