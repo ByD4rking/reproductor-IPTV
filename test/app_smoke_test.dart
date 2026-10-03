@@ -12,6 +12,7 @@ void main() {
 
   testWidgets('app renders IPTV home shell', (tester) async {
     await tester.pumpWidget(const ReproductorIptvApp());
+    await tester.pumpAndSettle();
     expect(find.text('Reproductor IPTV'), findsWidgets);
     expect(find.text('TV en directo'), findsOneWidget);
     expect(find.text('Demo News'), findsOneWidget);
