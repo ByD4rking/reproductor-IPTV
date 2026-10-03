@@ -2,7 +2,7 @@ import '../state/playback_state_machine.dart';
 
 class PlaybackSession {
   PlaybackSession(this.id, {this.generation = 0})
-        _stateMachine = PlaybackStateMachine();
+      : _stateMachine = PlaybackStateMachine();
 
   final String id;
   final int generation;
