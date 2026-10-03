@@ -32,7 +32,7 @@ void main() {
     expect(headers['X-Test'], 'ok');
   });
   test('M3U uses deterministic hash and groups explicit tvg-id sources', () {
-    const parser = M3uParser();
+    final parser = const M3uParser();
     const first = parser.parse(
       '#EXTM3U\n'
       '#EXTINF:-1 tvg-id="news" group-title="News",News\n'
