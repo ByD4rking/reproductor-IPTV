@@ -31,4 +31,33 @@ void main() {
     expect(headers['Authorization'], '[REDACTED]');
     expect(headers['X-Test'], 'ok');
   });
+  test('M3U uses deterministic hash and groups explicit tvg-id sources', () {
+    const parser = M3uParser();
+    const first = parser.parse(
+      '#EXTM3U\n'
+      '#EXTINF:-1 tvg-id="news" group-title="News",News\n'
+      'https://example.com/a.m3u8\n'
+      '#EXTINF:-1 tvg-id="news" http-user-agent="UA" http-referrer="https://ref.test",News\n'
+      'https://example.com/b.m3u8\n',
+    );
+    final second = parser.parse(
+      '#EXTM3U\n'
+      '#EXTINF:-1 tvg-id="news" group-title="News",News\n'
+      'https://example.com/a.m3u8\n'
+      '#EXTINF:-1 tvg-id="news" http-user-agent="UA" http-referrer="https://ref.test",News\n'
+      'https://example.com/b.m3u8\n',
+    );
+    expect(first.rawContentHash, equals(second.rawContentHash));
+    expect(first.entries, hasLength(1));
+    expect(first.entries.single.sources, hasLength(2));
+    expect(first.entries.single.sources[1].headers['Referer'], 'https://ref.test');
+  });
+
+  test('M3U accepts single-quoted attributes', () {
+    const text = "#EXTM3U\n#EXTINF:-1 tvg-id='abc' group-title='Kids',Kids\nhttps://example.com/live";
+    final playlist = const M3uParser().parse(text);
+    expect(playlist.entries.single.channel.tvgId, 'abc');
+    expect(playlist.entries.single.category, 'Kids');
+  });
+
 }
