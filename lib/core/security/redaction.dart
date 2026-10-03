@@ -13,7 +13,9 @@ class SecretRedactor {
       return '$rawKey=[REDACTED]';
     }).join('&');
 
-    final base = uri.replace(query: null).toString();
+    final rawUri = uri.toString();
+    final queryIndex = rawUri.indexOf('?');
+    final base = queryIndex < 0 ? rawUri : rawUri.substring(0, queryIndex);
     return '$base?$redactedQuery';
   }
 
