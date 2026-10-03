@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
   crypto: ^3.0.7
   video_player: ^2.14.1
+  http: ^1.6.0
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
