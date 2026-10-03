@@ -1,61 +1,35 @@
 import 'package:video_player/video_player.dart';
-
 import 'playback_engine.dart';
 import 'playback_request.dart';
+import 'playback_tracks.dart';
 
 class VideoPlayerEngine implements PlaybackEngine {
-  VideoPlayerController? _controller;
-  int _prepareGeneration = 0;
-  VideoPlayerController? get controller => _controller;
-
-  @override
-  Future<void> prepare(PlaybackRequest request) async {
-    final previous = _controller;
-    final generation = ++_prepareGeneration;
-    final controller = VideoPlayerController.networkUrl(
-      request.source.url,
-      httpHeaders: request.effectiveHeaders,
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
-    );
-    try {
-      await controller.initialize();
-      if (generation != _prepareGeneration) {
-        await controller.dispose();
-        return;
-      }
-      if (previous != null && identical(_controller, previous)) {
-        await previous.dispose();
-      }
-      _controller = controller;
-    } catch (_) {
-      await controller.dispose();
-      rethrow;
-    }
+  VideoPlayerController? _controller; int _prepareGeneration = 0; VideoPlayerController? get controller => _controller;
+  @override Future<void> prepare(PlaybackRequest request) async {
+    final previous = _controller; final generation = ++_prepareGeneration;
+    final controller = VideoPlayerController.networkUrl(request.source.url, formatHint: _formatHint(request), httpHeaders: request.effectiveHeaders, videoPlayerOptions: const VideoPlayerOptions(mixWithOthers: false));
+    try { await controller.initialize(); if (generation != _prepareGeneration) { await controller.dispose(); return; } if (previous != null && identical(_controller, previous)) await previous.dispose(); _controller = controller; } catch (_) { await controller.dispose(); rethrow; }
   }
-
-  @override
-  Future<void> play() async => _controller?.play();
-  @override
-  Future<void> pause() async => _controller?.pause();
-  @override
-  Future<void> stop() async => _controller?.pause();
-
-  @override
-  Future<void> dispose() async {
-    _prepareGeneration++;
-    final controller = _controller;
-    _controller = null;
-    await controller?.dispose();
+  @override Future<PlaybackTracks> tracks() async {
+    final controller = _controller; if (controller == null || !controller.value.isInitialized) return const PlaybackTracks();
+    final video = controller.isVideoTrackSupportAvailable() ? await controller.getVideoTracks() : const <VideoTrack>[];
+    final audio = controller.isAudioTrackSupportAvailable() ? await controller.getAudioTracks() : const <VideoAudioTrack>[];
+    return PlaybackTracks(video: video.map((track) => PlaybackTrack(id: track.id, label: _videoLabel(track), kind: 'video', selected: track.isSelected, bitrate: track.bitrate, width: track.width, height: track.height, frameRate: track.frameRate, codec: track.codec)).toList(growable: false), audio: audio.map((track) => PlaybackTrack(id: track.id, label: track.label ?? track.language ?? 'Audio', kind: 'audio', language: track.language, selected: track.isSelected, bitrate: track.bitrate, codec: track.codec)).toList(growable: false));
   }
-
-  @override
-  Duration get position => _controller?.value.position ?? Duration.zero;
-
-  @override
-  Duration get buffered {
-    final values = _controller?.value.buffered ?? const <DurationRange>[];
-    if (values.isEmpty) return Duration.zero;
-    final ahead = values.last.end - position;
-    return ahead.isNegative ? Duration.zero : ahead;
+  @override Future<void> selectVideoTrack(String? trackId) async {
+    final controller = _controller; if (controller == null || !controller.value.isInitialized || !controller.isVideoTrackSupportAvailable()) return;
+    if (trackId == null) { await controller.selectVideoTrack(null); return; }
+    final tracks = await controller.getVideoTracks(); for (final track in tracks) { if (track.id == trackId) { await controller.selectVideoTrack(track); return; } }
   }
+  @override Future<void> selectAudioTrack(String trackId) async { final controller = _controller; if (controller == null || !controller.value.isInitialized || !controller.isAudioTrackSupportAvailable()) return; await controller.selectAudioTrack(trackId); }
+  String _videoLabel(VideoTrack track) {
+    if (track.label != null && track.label!.trim().isNotEmpty) return track.label!;
+    if (track.height != null) { final bitrate = track.bitrate; final suffix = bitrate == null ? '' : ' · ' + (bitrate / 1000000).toStringAsFixed(1) + ' Mbps'; return track.height.toString() + 'p' + suffix; }
+    if (track.bitrate != null) return (track.bitrate! / 1000).round().toString() + ' kbps'; return 'Auto';
+  }
+  VideoFormat? _formatHint(PlaybackRequest request) { final path = request.source.url.path.toLowerCase(); if (path.endsWith('.m3u8')) return VideoFormat.hls; if (path.endsWith('.mpd')) return VideoFormat.dash; return null; }
+  @override Future<void> play() async => _controller?.play(); @override Future<void> pause() async => _controller?.pause(); @override Future<void> stop() async => _controller?.pause();
+  @override Future<void> dispose() async { _prepareGeneration++; final controller = _controller; _controller = null; await controller?.dispose(); }
+  @override Duration get position => _controller?.value.position ?? Duration.zero;
+  @override Duration get buffered { final values = _controller?.value.buffered ?? const <DurationRange>[]; if (values.isEmpty) return Duration.zero; final ahead = values.last.end - position; return ahead.isNegative ? Duration.zero : ahead; }
 }
