@@ -225,7 +225,7 @@ class VideoPlayerEngine implements PlaybackEngine {
     final controller = _controller;
     _controller = null;
     controller?.removeListener(_handleControllerValue);
-    await controller?.dispose();
+    controller?.dispose();
     await _probe.dispose();
     await _errors.close();
   }
