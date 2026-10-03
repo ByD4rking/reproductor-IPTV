@@ -62,4 +62,8 @@ class SourceHealthManager {
   }
 
   Map<String, SourceHealth> snapshot() => Map.unmodifiable(_health);
+
+  void dispose() {
+    _repository?.dispose();
+  }
 }
