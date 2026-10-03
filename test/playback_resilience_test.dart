@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reproductor_iptv/core/playback/diagnostics/playback_error.dart';
-import 'package:reproductor_iptv/core/playback/monitor/stall_detector.dart';\nimport 'package:reproductor_iptv/core/playback/monitor/buffer_health_monitor.dart';
+import 'package:reproductor_iptv/core/playback/monitor/stall_detector.dart';
+import 'package:reproductor_iptv/core/playback/monitor/buffer_health_monitor.dart';
 import 'package:reproductor_iptv/core/playback/engine/stream_kind.dart';
 import 'package:reproductor_iptv/core/playback/engine/playback_engine_state.dart';
 import 'package:reproductor_iptv/core/playback/recovery/backoff.dart';
