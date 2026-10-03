@@ -6,6 +6,7 @@ import 'package:video_player/video_player.dart';
 import '../../core/domain/entities/playlist.dart';
 import '../../core/playback/engine/playback_request.dart';
 import '../../core/playback/engine/playback_engine_error.dart';
+import '../../core/playback/engine/playback_engine_state.dart';
 import '../../core/playback/engine/video_player_engine.dart';
 import '../../core/playback/monitor/stall_detector.dart';
 import '../../core/playback/recovery/recovery_policy.dart';
@@ -41,6 +42,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Timer? _healthTimer;
   StreamSubscription<PlaybackEngineError>? _playbackErrorSubscription;
+  StreamSubscription<PlaybackEngineStateEvent>? _playbackStateSubscription;
   Duration _lastPosition = Duration.zero;
   DateTime _lastProgress = DateTime.now();
   Duration _lastBufferedAhead = Duration.zero;
@@ -61,8 +63,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _startedAt = DateTime.now();
     _session.start();
     _playbackErrorSubscription = _engine.errors.listen(_handleEngineError);
+    _playbackStateSubscription = _engine.states.listen(_handleEngineState);
     _loadSettingsAndOpen();
     _healthTimer = Timer.periodic(const Duration(seconds: 3), (_) => _checkHealth());
+  }
+
+  void _handleEngineState(PlaybackEngineStateEvent event) {
+    if (_session.isStopped || event.generation != _engine.generation) return;
+    final status = switch (event.state) {
+      PlaybackEngineState.idle => 'Detenido',
+      PlaybackEngineState.preparing => 'Preparando',
+      PlaybackEngineState.playing => 'Reproduciendo',
+      PlaybackEngineState.buffering => 'Buffering',
+      PlaybackEngineState.paused => 'Pausado',
+      PlaybackEngineState.completed => 'Finalizado',
+      PlaybackEngineState.failed => 'Error de reproducción',
+    };
+    if (mounted && _status != status) {
+      setState(() => _status = status);
+    }
   }
 
   Future<void> _handleEngineError(PlaybackEngineError event) async {
@@ -289,6 +308,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _session.stop();
     _recoveryCoordinator.cancel();
     _playbackErrorSubscription?.cancel();
+    _playbackStateSubscription?.cancel();
     _healthTimer?.cancel();
     _engine.dispose();
     super.dispose();
