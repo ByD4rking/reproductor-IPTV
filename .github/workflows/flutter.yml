@@ -13,12 +13,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: 3.47.6
           cache: true
+
       - run: flutter --version
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+
+      # Generate the Android host project from the pinned Flutter toolchain.
+      # This keeps the Dart core platform-neutral while CI verifies a real APK.
+      - name: Generate Android platform
+        run: flutter create --platforms=android --project-name reproductor_iptv .
+
+      - name: Build Android APKs
+        run: flutter build apk --release --split-per-abi
+
+      - name: Verify APK artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          test -s build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+          test -s build/app/outputs/flutter-apk/app-x86_64-release.apk
+          ls -lh build/app/outputs/flutter-apk/*.apk
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: reproductor-iptv-android-apks
+          path: build/app/outputs/flutter-apk/*-release.apk
+          if-no-files-found: error
+          retention-days: 14
