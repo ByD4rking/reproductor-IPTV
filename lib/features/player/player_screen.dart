@@ -204,11 +204,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final dataArriving = bufferedAhead > _lastBufferedAhead;
     _lastBufferedAhead = bufferedAhead;
     final buffering = controller.value.isBuffering;
+    final ended = controller.value.isCompleted;
+    if (ended) {
+      if (mounted && _status != 'Finalizado') {
+        setState(() => _status = 'Finalizado');
+      }
+      return;
+    }
+
     final stalled = _stallDetector.isStalled(
       lastProgressAge: age,
       buffering: buffering,
       dataArriving: dataArriving,
       playheadMoving: false,
+      ended: ended,
     );
 
     if (mounted && buffering && !stalled) setState(() => _status = 'Buffering');
