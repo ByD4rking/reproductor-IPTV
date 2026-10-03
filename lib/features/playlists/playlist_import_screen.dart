@@ -36,13 +36,13 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     await _run(() async {
       final result = await _service.importRemote(
         uri: uri,
-        playlistId: 'playlist-' + DateTime.now().microsecondsSinceEpoch.toString(),
+        playlistId: 'playlist-${DateTime.now().microsecondsSinceEpoch}',
         name: _name.text.trim().isEmpty ? 'Mi playlist' : _name.text.trim(),
       );
       await widget.repository.upsert(result.playlist);
       if (mounted) {
         setState(() => _message =
-            'Importada: ' + result.playlist.entries.length.toString() + ' canales');
+            'Importada: ${result.playlist.entries.length} canales');
       }
     });
   }
@@ -51,13 +51,13 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     await _run(() async {
       final result = _service.importText(
         text: _text.text,
-        playlistId: 'playlist-' + DateTime.now().microsecondsSinceEpoch.toString(),
+        playlistId: 'playlist-${DateTime.now().microsecondsSinceEpoch}',
         name: _name.text.trim().isEmpty ? 'Mi playlist' : _name.text.trim(),
       );
       await widget.repository.upsert(result.playlist);
       if (mounted) {
         setState(() => _message =
-            'Importada: ' + result.playlist.entries.length.toString() + ' canales');
+            'Importada: ${result.playlist.entries.length} canales');
       }
     });
   }
@@ -70,7 +70,7 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     try {
       await action();
     } catch (error) {
-      if (mounted) setState(() => _message = 'Error: ' + error.toString());
+      if (mounted) setState(() => _message = 'Error: $error');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
