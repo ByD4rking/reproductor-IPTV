@@ -33,6 +33,25 @@ void main() {
     );
   });
 
+  test('stall detector exposes hard stall after the recovery deadline', () {
+    const detector = StallDetector();
+    expect(
+      detector.isHardStall(const Duration(seconds: 14)),
+      isFalse,
+    );
+    expect(
+      detector.isHardStall(const Duration(seconds: 15)),
+      isTrue,
+    );
+    expect(
+      detector.isHardStall(
+        const Duration(seconds: 30),
+        userPaused: true,
+      ),
+      isFalse,
+    );
+  });
+
   test('stream kind uses MIME when URL has no useful extension', () {
     const detector = StreamKindDetector();
     expect(detector.detect(Uri.parse('https://example.test/live?id=1'), contentType: 'application/vnd.apple.mpegurl'), StreamKind.hls);
