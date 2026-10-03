@@ -75,8 +75,6 @@ void main() {
     expect(recovered.state, SourceHealthState.healthy);
     expect(recovered.consecutiveFailures, 0);
   });
-}
-
 
   test('paused and ended playback are never classified as stalls', () {
     const d = StallDetector();
@@ -108,3 +106,7 @@ void main() {
       isFalse,
     );
   });
+
+}
+
+
