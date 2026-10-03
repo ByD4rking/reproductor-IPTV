@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reproductor_iptv/core/playback/monitor/stall_detector.dart';
+import 'package:reproductor_iptv/core/playback/source_health/circuit_breaker.dart';
+import 'package:reproductor_iptv/core/domain/entities/stream_source.dart';
 import 'package:reproductor_iptv/core/playback/diagnostics/playback_error.dart';
 import 'package:reproductor_iptv/core/network/url_policy.dart';
 
@@ -28,5 +30,30 @@ void main() {
     expect(p.accepts(Uri.parse('file:///secret')), isFalse);
     expect(p.accepts(Uri.parse('https://user:pass@example.com')), isFalse);
     expect(p.acceptsRedirectCount(6), isFalse);
+  });
+  test('circuit breaker permits one half-open probe', () {
+    final breaker = const CircuitBreaker();
+    final now = DateTime(2026, 10, 3, 12);
+    var health = SourceHealth.initial();
+    for (var i = 0; i < 3; i++) {
+      health = breaker.onFailure(health, now);
+    }
+    expect(health.state, SourceHealthState.cooldown);
+    expect(breaker.canAttempt(health, now.add(const Duration(seconds: 30))), isTrue);
+
+    final probe = breaker.beginProbe(
+      health,
+      now.add(const Duration(seconds: 30)),
+    );
+    expect(probe.state, SourceHealthState.halfOpen);
+    expect(breaker.canAttempt(probe, now.add(const Duration(seconds: 30))), isFalse);
+
+    final recovered = breaker.probeSuccess(
+      probe,
+      now.add(const Duration(seconds: 31)),
+      const Duration(milliseconds: 300),
+    );
+    expect(recovered.state, SourceHealthState.healthy);
+    expect(recovered.consecutiveFailures, 0);
   });
 }
