@@ -1,5 +1,3 @@
-import 'dart:core';
-
 class HlsPlaylist {
   const HlsPlaylist({
     required this.isValid,
@@ -58,7 +56,8 @@ class HlsPlaylistParser {
       }
 
       if (line.startsWith('#EXT-X-TARGETDURATION:')) {
-        final value = int.tryParse(line.substring('#EXT-X-TARGETDURATION:'.length));
+        final value =
+            int.tryParse(line.substring('#EXT-X-TARGETDURATION:'.length));
         if (value != null && value > 0) {
           targetDuration = Duration(seconds: value);
         }
