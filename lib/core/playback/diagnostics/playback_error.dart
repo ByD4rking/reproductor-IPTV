@@ -123,6 +123,30 @@ class PlaybackErrorClassifier {
         disposition: ErrorDisposition.retry,
       );
     }
+    if (value.contains('429') || value.contains('500') ||
+        value.contains('502') || value.contains('503') ||
+        value.contains('504') || value.contains('bad gateway') ||
+        value.contains('service unavailable') ||
+        value.contains('server error') ||
+        value.contains('connection reset') ||
+        value.contains('connection refused') ||
+        value.contains('network error') ||
+        value.contains('network request failed')) {
+      return const PlaybackError(
+        kind: PlaybackErrorKind.network,
+        message: 'Upstream/network error',
+        disposition: ErrorDisposition.retry,
+      );
+    }
+    if (value.contains('unsupported') ||
+        value.contains('unrecognizedinputformat') ||
+        value.contains('not supported')) {
+      return const PlaybackError(
+        kind: PlaybackErrorKind.unsupportedFormat,
+        message: 'Unsupported media format',
+        disposition: ErrorDisposition.switchSource,
+      );
+    }
     if (value.contains('format') || value.contains('manifest') ||
         value.contains('m3u8') || value.contains('mpd')) {
       return const PlaybackError(
