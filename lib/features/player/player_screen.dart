@@ -8,10 +8,12 @@ import '../../core/playback/engine/playback_request.dart';
 import '../../core/playback/engine/video_player_engine.dart';
 import '../../core/playback/monitor/stall_detector.dart';
 import '../../core/playback/recovery/recovery_policy.dart';
+import '../../core/playback/diagnostics/playback_error.dart';
 import '../../core/playback/session/playback_session.dart';
 import '../../core/playback/source_health/source_health_manager.dart';
 import '../../core/history/history_repository.dart';
 import '../../core/domain/entities/watch_history.dart';
+import '../../core/settings/settings_repository.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({required this.entry, super.key});
@@ -27,6 +29,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final _recoveryPolicy = const RecoveryPolicy();
   final _health = SourceHealthManager();
   final _history = HistoryRepository();
+  final _settingsRepository = SettingsRepository();
+  final _errorClassifier = const PlaybackErrorClassifier();
   late final DateTime _startedAt;
 
   Timer? _healthTimer;
@@ -39,16 +43,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _retryCount = 0;
   int _sourceChanges = 0;
   bool _recovering = false;
-  final bool _autoRecovery = true;
-  final bool _autoSourceSwitching = true;
+  bool _autoRecovery = true;
+  bool _autoSourceSwitching = true;
 
   @override
   void initState() {
     super.initState();
     _startedAt = DateTime.now();
     _session.start();
-    _openSource(automatic: false);
+    _loadSettingsAndOpen();
     _healthTimer = Timer.periodic(const Duration(seconds: 3), (_) => _checkHealth());
+  }
+
+  Future<void> _loadSettingsAndOpen() async {
+    final settings = await _settingsRepository.load();
+    if (_session.isStopped) return;
+    _autoRecovery = settings.autoRecovery;
+    _autoSourceSwitching = settings.autoSourceSwitching;
+    await _openSource(automatic: false);
   }
 
   Future<void> _openSource({required bool automatic, int? operationId}) async {
@@ -62,7 +74,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         attempts < widget.entry.sources.length + 3) {
       final source = widget.entry.sources[_sourceIndex];
       final now = DateTime.now();
-      if (!_health.canAttempt(source.id, now)) {
+      if (!_health.beginAttempt(source.id, now) || !_health.canAttempt(source.id, now)) {
         _advanceSource();
         attempts++;
         continue;
@@ -90,9 +102,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _health.recordFailure(source.id, DateTime.now());
         _error = 'Fuente ${_sourceIndex + 1}: $error';
         attempts++;
+        final classified = _errorClassifier.classify(null, error);
         final decision = _recoveryPolicy.decide(
           userStopped: _session.isStopped,
-          retryable: true,
+          retryable: classified.disposition == ErrorDisposition.retry,
           retryCount: _retryCount,
           sourceChanges: _sourceChanges,
         );
