@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reproductor_iptv/core/playback/engine/stream_kind.dart';
 import 'package:reproductor_iptv/core/playback/recovery/backoff.dart';
@@ -68,6 +70,29 @@ void main() {
       sourceChanges: 0,
     );
     expect(failover.level, RecoveryLevel.switchSource);
+  });
+
+
+  test('classifies HTTP auth, missing, transient and timeout failures', () {
+    const classifier = PlaybackErrorClassifier();
+
+    expect(
+      classifier.classify(401, null).kind,
+      PlaybackErrorKind.unauthorized,
+    );
+    expect(
+      classifier.classify(404, null).disposition,
+      ErrorDisposition.switchSource,
+    );
+    expect(
+      classifier.classify(503, null).disposition,
+      ErrorDisposition.retry,
+    );
+    expect(
+      classifier.classify(null, TimeoutException('timeout')).kind,
+      PlaybackErrorKind.timeout,
+    );
+    expect(classifier.stalled().kind, PlaybackErrorKind.stalled);
   });
 
 }
