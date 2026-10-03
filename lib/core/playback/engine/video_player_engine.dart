@@ -286,9 +286,19 @@ class VideoPlayerEngine implements PlaybackEngine {
 
   @override
   Duration get buffered {
-    final values = _controller?.value.buffered ?? const <DurationRange>[];
-    if (values.isEmpty) return Duration.zero;
-    final ahead = values.last.end - position;
-    return ahead.isNegative ? Duration.zero : ahead;
+    final ranges = _controller?.value.buffered ?? const <DurationRange>[];
+    if (ranges.isEmpty) return Duration.zero;
+
+    final current = position;
+    for (final range in ranges) {
+      // Only count the contiguous buffered interval containing the playhead.
+      // A later disconnected range must not look like a huge healthy buffer.
+      if (current >= range.start && current <= range.end) {
+        final ahead = range.end - current;
+        return ahead.isNegative ? Duration.zero : ahead;
+      }
+    }
+
+    return Duration.zero;
   }
 }
