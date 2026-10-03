@@ -73,7 +73,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return;
     }
 
-    final classified = _errorClassifier.classifyMessage(event.message);
+    final classified = event.behindLiveWindow
+        ? _errorClassifier.stalled()
+        : event.statusCode != null
+            ? _errorClassifier.classify(event.statusCode, null)
+            : _errorClassifier.classifyMessage(event.message);
     _error = classified.message;
     if (mounted) {
       setState(() => _status = 'Error de reproducción: ${classified.kind.name}');
