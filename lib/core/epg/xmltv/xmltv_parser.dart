@@ -42,7 +42,7 @@ class XmltvParser {
 
       programmes.add(
         EpgProgramme(
-          id: '${channel}@${start.toIso8601String()}',
+          id: '$channel@${start.toIso8601String()}',
           channelId: channel,
           title: title,
           start: start,
