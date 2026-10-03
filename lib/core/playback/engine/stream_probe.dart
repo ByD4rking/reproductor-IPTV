@@ -36,9 +36,13 @@ class StreamProbe {
   final Duration timeout;
   final int maxBytes;
 
-  Future<StreamProbeResult?> probe(StreamSource source) async {
+  Future<StreamProbeResult?> probe(
+    StreamSource source, {
+    Map<String, String> headers = const <String, String>{},
+  }) async {
     final request = http.Request('GET', source.url)
-      ..headers.addAll(source.headers);
+      ..headers.addAll(source.headers)
+      ..headers.addAll(headers);
     if (source.userAgent != null && source.userAgent!.isNotEmpty) {
       request.headers['User-Agent'] = source.userAgent!;
     }
