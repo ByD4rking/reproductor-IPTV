@@ -69,7 +69,7 @@ class M3uParser {
       final tvgId = attrs['tvg-id']?.trim();
       final channelId = tvgId != null && tvgId.isNotEmpty
           ? tvgId
-          : Channel.normalizeIdentity(displayName) + ':' + entries.length.toString();
+          : '${Channel.normalizeIdentity(displayName)}:${entries.length}';
 
       final logoText = attrs['tvg-logo']?.trim();
       final logoUrl = logoText == null || logoText.isEmpty
@@ -91,7 +91,7 @@ class M3uParser {
       }
 
       final source = StreamSource(
-        id: '${playlistId}:source:${sourceIndex}',
+        id: '$playlistId:source:$sourceIndex',
         url: uri,
         userAgent: userAgent,
         headers: Map.unmodifiable(headers),
@@ -119,7 +119,7 @@ class M3uParser {
       }
 
       final entry = PlaylistEntry(
-        id: '${playlistId}:${entries.length}',
+        id: '$playlistId:${entries.length}',
         channel: Channel(
           id: channelId,
           displayName: displayName,
