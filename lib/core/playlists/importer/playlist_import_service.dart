@@ -55,7 +55,7 @@ class PlaylistImportService {
       final response = await _client.send(http.Request('GET', uri));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw FormatException(
-          'La playlist respondió HTTP ' + response.statusCode.toString(),
+          'La playlist respondió HTTP ${response.statusCode}',
         );
       }
 
