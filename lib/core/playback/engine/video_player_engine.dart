@@ -45,10 +45,9 @@ class VideoPlayerEngine implements PlaybackEngine {
 
   String _videoLabel(VideoTrack track) {
     if (track.label != null && track.label!.trim().isNotEmpty) return track.label!;
-    if (track.height != null) { final bitrate = track.bitrate; final suffix = bitrate == null ? '' : ' · ${(bitrate / 1000000).toStringAsFixed(1)} Mbps'; return track.height.toString() + 'p' + suffix; }
-    if (track.bitrate != null) return ((track.bitrate! / 1000).round()).toString() + ' kbps'; return 'Auto';
+    if (track.height != null) { final bitrate = track.bitrate; final suffix = bitrate == null ? '' : ' · ${(bitrate / 1000000).toStringAsFixed(1)} Mbps'; return '${track.height}p$suffix'; }
+    if (track.bitrate != null) return '${(track.bitrate! / 1000).round()} kbps'; return 'Auto';
   }
-  VideoFormat? _formatHint(PlaybackRequest request) { final path = request.source.url.path.toLowerCase(); if (path.endsWith('.m3u8')) return VideoFormat.hls; if (path.endsWith('.mpd')) return VideoFormat.dash; return null; }
   @override Future<void> play() async => _controller?.play(); @override Future<void> pause() async => _controller?.pause(); @override Future<void> stop() async => _controller?.pause();
   @override Future<void> dispose() async { _prepareGeneration++; final controller = _controller; _controller = null; await controller?.dispose(); _probe.dispose(); }
   @override Duration get position => _controller?.value.position ?? Duration.zero;
