@@ -193,11 +193,11 @@ class VideoPlayerEngine implements PlaybackEngine {
       final bitrate = track.bitrate;
       final suffix = bitrate == null
           ? ''
-          : ' · ' + (bitrate / 1000000).toStringAsFixed(1) + ' Mbps';
-      return track.height.toString() + 'p' + suffix;
+          : ' · ${((bitrate / 1000000).toStringAsFixed(1))} Mbps';
+      return '${track.height}p$suffix';
     }
     if (track.bitrate != null) {
-      return (track.bitrate! / 1000).round().toString() + ' kbps';
+      return '${(track.bitrate! / 1000).round()} kbps';
     }
     return 'Auto';
   }
@@ -213,7 +213,10 @@ class VideoPlayerEngine implements PlaybackEngine {
     _prepareGeneration++;
     _activeSourceId = null;
     _lastErrorDescription = null;
-    await _controller?.pause();
+    final controller = _controller;
+    if (controller != null) {
+      await controller.pause();
+    }
   }
 
   @override
