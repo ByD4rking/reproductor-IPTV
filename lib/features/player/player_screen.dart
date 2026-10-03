@@ -250,12 +250,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
       body: Center(
         child: ready
             ? AspectRatio(
-                aspectRatio: controller.value.aspectRatio,
+                aspectRatio: controller!.value.aspectRatio,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    VideoPlayer(controller),
-                    if (controller.value.isBuffering)
+                    VideoPlayer(controller!),
+                    if (controller!.value.isBuffering)
                       const Center(child: CircularProgressIndicator()),
                   ],
                 ),
@@ -278,7 +278,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       floatingActionButton: ready
           ? FloatingActionButton(
               onPressed: () async {
-                if (controller!.value.isPlaying) {
+                if (controller.value.isPlaying) {
                   await _engine.pause();
                 } else {
                   await _engine.play();
