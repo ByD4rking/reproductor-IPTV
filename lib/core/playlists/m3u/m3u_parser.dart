@@ -91,7 +91,7 @@ class M3uParser {
       }
 
       final source = StreamSource(
-        id: playlistId + ':source:' + sourceIndex.toString(),
+        id: '${playlistId}:source:${sourceIndex}',
         url: uri,
         userAgent: userAgent,
         headers: Map.unmodifiable(headers),
@@ -119,7 +119,7 @@ class M3uParser {
       }
 
       final entry = PlaylistEntry(
-        id: playlistId + ':' + entries.length.toString(),
+        id: '${playlistId}:${entries.length}',
         channel: Channel(
           id: channelId,
           displayName: displayName,
