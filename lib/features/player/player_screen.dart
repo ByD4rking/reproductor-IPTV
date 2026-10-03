@@ -48,6 +48,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _recovering = false;
   bool _autoRecovery = true;
   bool _autoSourceSwitching = true;
+  DateTime? _sourceAttemptStarted;
 
   @override
   void initState() {
@@ -86,11 +87,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       if (mounted) setState(() => _status = 'Conectando fuente ${_sourceIndex + 1}');
       final started = DateTime.now();
+      _sourceAttemptStarted = started;
       try {
         await _engine.prepare(PlaybackRequest(source: source));
         if (!_session.isCurrentOperation(operation) || _session.isStopped) return;
         await _engine.play();
-        _health.recordSuccess(source.id, DateTime.now(), DateTime.now().difference(started));
         _retryCount = 0;
         _lastPosition = _engine.position;
         _lastBufferedAhead = _engine.buffered;
@@ -149,9 +150,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (controller == null || !controller.value.isInitialized) return;
 
     final position = _engine.position;
+    if (!controller.value.isPlaying) return;
+
     if (position > _lastPosition) {
       _lastPosition = position;
       _lastProgress = DateTime.now();
+      final source = widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex];
+      final started = _sourceAttemptStarted;
+      if (source != null && started != null) {
+        await _health.recordSuccess(source.id, DateTime.now(), DateTime.now().difference(started));
+        _sourceAttemptStarted = null;
+      }
       if (mounted && _status != 'Reproduciendo') {
         setState(() => _status = 'Reproduciendo');
       }
@@ -176,6 +185,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Future<void> _recover() async {
     if (_recovering || _session.isStopped) return;
+    final source = widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex];
+    if (source != null) {
+      await _health.recordFailure(source.id, DateTime.now());
+      _sourceAttemptStarted = null;
+    }
     _recovering = true;
     final operation = _session.beginOperation();
     if (operation < 0) {
