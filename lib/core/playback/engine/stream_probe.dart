@@ -161,8 +161,7 @@ class StreamProbe {
   ) {
     final request = http.Request('GET', uri)
       ..headers.addAll(source.headers)
-      ..headers.addAll(headers)
-      ..headers['Range'] = 'bytes=0-${maxBytes - 1}';
+      ..headers.addAll(headers);
     if (source.userAgent != null && source.userAgent!.isNotEmpty) {
       request.headers['User-Agent'] = source.userAgent!;
     }
