@@ -30,8 +30,8 @@ class PlaylistImportService {
   }) {
     final parsed = parser.parse(text, playlistId: playlistId, name: name);
     final validation = validator.validate(parsed);
-    if (!validation.isValid) {
-      throw FormatException(validation.errors.join('; '));
+    if (!validation.valid) {
+      throw FormatException(validation.reason);
     }
     if (previous != null && previous.rawContentHash == parsed.rawContentHash) {
       return PlaylistImportResult(playlist: previous, replaced: false);
