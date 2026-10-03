@@ -8,7 +8,8 @@ import 'package:reproductor_iptv/core/security/redaction.dart';
 void main() {
   test('M3U parser rejects non-http executable schemes', () {
     const text='#EXTM3U\n#EXTINF:-1,Good\nhttps://example.com/live\n#EXTINF:-1,Bad\njavascript:alert(1)';
-    expect(const M3uParser().parse(text).entries, hasLength(1));
+    final parser = const M3uParser();
+    expect(parser.parse(text).entries, hasLength(1));
   });
   test('recovery retries before failover', () {
     const p=RecoveryPolicy();
@@ -33,7 +34,7 @@ void main() {
   });
   test('M3U uses deterministic hash and groups explicit tvg-id sources', () {
     final parser = const M3uParser();
-    const first = parser.parse(
+    final first = parser.parse(
       '#EXTM3U\n'
       '#EXTINF:-1 tvg-id="news" group-title="News",News\n'
       'https://example.com/a.m3u8\n'
@@ -59,5 +60,4 @@ void main() {
     expect(playlist.entries.single.channel.tvgId, 'abc');
     expect(playlist.entries.single.category, 'Kids');
   });
-
 }
