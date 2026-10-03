@@ -33,7 +33,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final _engine = VideoPlayerEngine();
   final _session = PlaybackSession('player-session');
   final _stallDetector = const StallDetector();
-  final _bufferHealthMonitor = const BufferHealthMonitor();
+  final _bufferHealthMonitor = BufferHealthMonitor();
   final _recoveryCoordinator = RecoveryCoordinator();
   final _health = SourceHealthManager(
     repository: SourceHealthRepository(),
