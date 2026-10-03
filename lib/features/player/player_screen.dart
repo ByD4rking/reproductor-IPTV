@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../core/domain/entities/playlist.dart';
 import '../../core/playback/engine/playback_request.dart';
@@ -37,8 +38,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _retryCount = 0;
   int _sourceChanges = 0;
   bool _recovering = false;
-  bool _autoRecovery = true;
-  bool _autoSourceSwitching = true;
+  final bool _autoRecovery = true;
+  final bool _autoSourceSwitching = true;
 
   @override
   void initState() {
