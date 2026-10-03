@@ -44,7 +44,7 @@ void main() {
     expect(decision.level, RecoveryLevel.failed);
   });
 
-  test('circuit breaker permits one half-open probe', () {
+  test('circuit breaker permits one half-open probe', () async {
     final breaker = const CircuitBreaker();
     final now = DateTime(2026, 10, 3, 12);
     var health = SourceHealth.initial();
