@@ -67,6 +67,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Future<void> _handleEngineError(PlaybackEngineError event) async {
     if (_session.isStopped || _recovering) return;
+    if (event.generation != _engine.generation) return;
     if (widget.entry.sources.isEmpty ||
         widget.entry.sources[_sourceIndex].id != event.sourceId) {
       return;
