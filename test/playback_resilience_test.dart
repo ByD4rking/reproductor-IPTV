@@ -82,7 +82,10 @@ void main() {
   test('backoff is bounded and deterministic with injected jitter value', () {
     const backoff = ExponentialBackoff();
     expect(backoff.delay(0, randomValue: 0.5), const Duration(seconds: 1));
-    expect(backoff.delay(10, randomValue: 1.0), lessThanOrEqualTo(const Duration(seconds: 8)));
+    expect(
+      backoff.delay(10, randomValue: 1.0),
+      lessThanOrEqualTo(const Duration(seconds: 8)),
+    );
   });
 
   test('user stop is terminal and never becomes a retry', () {
@@ -232,7 +235,12 @@ void main() {
       reprepare: () async {},
       switchSource: () async {},
     );
-    await coordinator.recover(userStopped: false, retryable: true, reprepare: () async {}, switchSource: () async {});
+    await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async {},
+      switchSource: () async {},
+    );
     expect(coordinator.retryCount, 2);
     coordinator.resetAfterStablePlayback();
     final result = await coordinator.recover(
