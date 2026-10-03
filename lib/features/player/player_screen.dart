@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../core/domain/entities/playlist.dart';
 import '../../core/playback/engine/playback_request.dart';
+import '../../core/playback/engine/playback_engine_error.dart';
 import '../../core/playback/engine/video_player_engine.dart';
 import '../../core/playback/monitor/stall_detector.dart';
 import '../../core/playback/recovery/recovery_policy.dart';
