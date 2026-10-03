@@ -1,42 +1,78 @@
 import '../epg_matcher.dart';
 
-class XmltvParseException implements Exception { const XmltvParseException(this.message); final String message; }
+class XmltvParseException implements Exception {
+  const XmltvParseException(this.message);
+  final String message;
+}
 
 class XmltvParser {
-  const XmltvParser({this.maxProgrammes=500000});
+  const XmltvParser({this.maxProgrammes = 500000});
+
   final int maxProgrammes;
 
   List<EpgProgramme> parse(String xml) {
-    final programmes=<EpgProgramme>[];
-    final tag=RegExp(r'<programme\b([^>]*)>(.*?)</programme>', dotAll:true);
+    final programmes = <EpgProgramme>[];
+    final tag = RegExp(r'<programme\b([^>]*)>(.*?)</programme>', dotAll: true, caseSensitive: false);
+
     for (final match in tag.allMatches(xml)) {
       if (programmes.length >= maxProgrammes) throw const XmltvParseException('EPG programme limit exceeded');
-      final attrs=_attrs(match.group(1) ?? '');
-      final channel=attrs['channel'];
-      final start=_time(attrs['start']);
-      final end=_time(attrs['stop']);
-      final title=_text(match.group(2) ?? 'title');
-      if (channel == null || start == null || end == null || title.isEmpty) continue;
-      programmes.add(EpgProgramme(id:channel+'@'+start.toIso8601String(), channelId:channel, title:title, start:start, end:end));
+      final attrs = _attrs(match.group(1) ?? '');
+      final channel = attrs['channel'];
+      final start = _time(attrs['start']);
+      final end = _time(attrs['stop']);
+      final title = _text(match.group(2) ?? '');
+      if (channel == null || start == null || end == null || title.isEmpty || !end.isAfter(start)) continue;
+
+      programmes.add(EpgProgramme(
+        id: channel + '@' + start.toIso8601String(),
+        channelId: channel,
+        title: title,
+        start: start,
+        end: end,
+      ));
     }
     return List.unmodifiable(programmes);
   }
 
-  Map<String,String> _attrs(String input) {
-    final out=<String,String>{};
-    final regex=RegExp(r'([A-Za-z0-9_-]+)="([^"]*)"');
-    for (final m in regex.allMatches(input)) out[m.group(1)!]=m.group(2)!;
+  Map<String, String> _attrs(String input) {
+    final out = <String, String>{};
+    final regex = RegExp(r'([A-Za-z0-9_:-]+)\s*=\s*(["\'])(.*?)\2', dotAll: true);
+    for (final match in regex.allMatches(input)) out[match.group(1)!] = match.group(3)!;
     return out;
   }
+
   DateTime? _time(String? value) {
-    if (value == null || value.length < 14) return null;
-    final digits=value.substring(0,14);
-    final parsed=DateTime.tryParse(digits.substring(0,4)+'-'+digits.substring(4,6)+'-'+digits.substring(6,8)+'T'+digits.substring(8,10)+':'+digits.substring(10,12)+':'+digits.substring(12,14));
-    return parsed;
+    if (value == null) return null;
+    final match = RegExp(r'^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\s*([+-])(\d{2})(\d{2}))?').firstMatch(value.trim());
+    if (match == null) return null;
+
+    final base = DateTime(
+      int.parse(match.group(1)!),
+      int.parse(match.group(2)!),
+      int.parse(match.group(3)!),
+      int.parse(match.group(4)!),
+      int.parse(match.group(5)!),
+      int.parse(match.group(6)!),
+    );
+
+    final sign = match.group(7);
+    if (sign == null) return base;
+    final offset = Duration(hours: int.parse(match.group(8)!), minutes: int.parse(match.group(9)!));
+    return sign == '+' ? base.subtract(offset) : base.add(offset);
   }
+
   String _text(String body) {
-    final m=RegExp(r'<title(?:\s[^>]*)?>(.*?)</title>', dotAll:true).firstMatch(body);
-    if (m == null) return '';
-    return m.group(1)!.replaceAll(RegExp(r'<[^>]+>'), '').trim();
+    final match = RegExp(r'<title(?:\s[^>]*)?>(.*?)</title>', dotAll: true, caseSensitive: false).firstMatch(body);
+    if (match == null) return '';
+    return _decodeEntities(match.group(1)!.replaceAll(RegExp(r'<[^>]+>'), '').trim());
   }
+
+  String _decodeEntities(String value) => value
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAllMapped(RegExp(r'&#x([0-9a-fA-F]+);'), (m) => String.fromCharCode(int.parse(m.group(1)!, radix: 16)))
+      .replaceAllMapped(RegExp(r'&#(\d+);'), (m) => String.fromCharCode(int.parse(m.group(1)!)));
 }
