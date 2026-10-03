@@ -1,81 +1,135 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
 
 import '../../core/domain/entities/playlist.dart';
+import '../../core/playback/engine/playback_request.dart';
+import '../../core/playback/engine/video_player_engine.dart';
 import '../../core/playback/monitor/stall_detector.dart';
+import '../../core/playback/recovery/recovery_policy.dart';
+import '../../core/playback/session/playback_session.dart';
+import '../../core/playback/source_health/source_health_manager.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({required this.entry, super.key});
   final PlaylistEntry entry;
-
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
+  final _engine = VideoPlayerEngine();
+  final _session = PlaybackSession('player-session');
   final _stallDetector = const StallDetector();
-  VideoPlayerController? _controller;
+  final _recoveryPolicy = const RecoveryPolicy();
+  final _health = SourceHealthManager();
+
   Timer? _healthTimer;
   Duration _lastPosition = Duration.zero;
   DateTime _lastProgress = DateTime.now();
   String _status = 'Preparando';
   String? _error;
   int _sourceIndex = 0;
+  int _retryCount = 0;
+  int _sourceChanges = 0;
   bool _recovering = false;
+  bool _autoRecovery = true;
+  bool _autoSourceSwitching = true;
 
   @override
   void initState() {
     super.initState();
-    _openSource();
+    _session.start();
+    _openSource(automatic: false);
     _healthTimer = Timer.periodic(const Duration(seconds: 3), (_) => _checkHealth());
   }
 
-  Future<void> _openSource() async {
-    if (_recovering) return;
-    _recovering = true;
-    final source = widget.entry.sources[_sourceIndex];
-    final old = _controller;
-    final controller = VideoPlayerController.networkUrl(
-      source.url,
-      httpHeaders: source.headers,
-      videoPlayerOptions: const VideoPlayerOptions(mixWithOthers: false),
-    );
-    _controller = controller;
-    await old?.dispose();
+  Future<void> _openSource({required bool automatic}) async {
+    if (_session.isStopped || widget.entry.sources.isEmpty) return;
+    final operation = _session.beginOperation();
+    if (operation < 0) return;
 
-    if (mounted) setState(() => _status = 'Conectando fuente ' + (_sourceIndex + 1).toString());
-
-    try {
-      await controller.initialize();
-      await controller.play();
-      _lastPosition = controller.value.position;
-      _lastProgress = DateTime.now();
-      if (mounted) {
-        setState(() {
-          _error = null;
-          _status = 'Reproduciendo';
-        });
+    var attempts = 0;
+    while (!_session.isStopped &&
+        _session.isCurrentOperation(operation) &&
+        attempts < widget.entry.sources.length + 3) {
+      final source = widget.entry.sources[_sourceIndex];
+      final now = DateTime.now();
+      if (!_health.canAttempt(source.id, now)) {
+        _advanceSource();
+        attempts++;
+        continue;
       }
-    } catch (_) {
-      await controller.dispose();
-      if (mounted) setState(() => _status = 'Fuente con error');
-      await _recover();
-    } finally {
-      _recovering = false;
+
+      if (mounted) setState(() => _status = 'Conectando fuente ${{_sourceIndex + 1}');
+      final started = DateTime.now();
+      try {
+        await _engine.prepare(PlaybackRequest(source: source));
+        if (!_session.isCurrentOperation(operation) || _session.isStopped) return;
+        await _engine.play();
+        _health.recordSuccess(source.id, DateTime.now(), DateTime.now().difference(started));
+        _retryCount = 0;
+        _lastPosition = _engine.position;
+        _lastProgress = DateTime.now();
+        if (mounted) {
+          setState(() {
+            _error = null;
+            _status = automatic ? 'Fuente recuperada' : 'Reproduciendo';
+          });
+        }
+        return;
+      } catch (error) {
+        _health.recordFailure(source.id, DateTime.now());
+        _error = 'Fuente ${{_sourceIndex + 1}: ${{error}';
+        attempts++;
+        final decision = _recoveryPolicy.decide(
+          userStopped: _session.isStopped,
+          retryable: true,
+          retryCount: _retryCount,
+          sourceChanges: _sourceChanges,
+        );
+        if (decision.level == RecoveryLevel.retry ||
+            decision.level == RecoveryLevel.reprepare) {
+          _retryCount++;
+          if (decision.delay > Duration.zero) {
+            await Future<void>.delayed(decision.delay);
+          }
+          continue;
+        }
+        if (decision.level == RecoveryLevel.switchSource &&
+            _autoSourceSwitching &&
+            widget.entry.sources.length > 1) {
+          _retryCount = 0;
+          _sourceChanges++;
+          _advanceSource();
+          continue;
+        }
+        break;
+      }
+    }
+
+    if (mounted && !_session.isStopped) {
+      setState(() => _status = 'No hay una fuente reproducible');
     }
   }
 
-  Future<void> _checkHealth() async {
-    final controller = _controller;
-    if (controller == null || !controller.value.isInitialized || _recovering) return;
+  void _advanceSource() {
+    if (widget.entry.sources.isEmpty) return;
+    _sourceIndex = (_sourceIndex + 1) % widget.entry.sources.length;
+  }
 
-    final position = controller.value.position;
+  Future<void> _checkHealth() async {
+    if (_session.isStopped || _recovering) return;
+    final controller = _engine.controller;
+    if (controller == null || !controller.value.isInitialized) return;
+
+    final position = _engine.position;
     if (position > _lastPosition) {
       _lastPosition = position;
       _lastProgress = DateTime.now();
-      if (mounted && _status != 'Reproduciendo') setState(() => _status = 'Reproduciendo');
+      if (mounted && _status != 'Reproduciendo') {
+        setState(() => _status = 'Reproduciendo');
+      }
       return;
     }
 
@@ -88,39 +142,68 @@ class _PlayerScreenState extends State<PlayerScreen> {
       playheadMoving: false,
     );
 
-    if (mounted && buffering) setState(() => _status = 'Buffering');
-    if (stalled) await _recover();
+    if (mounted && buffering && !stalled) setState(() => _status = 'Buffering');
+    if (stalled && _autoRecovery) await _recover();
   }
 
   Future<void> _recover() async {
-    if (_recovering || widget.entry.sources.isEmpty) return;
+    if (_recovering || _session.isStopped) return;
     _recovering = true;
-    if (mounted) setState(() => _status = 'Recuperando conexión...');
-    final current = _controller;
-    await current?.pause();
-    await current?.dispose();
-    if (widget.entry.sources.length > 1) {
-      _sourceIndex = (_sourceIndex + 1) % widget.entry.sources.length;
+    final operation = _session.beginOperation();
+    if (operation < 0) {
+      _recovering = false;
+      return;
     }
-    _recovering = false;
-    await _openSource();
+    if (mounted) setState(() => _status = 'Recuperando conexión...');
+    try {
+      await _engine.stop();
+      final decision = _recoveryPolicy.decide(
+        userStopped: false,
+        retryable: true,
+        retryCount: _retryCount,
+        sourceChanges: _sourceChanges,
+      );
+      if (decision.delay > Duration.zero) {
+        await Future<void>.delayed(decision.delay);
+      }
+      if (!_session.isCurrentOperation(operation)) return;
+
+      if (decision.level == RecoveryLevel.switchSource &&
+          _autoSourceSwitching &&
+          widget.entry.sources.length > 1) {
+        _sourceChanges++;
+        _retryCount = 0;
+        _advanceSource();
+      } else {
+        _retryCount++;
+      }
+      await _openSource(automatic: true);
+    } finally {
+      _recovering = false;
+    }
   }
 
   @override
   void dispose() {
+    _session.stop();
     _healthTimer?.cancel();
-    _controller?.dispose();
+    _engine.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final controller = _controller;
+    final controller = _engine.controller;
     final ready = controller?.value.isInitialized == true;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.entry.channel.displayName),
         actions: [
+          IconButton(
+            tooltip: 'Recuperar',
+            onPressed: _recovering ? null : _recover,
+            icon: const Icon(Icons.refresh),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Center(child: Text(_status)),
@@ -149,7 +232,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   Text(_error ?? _status),
                   const SizedBox(height: 12),
                   FilledButton.icon(
-                    onPressed: _recover,
+                    onPressed: _recovering ? null : _recover,
                     icon: const Icon(Icons.refresh),
                     label: const Text('Recuperar'),
                   ),
@@ -160,9 +243,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ? FloatingActionButton(
               onPressed: () async {
                 if (controller!.value.isPlaying) {
-                  await controller.pause();
+                  await _engine.pause();
                 } else {
-                  await controller.play();
+                  await _engine.play();
                 }
                 if (mounted) setState(() {});
               },
