@@ -2,13 +2,19 @@ class SecretRedactor {
   const SecretRedactor();
 
   String url(Uri uri) {
-    if (uri.queryParameters.isEmpty) return uri.toString();
+    final rawQuery = uri.query;
+    if (rawQuery.isEmpty) return uri.toString();
 
-    final safe = <String, String>{};
-    uri.queryParameters.forEach((key, value) {
-      safe[key] = _sensitive(key) ? '[REDACTED]' : value;
-    });
-    return uri.replace(queryParameters: safe).toString();
+    final redactedQuery = rawQuery.split('&').map((part) {
+      final separator = part.indexOf('=');
+      final rawKey = separator < 0 ? part : part.substring(0, separator);
+      final key = Uri.decodeQueryComponent(rawKey);
+      if (!_sensitive(key)) return part;
+      return '$rawKey=[REDACTED]';
+    }).join('&');
+
+    final base = uri.replace(query: null).toString();
+    return '$base?$redactedQuery';
   }
 
   Map<String, String> headers(Map<String, String> input) {
