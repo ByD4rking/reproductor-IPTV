@@ -42,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     setState(() {
       _playlist = playlist;
-      _searchIndex = SearchIndex()..replace(playlist!.entries.map((e) => e.channel));
+      _searchIndex = SearchIndex()..replace(playlist.entries.map((e) => e.channel));
       _loading = false;
     });
   }
@@ -59,7 +59,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final index = _searchIndex!;
     final candidates = _query.trim().isEmpty
         ? playlist.entries
-        : index.search(_query).map((channel) => playlist.entries.where((entry) => entry.channel.id == channel.id).firstOrNull).whereType<PlaylistEntry>();
+        : index.search(_query).expand((channel) {
+            for (final entry in playlist.entries) {
+              if (entry.channel.id == channel.id) return [entry];
+            }
+            return const <PlaylistEntry>[];
+          });
     return candidates.where((e) => _category == 'Todos' || e.category == _category).toList();
   }
 
