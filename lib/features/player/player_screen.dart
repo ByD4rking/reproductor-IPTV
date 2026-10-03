@@ -9,7 +9,6 @@ import '../../core/playback/engine/playback_engine_error.dart';
 import '../../core/playback/engine/playback_engine_state.dart';
 import '../../core/playback/engine/video_player_engine.dart';
 import '../../core/playback/monitor/stall_detector.dart';
-import '../../core/playback/recovery/recovery_policy.dart';
 import '../../core/playback/recovery/recovery_coordinator.dart';
 import '../../core/playback/diagnostics/playback_error.dart';
 import '../../core/playback/session/playback_session.dart';
@@ -31,7 +30,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final _engine = VideoPlayerEngine();
   final _session = PlaybackSession('player-session');
   final _stallDetector = const StallDetector();
-  final _recoveryPolicy = const RecoveryPolicy();
   final _recoveryCoordinator = RecoveryCoordinator();
   final _health = SourceHealthManager(
     repository: SourceHealthRepository(),
@@ -188,7 +186,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
         if (decision.level == RecoveryLevel.retry ||
             decision.level == RecoveryLevel.reprepare ||
             decision.level == RecoveryLevel.switchSource) {
-          if (_session.isCurrentOperation(operation)) continue;
+          if (_session.isCurrentOperation(operation)) {
+            _lastPosition = _engine.position;
+            _lastBufferedAhead = _engine.buffered;
+            _lastProgress = DateTime.now();
+            if (mounted) {
+              setState(() {
+                _error = null;
+                _status = 'Reproduciendo';
+              });
+            }
+            continue;
+          }
           break;
         }
         break;
