@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:video_player/video_player.dart';
 
 import 'playback_engine.dart';
+import 'playback_engine_state.dart';
 import 'playback_engine_error.dart';
 import 'playback_request.dart';
 import 'playback_tracks.dart';
@@ -15,6 +16,8 @@ class VideoPlayerEngine implements PlaybackEngine {
   final StreamProbe _probe;
   final StreamController<PlaybackEngineError> _errors =
       StreamController<PlaybackEngineError>.broadcast();
+  final StreamController<PlaybackEngineStateEvent> _states =
+      StreamController<PlaybackEngineStateEvent>.broadcast();
 
   VideoPlayerController? _controller;
   int _prepareGeneration = 0;
@@ -26,6 +29,9 @@ class VideoPlayerEngine implements PlaybackEngine {
   @override
   Stream<PlaybackEngineError> get errors => _errors.stream;
 
+  @override
+  Stream<PlaybackEngineStateEvent> get states => _states.stream;
+
   int get generation => _prepareGeneration;
 
   @override
@@ -34,6 +40,7 @@ class VideoPlayerEngine implements PlaybackEngine {
     previous?.removeListener(_handleControllerValue);
 
     final generation = ++_prepareGeneration;
+    _emitState(PlaybackEngineState.preparing, generation);
     _activeSourceId = request.source.id;
     _lastErrorDescription = null;
 
@@ -52,25 +59,33 @@ class VideoPlayerEngine implements PlaybackEngine {
       await controller.initialize();
       if (generation != _prepareGeneration) {
         controller.removeListener(_handleControllerValue);
-        await controller.dispose();
+        controller.dispose();
         return;
       }
 
       if (previous != null && identical(_controller, previous)) {
         previous.removeListener(_handleControllerValue);
-        await previous.dispose();
+        previous.dispose();
       }
       _controller = controller;
     } catch (_) {
       controller.removeListener(_handleControllerValue);
-      await controller.dispose();
+      controller.dispose();
       rethrow;
     }
   }
 
   void _handleControllerValue() {
     final controller = _controller;
-    if (controller == null || !controller.value.hasError) return;
+    if (controller == null) return;
+    if (controller.value.isCompleted) {
+      _emitState(PlaybackEngineState.completed, _prepareGeneration);
+    } else if (controller.value.isBuffering) {
+      _emitState(PlaybackEngineState.buffering, _prepareGeneration);
+    } else if (controller.value.isPlaying) {
+      _emitState(PlaybackEngineState.playing, _prepareGeneration);
+    }
+    if (!controller.value.hasError) return;
 
     final description = controller.value.errorDescription;
     if (description == null || description.trim().isEmpty) return;
@@ -218,10 +233,20 @@ class VideoPlayerEngine implements PlaybackEngine {
   }
 
   @override
-  Future<void> play() async => _controller?.play();
+  Future<void> play() async {
+    final controller = _controller;
+    if (controller == null) return;
+    await controller.play();
+    _emitState(PlaybackEngineState.playing, _prepareGeneration);
+  }
 
   @override
-  Future<void> pause() async => _controller?.pause();
+  Future<void> pause() async {
+    final controller = _controller;
+    if (controller == null) return;
+    await controller.pause();
+    _emitState(PlaybackEngineState.paused, _prepareGeneration);
+  }
 
   @override
   Future<void> stop() async {
@@ -232,6 +257,7 @@ class VideoPlayerEngine implements PlaybackEngine {
     if (controller != null) {
       await controller.pause();
     }
+    _emitState(PlaybackEngineState.idle, _prepareGeneration);
   }
 
   @override
@@ -243,6 +269,12 @@ class VideoPlayerEngine implements PlaybackEngine {
     controller?.dispose();
     await _probe.dispose();
     await _errors.close();
+    await _states.close();
+  }
+
+  void _emitState(PlaybackEngineState state, int generation) {
+    if (_states.isClosed) return;
+    _states.add(PlaybackEngineStateEvent(generation: generation, state: state));
   }
 
   @override
