@@ -23,4 +23,20 @@ void main() {
     expect(error.sourceId, 'source-7');
     expect(error.message, 'HTTP 503');
   });
+
+  test('playback engine error carries structured transport metadata', () {
+    const error = PlaybackEngineError(
+      generation: 3,
+      sourceId: 'live-1',
+      message: 'HTTP 503 Service Unavailable',
+      code: 'timeout',
+      statusCode: 503,
+      behindLiveWindow: true,
+    );
+
+    expect(error.code, 'timeout');
+    expect(error.statusCode, 503);
+    expect(error.behindLiveWindow, isTrue);
+  });
+
 }
