@@ -1,8 +1,7 @@
 import '../state/playback_state_machine.dart';
 
 class PlaybackSession {
-  PlaybackSession(this.id, {int generation = 0})
-      : generation = generation,
+  PlaybackSession(this.id, {this.generation = 0})
         _stateMachine = PlaybackStateMachine();
 
   final String id;
