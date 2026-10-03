@@ -32,6 +32,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Timer? _healthTimer;
   Duration _lastPosition = Duration.zero;
   DateTime _lastProgress = DateTime.now();
+  Duration _lastBufferedAhead = Duration.zero;
   String _status = 'Preparando';
   String? _error;
   int _sourceIndex = 0;
@@ -76,6 +77,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _health.recordSuccess(source.id, DateTime.now(), DateTime.now().difference(started));
         _retryCount = 0;
         _lastPosition = _engine.position;
+        _lastBufferedAhead = _engine.buffered;
         _lastProgress = DateTime.now();
         if (mounted) {
           setState(() {
@@ -140,11 +142,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
 
     final age = DateTime.now().difference(_lastProgress);
+    final bufferedAhead = _engine.buffered;
+    final dataArriving = bufferedAhead > _lastBufferedAhead;
+    _lastBufferedAhead = bufferedAhead;
     final buffering = controller.value.isBuffering;
     final stalled = _stallDetector.isStalled(
       lastProgressAge: age,
       buffering: buffering,
-      dataArriving: buffering,
+      dataArriving: dataArriving,
       playheadMoving: false,
     );
 
@@ -229,7 +234,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       body: Center(
         child: ready
             ? AspectRatio(
-                aspectRatio: controller!.value.aspectRatio,
+                aspectRatio: controller.value.aspectRatio,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
