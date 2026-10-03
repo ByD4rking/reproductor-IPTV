@@ -33,7 +33,7 @@ class VideoPlayerEngine implements PlaybackEngine {
     final path = request.source.url.path.toLowerCase();
     if (path.endsWith('.m3u8')) return VideoFormat.hls;
     if (path.endsWith('.mpd')) return VideoFormat.dash;
-    final result = await _probe.probe(request.source);
+    final result = await _probe.probe(request.source, headers: request.effectiveHeaders);
     switch (result?.kind) {
       case StreamKind.hls: return VideoFormat.hls;
       case StreamKind.dash: return VideoFormat.dash;
