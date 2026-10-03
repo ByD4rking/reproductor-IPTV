@@ -25,8 +25,11 @@ class _TvFocusableState extends State<TvFocusable> {
   Widget build(BuildContext context) {
     return Focus(
       autofocus: widget.autofocus,
+      canRequestFocus: true,
       onFocusChange: (value) {
-        if (mounted) setState(() => _focused = value);
+        if (mounted && _focused != value) {
+          setState(() => _focused = value);
+        }
       },
       onKeyEvent: (_, event) {
         if (event is KeyDownEvent &&
@@ -41,6 +44,7 @@ class _TvFocusableState extends State<TvFocusable> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
           borderRadius: widget.borderRadius,
           border: Border.all(
