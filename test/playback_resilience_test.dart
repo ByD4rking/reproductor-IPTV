@@ -54,8 +54,20 @@ void main() {
 
   test('stream kind uses MIME when URL has no useful extension', () {
     const detector = StreamKindDetector();
-    expect(detector.detect(Uri.parse('https://example.test/live?id=1'), contentType: 'application/vnd.apple.mpegurl'), StreamKind.hls);
-    expect(detector.detect(Uri.parse('https://example.test/channel'), contentType: 'application/dash+xml'), StreamKind.dash);
+    expect(
+      detector.detect(
+        Uri.parse('https://example.test/live?id=1'),
+        contentType: 'application/vnd.apple.mpegurl',
+      ),
+      StreamKind.hls,
+    );
+    expect(
+      detector.detect(
+        Uri.parse('https://example.test/channel'),
+        contentType: 'application/dash+xml',
+      ),
+      StreamKind.dash,
+    );
   });
 
   test('playback engine state event preserves generation and state', () {
@@ -75,7 +87,17 @@ void main() {
 
   test('user stop is terminal and never becomes a retry', () {
     const policy = RecoveryPolicy();
-    expect(policy.decide(userStopped: true, retryable: true, retryCount: 0, sourceChanges: 0).level, RecoveryLevel.stopped);
+    expect(
+      policy
+          .decide(
+            userStopped: true,
+            retryable: true,
+            retryCount: 0,
+            sourceChanges: 0,
+          )
+          .level,
+      RecoveryLevel.stopped,
+    );
   });
 
   test('stopped session invalidates old operations', () {
@@ -91,9 +113,39 @@ void main() {
 
   test('recovery policy escalates retry, reprepare and source switch', () {
     const policy = RecoveryPolicy();
-    expect(policy.decide(userStopped: false, retryable: true, retryCount: 0, sourceChanges: 0).level, RecoveryLevel.retry);
-    expect(policy.decide(userStopped: false, retryable: true, retryCount: 1, sourceChanges: 0).level, RecoveryLevel.reprepare);
-    expect(policy.decide(userStopped: false, retryable: true, retryCount: 2, sourceChanges: 0).level, RecoveryLevel.switchSource);
+    expect(
+      policy
+          .decide(
+            userStopped: false,
+            retryable: true,
+            retryCount: 0,
+            sourceChanges: 0,
+          )
+          .level,
+      RecoveryLevel.retry,
+    );
+    expect(
+      policy
+          .decide(
+            userStopped: false,
+            retryable: true,
+            retryCount: 1,
+            sourceChanges: 0,
+          )
+          .level,
+      RecoveryLevel.reprepare,
+    );
+    expect(
+      policy
+          .decide(
+            userStopped: false,
+            retryable: true,
+            retryCount: 2,
+            sourceChanges: 0,
+          )
+          .level,
+      RecoveryLevel.switchSource,
+    );
   });
 
   test('classifies HTTP auth, missing, transient and timeout failures', () {
@@ -133,11 +185,26 @@ void main() {
     final coordinator = RecoveryCoordinator();
     var reparses = 0;
     var switches = 0;
-    final first = await coordinator.recover(userStopped: false, retryable: true, reprepare: () async => reparses++, switchSource: () async => switches++);
+    final first = await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async => reparses++,
+      switchSource: () async => switches++,
+    );
     expect(first?.level, RecoveryLevel.retry);
-    final second = await coordinator.recover(userStopped: false, retryable: true, reprepare: () async => reparses++, switchSource: () async => switches++);
+    final second = await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async => reparses++,
+      switchSource: () async => switches++,
+    );
     expect(second?.level, RecoveryLevel.reprepare);
-    final third = await coordinator.recover(userStopped: false, retryable: true, reprepare: () async => reparses++, switchSource: () async => switches++);
+    final third = await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async => reparses++,
+      switchSource: () async => switches++,
+    );
     expect(third?.level, RecoveryLevel.switchSource);
     expect(reparses, 2);
     expect(switches, 1);
@@ -146,7 +213,12 @@ void main() {
   test('cancel invalidates a delayed recovery', () async {
     final coordinator = RecoveryCoordinator();
     var called = false;
-    final future = coordinator.recover(userStopped: false, retryable: true, reprepare: () async => called = true, switchSource: () async {});
+    final future = coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async => called = true,
+      switchSource: () async {},
+    );
     coordinator.cancel();
     expect(await future, isNull);
     expect(called, isFalse);
@@ -154,11 +226,21 @@ void main() {
 
   test('stable playback resets recovery budget', () async {
     final coordinator = RecoveryCoordinator();
-    await coordinator.recover(userStopped: false, retryable: true, reprepare: () async {}, switchSource: () async {});
+    await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async {},
+      switchSource: () async {},
+    );
     await coordinator.recover(userStopped: false, retryable: true, reprepare: () async {}, switchSource: () async {});
     expect(coordinator.retryCount, 2);
     coordinator.resetAfterStablePlayback();
-    final result = await coordinator.recover(userStopped: false, retryable: true, reprepare: () async {}, switchSource: () async {});
+    final result = await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async {},
+      switchSource: () async {},
+    );
     expect(result?.level, RecoveryLevel.retry);
     expect(coordinator.retryCount, 1);
   });
