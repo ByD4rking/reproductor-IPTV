@@ -15,7 +15,7 @@ class BufferHealthSnapshot {
 }
 
 class BufferHealthMonitor {
-  const BufferHealthMonitor({
+  BufferHealthMonitor({
     this.degradedThreshold = const Duration(seconds: 1),
     this.severeThreshold = const Duration(milliseconds: 500),
     this.degradedAfter = const Duration(seconds: 6),
