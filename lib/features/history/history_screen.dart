@@ -25,7 +25,7 @@ class HistoryScreen extends StatelessWidget {
                 leading: const Icon(Icons.history),
                 title: Text(item.channelId),
                 subtitle: Text(item.startedAt.toLocal().toString()),
-                trailing: Text(item.duration.inSeconds.toString() + ' s'),
+                trailing: Text('${item.duration.inSeconds} s'),
               );
             },
           );
