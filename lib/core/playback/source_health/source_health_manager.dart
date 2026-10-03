@@ -11,6 +11,7 @@ class SourceHealthManager {
 
   bool beginAttempt(String sourceId, DateTime now) {
     final current = healthOf(sourceId);
+    if (current.state == SourceHealthState.halfOpen) return false;
     final next = _breaker.beginProbe(current, now);
     _health[sourceId] = next;
     return _breaker.canAttempt(next, now) || next.state == SourceHealthState.halfOpen;
