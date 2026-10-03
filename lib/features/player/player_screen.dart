@@ -51,9 +51,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _healthTimer = Timer.periodic(const Duration(seconds: 3), (_) => _checkHealth());
   }
 
-  Future<void> _openSource({required bool automatic}) async {
+  Future<void> _openSource({required bool automatic, int? operationId}) async {
     if (_session.isStopped || widget.entry.sources.isEmpty) return;
-    final operation = _session.beginOperation();
+    final operation = operationId ?? _session.beginOperation();
     if (operation < 0) return;
 
     var attempts = 0;
@@ -188,7 +188,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       } else {
         _retryCount++;
       }
-      await _openSource(automatic: true);
+      await _openSource(automatic: true, operationId: operation);
     } finally {
       _recovering = false;
     }
