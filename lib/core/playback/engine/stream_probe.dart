@@ -63,7 +63,7 @@ class StreamProbe {
         source.url,
         contentType: contentType,
       );
-      final body = await _readBounded(response.stream, maxBytes);
+      final body = await _readBounded(response.stream, maxBytes, timeout);
       final bytesRead = body.length;
 
       if (kind == StreamKind.unknown || kind == StreamKind.progressive) {
@@ -100,7 +100,9 @@ class StreamProbe {
           final checks = await Future.wait(
             uris.map((uri) => _checkHlsChild(uri, source, headers)),
           );
-          hlsDeepValid = checks.isNotEmpty && checks.every((value) => value);
+          // A master playlist is healthy when at least one rendition works;
+          // one dead variant must not invalidate the entire adaptive stream.
+          hlsDeepValid = checks.any((value) => value);
         }
       }
 
@@ -132,7 +134,7 @@ class StreamProbe {
       if (response.statusCode < 200 || response.statusCode >= 400) {
         return false;
       }
-      final body = await _readBounded(response.stream, 8 * 1024);
+      final body = await _readBounded(response.stream, 8 * 1024, timeout);
       if (body.isEmpty) return false;
 
       final contentType = response.headers['content-type'];
@@ -171,10 +173,11 @@ class StreamProbe {
   static Future<Uint8List> _readBounded(
     Stream<List<int>> stream,
     int limit,
+    Duration timeout,
   ) async {
     final body = BytesBuilder(copy: false);
     var bytesRead = 0;
-    await for (final chunk in stream.timeout(const Duration(seconds: 4))) {
+    await for (final chunk in stream.timeout(timeout)) {
       if (chunk.isEmpty) continue;
       final remaining = limit - bytesRead;
       if (remaining <= 0) break;
