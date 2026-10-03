@@ -5,7 +5,6 @@ import 'playback_request.dart';
 
 class VideoPlayerEngine implements PlaybackEngine {
   VideoPlayerController? _controller;
-
   VideoPlayerController? get controller => _controller;
 
   @override
@@ -14,23 +13,25 @@ class VideoPlayerEngine implements PlaybackEngine {
     final controller = VideoPlayerController.networkUrl(
       request.source.url,
       httpHeaders: request.effectiveHeaders,
-      videoPlayerOptions: const VideoPlayerOptions(mixWithOthers: false),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
     );
     _controller = controller;
     await previous?.dispose();
-    await controller.initialize();
+    try {
+      await controller.initialize();
+    } catch (_) {
+      if (identical(_controller, controller)) _controller = null;
+      await controller.dispose();
+      rethrow;
+    }
   }
 
   @override
   Future<void> play() async => _controller?.play();
-
   @override
   Future<void> pause() async => _controller?.pause();
-
   @override
-  Future<void> stop() async {
-    await _controller?.pause();
-  }
+  Future<void> stop() async => _controller?.pause();
 
   @override
   Future<void> dispose() async {
