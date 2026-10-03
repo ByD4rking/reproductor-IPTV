@@ -1,28 +1,59 @@
 import '../../domain/entities/stream_source.dart';
 import 'circuit_breaker.dart';
+import 'source_health_repository.dart';
 
 class SourceHealthManager {
-  SourceHealthManager({CircuitBreaker breaker = const CircuitBreaker()}) : _breaker = breaker;
+  SourceHealthManager({
+    CircuitBreaker breaker = const CircuitBreaker(),
+    SourceHealthRepository? repository,
+  })  : _breaker = breaker,
+        _repository = repository;
+
   final CircuitBreaker _breaker;
+  final SourceHealthRepository? _repository;
   final Map<String, SourceHealth> _health = <String, SourceHealth>{};
 
-  SourceHealth healthOf(String sourceId) => _health[sourceId] ?? SourceHealth.initial();
-  bool canAttempt(String sourceId, DateTime now) => _breaker.canAttempt(healthOf(sourceId), now);
+  SourceHealth healthOf(String sourceId) =>
+      _health[sourceId] ?? SourceHealth.initial();
+
+  bool canAttempt(String sourceId, DateTime now) =>
+      _breaker.canAttempt(healthOf(sourceId), now);
+
+  Future<void> load() async {
+    if (_repository == null) return;
+    _health
+      ..clear()
+      ..addAll(await _repository!.load());
+  }
 
   bool beginAttempt(String sourceId, DateTime now) {
     final current = healthOf(sourceId);
     if (current.state == SourceHealthState.halfOpen) return false;
     final next = _breaker.beginProbe(current, now);
     _health[sourceId] = next;
-    return _breaker.canAttempt(next, now) || next.state == SourceHealthState.halfOpen;
+    return _breaker.canAttempt(next, now) ||
+        next.state == SourceHealthState.halfOpen;
   }
 
-  void recordSuccess(String sourceId, DateTime now, Duration response) {
-    _health[sourceId] = _breaker.onSuccess(healthOf(sourceId), now, response);
+  Future<void> recordSuccess(
+    String sourceId,
+    DateTime now,
+    Duration response,
+  ) async {
+    _health[sourceId] = _breaker.onSuccess(
+      healthOf(sourceId),
+      now,
+      response,
+    );
+    await _repository?.save(_health);
   }
 
-  void recordFailure(String sourceId, DateTime now) {
-    _health[sourceId] = _breaker.onFailure(healthOf(sourceId), now);
+  Future<void> recordFailure(String sourceId, DateTime now) async {
+    final current = healthOf(sourceId);
+    _health[sourceId] = current.state == SourceHealthState.halfOpen
+        ? _breaker.probeFailure(current, now)
+        : _breaker.onFailure(current, now);
+    await _repository?.save(_health);
   }
 
   Map<String, SourceHealth> snapshot() => Map.unmodifiable(_health);
