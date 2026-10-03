@@ -31,7 +31,7 @@ class EpgRepository {
         'El XMLTV no contiene programas válidos',
       );
     }
-    final encoded = parsed.map(_encode).toList(growable: false);
+    final encoded = parsed.map((value) => jsonEncode(_encode(value))).toList(growable: false);
     await _preferences.setStringList(_lastGoodKey, encoded);
     await _preferences.setStringList(_key, encoded);
     _cache = parsed;
