@@ -99,6 +99,12 @@ class _HomeScreenState extends State<HomeScreen> {
         .toList();
   }
 
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -106,7 +112,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     if (_playlist == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Reproductor IPTV')),
+        appBar: AppBar(
+          title: const Text('Reproductor IPTV'),
+          actions: [
+            IconButton(
+              tooltip: 'Ajustes',
+              onPressed: _openSettings,
+              icon: const Icon(Icons.settings_outlined),
+            ),
+          ],
+        ),
         body: Center(
           child: FilledButton.icon(
             onPressed: () async {
@@ -146,6 +161,11 @@ class _HomeScreenState extends State<HomeScreen> {
               await _loadLibrary();
             },
             icon: const Icon(Icons.playlist_play),
+          ),
+          IconButton(
+            tooltip: 'Ajustes',
+            onPressed: _openSettings,
+            icon: const Icon(Icons.settings_outlined),
           ),
         ],
       ),
