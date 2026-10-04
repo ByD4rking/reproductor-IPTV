@@ -70,30 +70,66 @@ jobs:
           retention-days: 30
 
   webos:
-    name: LG webOS .ipk
-    runs-on: ubuntu-latest
+    name: LG webOS native Flutter .ipk
+    if: ${{ vars.WEBOS_FLUTTER_ENABLED == 'true' }}
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - run: flutter pub get
-      - run: flutter create --platforms=web --project-name reproductor_iptv .
-      - run: flutter build web --release
-      - run: dart run tool/build.dart --target=webos
-      - name: Install official webOS CLI
-        run: npm install --global @webos-tools/cli@3.2.6
-      - name: Build and validate .ipk
+      - name: Install native build dependencies
         run: |
           set -euo pipefail
-          dart run tool/package_tv.dart --target=webos
-          dart run tool/validate_tv_packages.dart webos --require-native
-          test "$(find dist/webos/native -type f -name '*.ipk' | wc -l)" -eq 1
+          sudo apt-get update
+          sudo apt-get install -y curl unzip cmake pkg-config file libgtk-3-0 libgtk-3-dev git ninja-build clang git-lfs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 16.20.2
+      - name: Install webOS Flutter SDK
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/lg-flutter-webos/flutter-webos.git "$RUNNER_TEMP/flutter-webos"
+          echo "$RUNNER_TEMP/flutter-webos/bin" >> "$GITHUB_PATH"
+          mkdir -p "$RUNNER_TEMP/webos-ndk"
+          cd "$RUNNER_TEMP/webos-ndk"
+          curl -fL --retry 3 -o webos-ndk.sh https://github.com/lg-flutter-webos/ndk/releases/download/11.2.0/webos-ndk-flutter-starfish-x86_64-ca9v1-11.2.0.sh
+          chmod +x webos-ndk.sh
+          ./webos-ndk.sh -y
+      - name: Configure webOS NDK environment
+        run: |
+          set -euo pipefail
+          test -f /usr/local/starfish-sdk-x86_64/environment-setup-ca9v1-webosmllib32-linux-gnueabi
+          echo "WEBOS_FLUTTER_NDK_ENV=/usr/local/starfish-sdk-x86_64/environment-setup-ca9v1-webosmllib32-linux-gnueabi" >> "$GITHUB_ENV"
+      - name: Install webOS CLI
+        run: npm install --global @webos-tools/cli@3.2.6
+      - name: Verify webOS toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$WEBOS_FLUTTER_NDK_ENV"
+          flutter-webos doctor -v
+          flutter-webos precache -f
+      - name: Create native webOS platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$WEBOS_FLUTTER_NDK_ENV"
+          flutter-webos create --platforms webos .
+      - name: Build native webOS IPK
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$WEBOS_FLUTTER_NDK_ENV"
+          flutter-webos clean
+          flutter-webos pub get
+          flutter-webos build webos --release
+          mkdir -p dist/webos/native
+          mapfile -t packages < <(find build/webos -type f -name '*.ipk' -print)
+          test "${#packages[@]}" -eq 1
+          cp "${packages[0]}" dist/webos/native/reproductor-IPTV-LG-webOS-native.ipk
+      - name: Validate native IPK
+        run: |
+          set -euo pipefail
+          test -s dist/webos/native/reproductor-IPTV-LG-webOS-native.ipk
+          file dist/webos/native/reproductor-IPTV-LG-webOS-native.ipk
       - uses: actions/upload-artifact@v4
         with:
           name: webos-ipk
@@ -135,7 +171,7 @@ jobs:
   publish:
     name: Publish downloadable release
     needs: [quality, android, webos, tizen]
-    if: ${{ always() && needs.quality.result == 'success' && needs.android.result == 'success' && needs.webos.result == 'success' && (needs.tizen.result == 'success' || needs.tizen.result == 'skipped') }}
+    if: ${{ always() && needs.quality.result == 'success' && needs.android.result == 'success' && (needs.webos.result == 'success' || needs.webos.result == 'skipped') && (needs.tizen.result == 'success' || needs.tizen.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -234,7 +270,7 @@ jobs:
           APK para Fire TV y dispositivos Fire OS.
 
           ## 🟦 LG webOS
-          IPK para LG Smart TV. Incluye compatibilidad de renderizado webOS y diagnóstico de arranque.
+          IPK Flutter nativo para webOS, generado con el toolchain oficial de LG cuando WEBOS_FLUTTER_ENABLED está habilitado.
 
           ## 🟩 Samsung Tizen
           WGT cuando el runner y certificado Tizen estén configurados.
