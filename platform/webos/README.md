@@ -19,7 +19,7 @@ El IPK nativo se genera bajo:
 build/webos/{arch}/release/ipk/
 ```
 
-El workflow de Release solo publica este IPK cuando `WEBOS_FLUTTER_ENABLED=true`. Si el toolchain nativo no está configurado, no se publica un IPK webOS falso o basado en Flutter Web.
+El workflow de Release publica este IPK cuando el job nativo de webOS termina correctamente. Si el toolchain nativo falla, no se debe publicar un IPK basado en Flutter Web como sustituto.
 
 ## Compatibilidad
 
@@ -51,3 +51,14 @@ El proyecto incluye la implementación oficial `video_player_webos` para que el 
 ## Windows
 
 El SDK oficial se ejecuta en Linux. En Windows se puede usar WSL2 o el DevContainer oficial de LG.
+
+
+## Referencias de compatibilidad usadas
+
+La estrategia de este perfil toma como referencia implementaciones webOS IPTV que separan explícitamente la UI del reproductor y adaptan el vídeo al plano de hardware del TV. En particular, no usamos la Native Fullscreen API ni asumimos que un vídeo puede ser recortado/clipeado como una capa DOM normal en navegadores webOS antiguos.
+
+- sharktie/lg-iptv: compatibilidad con Chromium antiguo, detección del plano de vídeo, navegación por mando y diagnóstico dentro de la TV.
+- lennylxx/webos-iptv-player: polyfills por generación de webOS, navegación remote-first, diagnósticos y pruebas específicas para webOS antiguos.
+- El SDK oficial lg-flutter-webos se mantiene como la ruta de Flutter nativo para webOS 26 Re:New y posteriores.
+
+Estas referencias son de diseño y compatibilidad; no se copia código ni arquitectura de terceros.
