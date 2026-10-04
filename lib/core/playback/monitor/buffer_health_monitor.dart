@@ -46,11 +46,11 @@ class BufferHealthMonitor {
     final lowDuration = _lowSince == null
         ? Duration.zero
         : now.difference(_lowSince!);
-    final degraded = playheadMoving &&
-        buffering &&
-        lowDuration >= degradedAfter;
+    // Do not depend on the engine's buffering flag. Some HLS/network stalls
+    // keep `isBuffering` false while the playhead is still moving briefly.
+    // Sustained low buffer is itself a stronger starvation signal.
+    final degraded = playheadMoving && lowDuration >= degradedAfter;
     final severe = playheadMoving &&
-        buffering &&
         bufferedAhead <= severeThreshold &&
         lowDuration >= degradedAfter;
 
