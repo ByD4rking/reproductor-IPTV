@@ -50,20 +50,40 @@ Future<void> _buildWeb(String profile) async {
 }
 
 Future<void> _buildWebAdapter(String platform) async {
-  await _buildWeb(platform);
+  await _run('flutter', ['build', 'web', '--release']);
+
   final output = Directory('dist/$platform');
+  if (await output.exists()) await output.delete(recursive: true);
+  await output.create(recursive: true);
+
+  // Copy from build/web directly. Never copy dist/<platform> into package/
+  // because package/ would otherwise become part of the recursive source.
   final package = Directory('${output.path}/package');
-  if (await package.exists()) await package.delete(recursive: true);
-  await _copyDirectory(output, package);
-  await File('${package.path}/${platform == 'tizen' ? 'config.xml' : 'appinfo.json'}').writeAsString(
-    await File('platform/$platform/${platform == 'tizen' ? 'config.xml' : 'appinfo.json'}').readAsString(),
+  await _copyDirectory(Directory('build/web'), package);
+
+  final manifestName = platform == 'tizen' ? 'config.xml' : 'appinfo.json';
+  await File('${package.path}/$manifestName').writeAsString(
+    await File('platform/$platform/$manifestName').readAsString(),
   );
   await _writeIconPair(package);
+
+  await _writeMetadata(
+    '${output.path}/profile.json',
+    <String, Object>{
+      'profile': platform,
+      'platform': platform,
+      'runtime': 'flutter-web',
+      'packageReady': true,
+      'requiresOfficialSdkPackaging': true,
+    },
+  );
+
   await File('${output.path}/PLATFORM_ADAPTER.md').writeAsString(
     '# $platform adapter\n\n'
     'Payload Flutter Web generado desde el núcleo único reproductor-IPTV.\n\n'
-    'El directorio package/ es autocontenido y queda listo para la herramienta oficial de empaquetado de $platform.\n'
-    'La lógica IPTV permanece compartida: M3U, HLS, recuperación, salud de fuentes y catálogo.\n',
+    'El directorio package/ es autocontenido y listo para el empaquetado oficial '
+    'del fabricante. La firma e instalación requieren el SDK y certificado del '
+    'dispositivo objetivo.\n',
   );
 }
 
