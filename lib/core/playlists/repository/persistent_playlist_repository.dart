@@ -1,22 +1,28 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../domain/entities/channel.dart';
 import '../../domain/entities/playlist.dart';
 import '../../domain/entities/stream_source.dart';
-import '../../storage/atomic_string_list_store.dart';
 import 'playlist_repository.dart';
+import 'playlist_storage.dart';
+import 'playlist_storage_factory.dart';
 
 class PersistentPlaylistRepository implements PlaylistRepository {
-  PersistentPlaylistRepository({SharedPreferencesAsync? preferences})
-      : _store = AtomicStringListStore(
-          preferences: preferences ?? SharedPreferencesAsync(),
-          key: _key,
-        );
+  PersistentPlaylistRepository({
+    SharedPreferencesAsync? preferences,
+    PlaylistStorage? storage,
+  })  : _legacyPreferences = preferences ?? SharedPreferencesAsync(),
+        _store = storage ?? createPlaylistStorage();
 
-  static const _key = 'playlists.v1';
-  final AtomicStringListStore _store;
+  static const _legacyKey = 'playlists.v1';
+
+  final SharedPreferencesAsync _legacyPreferences;
+  final PlaylistStorage _store;
   final Map<String, Playlist> _items = <String, Playlist>{};
   bool _loaded = false;
+  Future<void> _writeQueue = Future<void>.value();
 
   @override
   List<Playlist> get playlists =>
@@ -27,46 +33,70 @@ class PersistentPlaylistRepository implements PlaylistRepository {
 
   Future<void> load() async {
     if (_loaded) return;
+
     final values = await _store.load();
-    for (final raw in values) {
+
+    // Migrate the old SharedPreferences payload once. The new store keeps
+    // each playlist independently so adding/removing one list never rewrites
+    // the entire library and large M3U files are no longer stored in prefs.
+    if (values.isEmpty) {
+      final legacy = await _legacyPreferences.getStringList(_legacyKey);
+      if (legacy != null && legacy.isNotEmpty) {
+        for (final raw in legacy) {
+          try {
+            final playlist = _decode(jsonDecode(raw) as Map<String, dynamic>);
+            await _store.save(playlist.id, raw);
+            values[playlist.id] = raw;
+          } catch (_) {}
+        }
+        if (values.isNotEmpty) {
+          await _legacyPreferences.remove(_legacyKey);
+        }
+      }
+    }
+
+    for (final raw in values.values) {
       try {
         final playlist = _decode(jsonDecode(raw) as Map<String, dynamic>);
         _items[playlist.id] = playlist;
-      } catch (_) {}
+      } catch (_) {
+        // A damaged playlist must not prevent the remaining library loading.
+      }
     }
     _loaded = true;
   }
 
   @override
-  Future<void> upsert(Playlist playlist) async {
-    await load();
-    _items[playlist.id] = playlist;
-    await _flush();
-  }
+  Future<void> upsert(Playlist playlist) => _write(() async {
+        await load();
+        _items[playlist.id] = playlist;
+        await _store.save(playlist.id, jsonEncode(_encode(playlist)));
+      });
 
   @override
-  Future<void> remove(String id) async {
-    await load();
-    _items.remove(id);
-    await _flush();
-  }
+  Future<void> remove(String id) => _write(() async {
+        await load();
+        _items.remove(id);
+        await _store.remove(id);
+      });
 
   @override
-  Future<void> clear() async {
-    _items.clear();
-    _loaded = true;
-    await _store.clear();
-  }
+  Future<void> clear() => _write(() async {
+        await load();
+        _items.clear();
+        await _store.clear();
+      });
 
-  Future<void> _flush() async => _store.save(
-        _items.values
-            .map((p) => jsonEncode(_encode(p)))
-            .toList(growable: false),
-      );
+  Future<void> _write(Future<void> Function() action) {
+    final operation = _writeQueue.then((_) => action());
+    _writeQueue = operation.catchError((_) {});
+    return operation;
+  }
 
   Map<String, dynamic> _encode(Playlist p) => {
         'id': p.id,
         'name': p.name,
+        'sourceUri': p.sourceUri?.toString(),
         'rawContentHash': p.rawContentHash,
         'updatedAt': p.updatedAt?.toIso8601String(),
         'entries': p.entries
@@ -88,9 +118,9 @@ class PersistentPlaylistRepository implements PlaylistRepository {
                             'userAgent': s.userAgent,
                             'headers': s.headers,
                           })
-                      .toList(),
+                      .toList(growable: false),
                 })
-            .toList(),
+            .toList(growable: false),
       };
 
   Playlist _decode(Map<String, dynamic> map) {
@@ -126,6 +156,8 @@ class PersistentPlaylistRepository implements PlaylistRepository {
       id: map['id'] as String,
       name: map['name'] as String,
       entries: entries,
+      sourceUri:
+          map['sourceUri'] == null ? null : Uri.tryParse(map['sourceUri'] as String),
       rawContentHash: map['rawContentHash'] as String?,
       updatedAt: map['updatedAt'] == null
           ? null
