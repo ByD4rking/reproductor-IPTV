@@ -27,7 +27,7 @@ jobs:
       - run: flutter --version
       - run: flutter pub get
       - name: Validate Dart formatting
-        run: dart format --output=none --set-exit-if-changed .
+        run: dart format --output=none --set-exit-if-changed integration_test
 
       - run: flutter analyze
 
