@@ -21,7 +21,9 @@ class PlaybackStateMachine {
     if (_terminal ||
         event.sessionId != _sessionId ||
         event.generation != _generation ||
-        event.sequence <= _sequence) return false;
+        event.sequence <= _sequence) {
+      return false;
+    }
     _sequence = event.sequence;
     switch (event.type) {
       case PlaybackEventType.started:
