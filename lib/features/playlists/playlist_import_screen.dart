@@ -49,8 +49,8 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
       );
       await widget.repository.upsert(result.playlist);
       if (mounted) {
-        setState(() =>
-            _message = 'Importada desde URL: ${result.playlist.entries.length} canales');
+        setState(() => _message =
+            'Importada desde URL: ${result.playlist.entries.length} canales');
       }
     });
   }
@@ -101,8 +101,8 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
       );
       await widget.repository.upsert(result.playlist);
       if (mounted) {
-        setState(() =>
-            _message = 'Importada desde texto: ${result.playlist.entries.length} canales');
+        setState(() => _message =
+            'Importada desde texto: ${result.playlist.entries.length} canales');
       }
     });
   }
