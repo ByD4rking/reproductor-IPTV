@@ -9,6 +9,7 @@ import '../../core/playlists/m3u/m3u_parser.dart';
 import '../../core/playlists/repository/playlist_repository.dart';
 import '../../core/playlists/repository/remote_playlist_state_repository.dart';
 import '../../core/playlists/xtream/xtream_import_service.dart';
+import 'local_playlist_transfer_screen.dart';
 
 class PlaylistImportScreen extends StatefulWidget {
   const PlaylistImportScreen({required this.repository, super.key});
@@ -323,6 +324,17 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     });
   }
 
+  Future<void> _openLocalTransfer() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LocalPlaylistTransferScreen(
+          repository: widget.repository,
+        ),
+      ),
+    );
+    if (mounted) await _loadSavedPlaylists();
+  }
+
   Future<void> _showTvTransferHelp() async {
     await showDialog<void>(
       context: context,
@@ -421,6 +433,12 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
             icon: const Icon(Icons.account_tree_outlined),
             label: const Text('Agregar Xtream Codes'),
           ),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _openLocalTransfer,
+            icon: const Icon(Icons.wifi),
+            label: const Text('Recibir playlist desde PC/teléfono'),
+          ),
+          const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: _busy ? null : _showTvTransferHelp,
             icon: const Icon(Icons.devices_other),
