@@ -14,7 +14,6 @@ class SourceHealthRepository {
         );
 
   static const _key = 'source-health.v1';
-  final SharedPreferencesAsync _preferences;
   final AtomicStringListStore _store;
   bool _disposed = false;
 
