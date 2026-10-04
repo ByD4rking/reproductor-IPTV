@@ -5,9 +5,11 @@
         version="1.0.0"
         viewmodes="maximized">
   <name>Reproductor IPTV</name>
+  <icon src="icon.png"/>
   <content src="index.html"/>
   <feature name="http://tizen.org/feature/screen.size.normal"/>
   <tizen:profile name="tv-samsung"/>
+  <tizen:setting pointing-device-support="disable"/>
   <tizen:application id="reproductor.iptv"
                      package="reproductor"
                      required_version="5.5"
