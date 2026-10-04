@@ -111,11 +111,24 @@ class _HomeScreenState extends State<HomeScreen> {
             return const <PlaylistEntry>[];
           });
     return candidates
-        .where((e) =>
-            _category == 'Todos' ||
-            (_category == 'Favoritos'
-                ? _favoriteChannelIds.contains(e.channel.id)
-                : e.category == _category))
+        .where((e) {
+          if (_category == 'Todos') return true;
+          if (_category == 'Favoritos') {
+            return _favoriteChannelIds.contains(e.channel.id);
+          }
+          final assignedId = _organization.assignments[e.id] ??
+              _organization.assignments[e.channel.tvgId ?? ''];
+          final assigned = assignedId == null
+              ? null
+              : _organization.folders.where((f) => f.id == assignedId);
+          if (assigned != null && assigned.isNotEmpty) {
+            return assigned.first.name == _category;
+          }
+          final category = e.category?.trim();
+          return (category == null || category.isEmpty)
+              ? _category == 'Sin categoría'
+              : category == _category;
+        })
         .toList();
   }
 
@@ -473,8 +486,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (folder.custom)
                     PopupMenuButton<String>(
                       onSelected: (action) async {
-                        if (action == 'rename') await _renameFolder(folder);
-                        if (action == 'delete') await _deleteFolder(folder);
+                        if (action == 'rename') {
+                          await _renameFolder(folder);
+                        }
+                        if (action == 'delete') {
+                          await _deleteFolder(folder);
+                        }
                         if (context.mounted) Navigator.pop(context);
                       },
                       itemBuilder: (_) => const [
@@ -651,7 +668,7 @@ class _PlaylistSwitcher extends StatelessWidget {
         child: ListTile(
           leading: const Icon(Icons.playlist_play),
           title: Text(active.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(active.entries.length.toString() + ' canales · lista activa'),
+          subtitle: Text('${active.entries.length} canales · lista activa'),
           trailing: PopupMenuButton<String>(
             tooltip: 'Cambiar playlist',
             onSelected: (id) {
@@ -718,7 +735,7 @@ class _FolderCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
-                      Text(count.toString() + ' canales'),
+                      Text('$count canales'),
                     ],
                   ),
                 ),
