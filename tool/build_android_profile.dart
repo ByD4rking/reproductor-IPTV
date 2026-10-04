@@ -103,8 +103,8 @@ Future<void> _ensureInternetPermission(File manifest) async {
   if (applicationTagEnd < 0) {
     throw StateError('No se pudo localizar la etiqueta <application>.');
   }
-  final applicationTag = xml.substring(applicationIndex, applicationTagEnd + 1);
-  if (!applicationTag.contains('android:usesCleartextTraffic=')) {
+  final existingApplicationTag = xml.substring(applicationIndex, applicationTagEnd + 1);
+  if (!existingApplicationTag.contains('android:usesCleartextTraffic=')) {
     xml = xml.replaceRange(
       applicationTagEnd,
       applicationTagEnd,
