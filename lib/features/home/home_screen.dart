@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String _query = '';
   String _category = 'Todos';
+  Set<String> _favoriteChannelIds = <String>{};
 
   @override
   void initState() {
@@ -40,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await _repository.load();
     var playlists = _repository.playlists;
     final settings = await _settings.load();
+    final favorites = await FavoriteRepository().load();
 
     if (playlists.isNotEmpty && !settings.demoSeeded) {
       await _settings.markDemoSeeded();
@@ -65,6 +67,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     setState(() {
       _playlist = playlist;
+      _favoriteChannelIds = favorites
+          .where((favorite) =>
+              favorite.preferredPlaylistId == null ||
+              favorite.preferredPlaylistId == playlist?.id)
+          .map((favorite) => favorite.channelId)
+          .toSet();
       _searchIndex = playlist == null
           ? null
           : (SearchIndex()..replace(playlist.entries.map((e) => e.channel)));
@@ -72,8 +80,10 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  List<PlaylistGroup> get _groups =>
-      PlaylistGroups.fromPlaylist(_playlist!);
+  List<PlaylistGroup> get _groups => PlaylistGroups.fromPlaylist(
+        _playlist!,
+        favoriteChannelIds: _favoriteChannelIds,
+      );
 
   List<PlaylistEntry> get _visibleEntries {
     final playlist = _playlist!;
@@ -87,7 +97,11 @@ class _HomeScreenState extends State<HomeScreen> {
             return const <PlaylistEntry>[];
           });
     return candidates
-        .where((e) => _category == 'Todos' || e.category == _category)
+        .where((e) =>
+            _category == 'Todos' ||
+            (_category == 'Favoritos'
+                ? _favoriteChannelIds.contains(e.channel.id)
+                : e.category == _category))
         .toList();
   }
 
@@ -220,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   fontSize: 28, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 6),
                           Text(
-                              '${playlist.entries.length} canales · ${_categories.length - 1} categorías'),
+                              '${playlist.entries.length} canales · ${_groups.length} categorías'),
                           const SizedBox(height: 16),
                           TextField(
                             onChanged: (value) =>
@@ -250,9 +264,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       setState(() {
                         _playlist = selected;
                         _category = 'Todos';
+                        _favoriteChannelIds = <String>{};
                         _query = '';
                         _searchIndex = SearchIndex()
                           ..replace(selected.entries.map((e) => e.channel));
+                        FavoriteRepository().load().then((values) {
+                          if (!mounted || _playlist?.id != selected.id) return;
+                          setState(() {
+                            _favoriteChannelIds = values
+                                .where((favorite) =>
+                                    favorite.preferredPlaylistId == null ||
+                                    favorite.preferredPlaylistId == selected.id)
+                                .map((favorite) => favorite.channelId)
+                                .toSet();
+                          });
+                        });
                       });
                     }
                   },
@@ -311,7 +337,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   itemCount: entries.length,
                   itemBuilder: (_, index) => _ChannelCard(
-                      entry: entries[index], autofocus: index == 0),
+                      entry: entries[index], playlistId: playlist.id, autofocus: index == 0, onFavoriteChanged: (isFavorite) {
+                        setState(() {
+                          final next = <String>{..._favoriteChannelIds};
+                          if (isFavorite) {
+                            next.add(entries[index].channel.id);
+                          } else {
+                            next.remove(entries[index].channel.id);
+                          }
+                          _favoriteChannelIds = next;
+                        });
+                      }),
                 ),
               ),
             ],
@@ -331,8 +367,10 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _ChannelCard extends StatefulWidget {
-  const _ChannelCard({required this.entry, this.autofocus = false});
+  const _ChannelCard({required this.entry, required this.playlistId, required this.onFavoriteChanged, this.autofocus = false});
   final PlaylistEntry entry;
+  final String playlistId;
+  final ValueChanged<bool> onFavoriteChanged;
   final bool autofocus;
 
   @override
@@ -341,6 +379,7 @@ class _ChannelCard extends StatefulWidget {
 
 class _ChannelCardState extends State<_ChannelCard> {
   final _favorites = FavoriteRepository();
+  String get _playlistId => widget.playlistId;
   bool _favorite = false;
 
   @override
@@ -367,7 +406,11 @@ class _ChannelCardState extends State<_ChannelCard> {
             widget.entry.sources.isEmpty ? null : widget.entry.sources.first.id,
       ));
     }
-    if (mounted) setState(() => _favorite = !_favorite);
+    if (mounted) {
+      final next = !_favorite;
+      setState(() => _favorite = next);
+      widget.onFavoriteChanged(next);
+    }
   }
 
   void _openPlayer() {
