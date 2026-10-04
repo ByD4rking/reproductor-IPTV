@@ -124,6 +124,8 @@ jobs:
           mapfile -t packages < <(find build/webos -type f -name '*.ipk' -print)
           test "${#packages[@]}" -eq 1
           cp "${packages[0]}" dist/webos/native/reproductor-IPTV-LG-webOS-native.ipk
+      - name: Validate native webOS package
+        run: dart run tool/validate_tv_packages.dart webos --require-native
       - name: Validate native IPK
         shell: bash
         run: |
