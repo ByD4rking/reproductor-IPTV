@@ -10,9 +10,12 @@ import '../network/url_policy.dart';
 
 class EpgRepository {
   EpgRepository({SharedPreferencesAsync? preferences})
-      : _preferences = preferences ?? SharedPreferencesAsync(),
+      : this._fromPreferences(preferences ?? SharedPreferencesAsync());
+
+  EpgRepository._fromPreferences(SharedPreferencesAsync preferences)
+      : _preferences = preferences,
         _store = AtomicStringListStore(
-          preferences: preferences ?? SharedPreferencesAsync(),
+          preferences: preferences,
           key: _key,
         );
 
@@ -51,7 +54,7 @@ class EpgRepository {
       throw const FormatException(
           'URL XMLTV no permitida o apunta a una red local');
     }
-    final response = await http.get(uri).timeout(timeout);
+    final response = await _getFollowingSafeRedirects(uri, timeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw FormatException('El XMLTV respondió HTTP ${response.statusCode}');
     }
@@ -62,6 +65,34 @@ class EpgRepository {
         utf8.decode(response.bodyBytes, allowMalformed: false));
     await _preferences.setString(_sourceUrlKey, uri.toString());
     return count;
+  }
+
+  Future<http.Response> _getFollowingSafeRedirects(
+    Uri uri,
+    Duration timeout,
+  ) async {
+    var current = uri;
+    const maxRedirects = 5;
+
+    for (var redirects = 0;; redirects++) {
+      if (!await const UrlPolicy().acceptsResolved(current) ||
+          redirects > maxRedirects) {
+        throw const FormatException('Redirección de XMLTV no permitida');
+      }
+
+      final response = await http
+          .get(current, headers: const {'Cache-Control': 'no-cache'})
+          .timeout(timeout);
+      if (response.statusCode < 300 || response.statusCode >= 400) {
+        return response;
+      }
+
+      final location = response.headers['location'];
+      if (location == null || location.isEmpty) {
+        throw const FormatException('Redirección de XMLTV sin destino');
+      }
+      current = current.resolve(location);
+    }
   }
 
   Future<Uri?> sourceUrl() async {
