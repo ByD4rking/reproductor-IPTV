@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+const _icon80Base64 = 'iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAA3klEQVR42u3b2w2AIBAEQDvw0x7svz/twQjsHWOyDUzwwR4e53U/8j0HBIAAAQIUgAABAhSAAAEClKWAFS4r0C0MUAACBAhQAAIECBBg1/y9790KcERxsAXgyOalPeDo6qot4KzuryXgzPK0HeDs9rkN4Kr6vgXgyvlHacCEAVJZwJQJXEnApBFmKcDEGXAZwNQhejxg+ikEK9AzEKC3sO9AOxF7YYDaGH2gRhqgmYipnLmwkwkAnY1xOgsgCIAAAQIUgAABAvTLvxXoFgYIUAACBAhQAAIECFAAAgzOCzuBv0oZ88FFAAAAAElFTkSuQmCC';
+const _icon130Base64 = 'iVBORw0KGgoAAAANSUhEUgAAAIIAAACCCAYAAACKAxD9AAABPUlEQVR42u3csQ3AIAwAQW9AyQ7Zfz+noKNFEQQf0i+ATq7A0fqTUrgEgSAQBIJAEAgCQSAIBIEgEASCQBAIAkEgCASBIBAEgkAQCKoFwRnHRJCJIBAEgkAQCAJBIAgEgSAQBIJAEAgCQSAIBIEELT4HA8ECECAIEEAIEGAAAQAQIAABAhAAAAECECAAAQAQIAABABAgAAECEAAAAQIQAAABAhAgACEAACEchAqL9QEoZ+x3RUEIECAAQQgQIABBBhAAAIEGEAAAgQYQIABBCBAgAEE+ekkfx/lN7TsR5CNKbJDSR+DAAEGEIAAQRMGEASC/hMIAkEgCASBIBAEgkAQCAJBIAgEgSAQBIJA0HUQnDOespkIAkEgCASBIBAEgkAQCAJBIAgEgSAQBIJAEAgCQSAIBIEgEASCNvQCYLjDoUyMm2YAAAAASUVORK5CYII=';
+
 Future<void> main(List<String> args) async {
   final targets = _targets(args);
   if (targets.isEmpty) {
@@ -50,16 +53,23 @@ Future<void> _buildWebAdapter(String platform) async {
   await _buildWeb(platform);
   final output = Directory('dist/$platform');
   final package = Directory('${output.path}/package');
-  await package.create(recursive: true);
+  if (await package.exists()) await package.delete(recursive: true);
+  await _copyDirectory(output, package);
   await File('${package.path}/${platform == 'tizen' ? 'config.xml' : 'appinfo.json'}').writeAsString(
     await File('platform/$platform/${platform == 'tizen' ? 'config.xml' : 'appinfo.json'}').readAsString(),
   );
+  await _writeIconPair(package);
   await File('${output.path}/PLATFORM_ADAPTER.md').writeAsString(
     '# $platform adapter\n\n'
     'Payload Flutter Web generado desde el núcleo único reproductor-IPTV.\n\n'
-    'El directorio package/ contiene la plantilla de empaquetado; el paquete final debe generarse con las herramientas oficiales de $platform.\n'
+    'El directorio package/ es autocontenido y queda listo para la herramienta oficial de empaquetado de $platform.\n'
     'La lógica IPTV permanece compartida: M3U, HLS, recuperación, salud de fuentes y catálogo.\n',
   );
+}
+
+Future<void> _writeIconPair(Directory package) async {
+  await File('${package.path}/icon.png').writeAsBytes(base64Decode(_icon80Base64));
+  await File('${package.path}/largeicon.png').writeAsBytes(base64Decode(_icon130Base64));
 }
 
 Future<void> _copyDirectory(Directory source, Directory destination) async {
