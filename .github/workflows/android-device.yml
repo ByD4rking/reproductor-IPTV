@@ -1,0 +1,50 @@
+name: Android device smoke tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Android target
+        required: true
+        default: mobile
+        type: choice
+        options:
+          - mobile
+          - tv
+  pull_request:
+    paths:
+      - 'lib/**'
+      - 'integration_test/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/android-device.yml'
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.47.6
+
+jobs:
+  smoke:
+    name: Android emulator (\${{ inputs.profile || 'mobile' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: \${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter create --platforms=android --project-name reproductor_iptv .
+      - name: Configure Android network permission
+        run: dart run tool/ensure_android_network_permission.dart
+      - name: Run Flutter integration smoke test on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: \${{ inputs.profile == 'tv' && 'android-tv' || 'google_apis' }}
+          arch: x86_64
+          profile: \${{ inputs.profile == 'tv' && 'tv_1080p' || 'pixel_6' }}
+          script: flutter test integration_test/smoke_test.dart
