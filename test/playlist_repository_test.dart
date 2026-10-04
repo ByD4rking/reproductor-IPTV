@@ -60,6 +60,22 @@ void main() {
         ],
       );
 
+  test('settings copyWith preserves active playlist and demo state', () {
+    const settings = AppSettings(
+      autoRecovery: true,
+      autoSourceSwitching: false,
+      activePlaylistId: 'one',
+      demoSeeded: true,
+    );
+
+    final updated = settings.copyWith(autoRecovery: false);
+
+    expect(updated.autoRecovery, isFalse);
+    expect(updated.autoSourceSwitching, isFalse);
+    expect(updated.activePlaylistId, 'one');
+    expect(updated.demoSeeded, isTrue);
+  });
+
   test('keeps multiple playlists independently in app storage', () async {
     final storage = MemoryPlaylistStorage();
     final repository = PersistentPlaylistRepository(storage: storage);
