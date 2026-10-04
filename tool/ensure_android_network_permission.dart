@@ -12,7 +12,7 @@ Future<void> main() async {
   const permission =
       '    <uses-permission android:name="android.permission.INTERNET" />\n';
 
-  final applicationIndex = xml.indexOf('<application');
+  var applicationIndex = xml.indexOf('<application');
   if (applicationIndex < 0) {
     throw StateError('AndroidManifest no contiene <application>.');
   }
@@ -20,6 +20,10 @@ Future<void> main() async {
   var changed = false;
   if (!xml.contains('android.permission.INTERNET')) {
     xml = xml.replaceRange(applicationIndex, applicationIndex, permission);
+    applicationIndex = xml.indexOf('<application');
+    if (applicationIndex < 0) {
+      throw StateError('AndroidManifest perdió <application> después de insertar INTERNET.');
+    }
     changed = true;
   }
 
