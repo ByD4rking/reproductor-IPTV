@@ -10,14 +10,15 @@ import '../network/url_policy.dart';
 
 class EpgRepository {
   EpgRepository({SharedPreferencesAsync? preferences})
-      : _store = AtomicStringListStore(
+      : _preferences = preferences ?? SharedPreferencesAsync(),
+        _store = AtomicStringListStore(
           preferences: preferences ?? SharedPreferencesAsync(),
           key: _key,
         );
 
   static const _key = 'epg.v1';
   final AtomicStringListStore _store;
-  final _preferences = SharedPreferencesAsync();
+  final SharedPreferencesAsync _preferences;
   static const _sourceUrlKey = 'epg.source_url.v1';
   static const _maxXmltvBytes = 16 * 1024 * 1024;
   List<EpgProgramme>? _cache;
