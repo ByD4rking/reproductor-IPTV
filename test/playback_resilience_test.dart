@@ -51,6 +51,25 @@ void main() {
     expect(snapshot.severe, isTrue);
   });
 
+  test('buffer monitor detects starvation even when engine is not buffering', () {
+    final monitor = BufferHealthMonitor();
+    final start = DateTime(2026, 1, 1);
+    monitor.sample(
+      bufferedAhead: const Duration(milliseconds: 300),
+      playheadMoving: true,
+      buffering: false,
+      now: start,
+    );
+    final snapshot = monitor.sample(
+      bufferedAhead: const Duration(milliseconds: 200),
+      playheadMoving: true,
+      buffering: false,
+      now: start.add(const Duration(seconds: 6)),
+    );
+    expect(snapshot.degraded, isTrue);
+    expect(snapshot.severe, isTrue);
+  });
+
   test('buffer monitor resets when the buffer recovers', () {
     final monitor = BufferHealthMonitor();
     final start = DateTime(2026, 1, 1);
