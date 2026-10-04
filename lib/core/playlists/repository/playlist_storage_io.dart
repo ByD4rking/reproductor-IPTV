@@ -6,9 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'playlist_storage.dart';
 
-PlaylistStorage createPlaylistStorageImpl() => _IoPlaylistStorage();
+PlaylistStorage createPlaylistStorageImpl() => FilePlaylistStorage();
 
-class _IoPlaylistStorage implements PlaylistStorage {
+class FilePlaylistStorage implements PlaylistStorage {
+  FilePlaylistStorage({Directory? root}) : _rootOverride = root;
+
+  final Directory? _rootOverride;
   Directory? _directory;
   final SharedPreferencesAsync _fallback = SharedPreferencesAsync();
   static const _fallbackIndexKey = 'playlist-files.v2.test-index';
@@ -19,6 +22,12 @@ class _IoPlaylistStorage implements PlaylistStorage {
   Future<Directory> get _root async {
     final existing = _directory;
     if (existing != null) return existing;
+    final override = _rootOverride;
+    if (override != null) {
+      await override.create(recursive: true);
+      _directory = override;
+      return override;
+    }
     if (Platform.environment['FLUTTER_TEST'] == 'true') {
       throw const FileSystemException('Use test storage fallback');
     }
