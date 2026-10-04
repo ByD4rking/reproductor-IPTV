@@ -127,10 +127,79 @@ class XtreamImportService {
   }
 
   Uri _normalizeServer(Uri value) {
-    final path =
-        value.path.replaceFirst(RegExp(r'/+(player_api\.php)?/?$'), '');
+    var path = value.path;
+    path = path.replaceFirst(RegExp(r'/+player_api\\.php/?
+
+  Uri _apiUri(
+    Uri base,
+    String username,
+    String password,
+    String action,
+  ) {
+    final query = <String, String>{
+      'username': username,
+      'password': password,
+      'action': action,
+    };
+    return base.resolve(
+      'player_api.php?${_encodeQuery(query)}',
+    );
+  }
+
+  Uri _streamUri(
+    Uri base,
+    String username,
+    String password,
+    String streamId,
+  ) {
+    final encodedUser = Uri.encodeComponent(username);
+    final encodedPassword = Uri.encodeComponent(password);
+    final encodedId = Uri.encodeComponent(streamId);
+    return base.resolve(
+      'live/$encodedUser/$encodedPassword/$encodedId.m3u8',
+    );
+  }
+
+  String _encodeQuery(Map<String, String> values) => values.entries
+      .map(
+        (entry) =>
+            '${Uri.encodeQueryComponent(entry.key)}=${Uri.encodeQueryComponent(entry.value)}',
+      )
+      .join('&');
+
+  Future<List<dynamic>> _getJsonList(Uri uri, String label) async {
+    if (!await urlPolicy.acceptsResolved(uri)) {
+      throw XtreamException('URL de $label no permitida.');
+    }
+    final response = await _client.get(uri).timeout(timeout);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw XtreamException(
+        'El servidor Xtream respondió HTTP ${response.statusCode} al solicitar $label.',
+      );
+    }
+    try {
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      if (decoded is List) return decoded;
+      if (decoded is Map && decoded['error'] != null) {
+        throw XtreamException('Xtream rechazó la solicitud de $label.');
+      }
+      throw XtreamException('Respuesta Xtream inválida para $label.');
+    } on FormatException {
+      throw XtreamException(
+        'El servidor Xtream devolvió JSON inválido para $label.',
+      );
+    }
+  }
+
+  void dispose() {
+    if (_ownsClient) _client.close();
+  }
+}
+), '');
+    if (path.isEmpty) path = '/';
+    if (!path.endsWith('/')) path = '$path/';
     return value.replace(
-      path: path.isEmpty ? '/' : path,
+      path: path,
       query: null,
       fragment: null,
       userInfo: '',
