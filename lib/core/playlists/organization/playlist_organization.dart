@@ -64,11 +64,15 @@ class PlaylistOrganizationRepository {
 
   Future<PlaylistOrganization> load(String playlistId) async {
     final raw = await _preferences.getString(_key);
-    if (raw == null || raw.isEmpty) return const PlaylistOrganization();
+    if (raw == null || raw.isEmpty) {
+      return const PlaylistOrganization();
+    }
     try {
       final root = jsonDecode(raw) as Map<String, dynamic>;
       final value = root[playlistId];
-      if (value is Map) return PlaylistOrganization.fromJson(Map<String, dynamic>.from(value));
+      if (value is Map) {
+        return PlaylistOrganization.fromJson(Map<String, dynamic>.from(value));
+      }
     } catch (_) {}
     return const PlaylistOrganization();
   }
@@ -122,7 +126,7 @@ class PlaylistOrganizationRepository {
     }
     final current = await load(playlistId);
     final folder = PlaylistFolder(
-      id: 'custom:' + DateTime.now().microsecondsSinceEpoch.toString(),
+      id: 'custom:${DateTime.now().microsecondsSinceEpoch}',
       name: clean, order: current.folders.length, custom: true,
     );
     await save(playlistId, current.copyWith(folders: [...current.folders, folder]));
@@ -131,7 +135,9 @@ class PlaylistOrganizationRepository {
 
   Future<void> renameFolder(String playlistId, String folderId, String name) async {
     final clean = name.trim();
-    if (clean.isEmpty) throw const FormatException('El nombre no puede estar vacío.');
+    if (clean.isEmpty) {
+      throw const FormatException('El nombre no puede estar vacío.');
+    }
     final current = await load(playlistId);
     final folders = current.folders.map((folder) =>
       folder.id == folderId ? folder.copyWith(name: clean) : folder).toList();
