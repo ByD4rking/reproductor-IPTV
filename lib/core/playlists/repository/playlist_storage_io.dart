@@ -105,8 +105,10 @@ class _IoPlaylistStorage implements PlaylistStorage {
     await _fallback.setStringList(_fallbackIndexKey, ids.toList());
   }
 
-  Future<List<String>> _fallbackIds() async =>
-      await _fallback.getStringList(_fallbackIndexKey) ?? const <String>[];
+  Future<List<String>> _fallbackIds() =>
+      _fallback.getStringList(_fallbackIndexKey).then(
+            (value) => value ?? const <String>[],
+          );
 
   String _fallbackKey(String id) =>
       'playlist-file.v2.${base64Url.encode(utf8.encode(id)).replaceAll('=', '')}';
