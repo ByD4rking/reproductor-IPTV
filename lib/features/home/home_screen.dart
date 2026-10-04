@@ -14,6 +14,7 @@ import '../../core/favorites/favorite_repository.dart';
 import '../../core/domain/entities/favorite.dart';
 import '../../core/platform/tv_focus.dart';
 import '../../core/settings/settings_repository.dart';
+import '../../core/playlists/organization/playlist_organization.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,12 +25,14 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _repository = PersistentPlaylistRepository();
   final _settings = SettingsRepository();
+  final _organizationRepository = PlaylistOrganizationRepository();
   Playlist? _playlist;
   SearchIndex? _searchIndex;
   bool _loading = true;
   String _query = '';
   String _category = 'Todos';
   Set<String> _favoriteChannelIds = <String>{};
+  PlaylistOrganization _organization = const PlaylistOrganization();
 
   @override
   void initState() {
@@ -64,9 +67,19 @@ class _HomeScreenState extends State<HomeScreen> {
       await _settings.setActivePlaylistId(playlist.id);
     }
 
+    final organization = playlist == null
+        ? const PlaylistOrganization()
+        : await _organizationRepository.syncWithGroups(
+            playlist.id,
+            playlist.entries.map((entry) => entry.category?.trim().isEmpty ?? true
+                ? 'Sin categoría'
+                : (entry.category?.trim() ?? 'Sin categoría')),
+          );
+
     if (!mounted) return;
     setState(() {
       _playlist = playlist;
+      _organization = organization;
       _favoriteChannelIds = favorites
           .where((favorite) =>
               favorite.preferredPlaylistId == null ||
@@ -83,6 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<PlaylistGroup> get _groups => PlaylistGroups.fromPlaylist(
         _playlist!,
         favoriteChannelIds: _favoriteChannelIds,
+        organization: _organization,
       );
 
   List<PlaylistEntry> get _visibleEntries {
@@ -264,6 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       setState(() {
                         _playlist = selected;
                         _category = 'Todos';
+                        _organization = const PlaylistOrganization();
                         _favoriteChannelIds = <String>{};
                         _query = '';
                         _searchIndex = SearchIndex()
@@ -291,8 +306,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       const Icon(Icons.folder_copy_outlined),
                       const SizedBox(width: 8),
-                      Text('Carpetas',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Expanded(
+                        child: Text('Carpetas',
+                            style: Theme.of(context).textTheme.titleMedium),
+                      ),
+                      IconButton(
+                        tooltip: 'Crear carpeta',
+                        onPressed: _createFolder,
+                        icon: const Icon(Icons.create_new_folder_outlined),
+                      ),
+                      IconButton(
+                        tooltip: 'Administrar carpetas',
+                        onPressed: _manageFolders,
+                        icon: const Icon(Icons.tune),
+                      ),
                     ],
                   ),
                 ),
@@ -337,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   itemCount: entries.length,
                   itemBuilder: (_, index) => _ChannelCard(
-                      entry: entries[index], playlistId: playlist.id, autofocus: index == 0, onFavoriteChanged: (isFavorite) {
+                      entry: entries[index], playlistId: playlist.id, autofocus: index == 0, onMoveToFolder: _moveEntryToFolder, onFavoriteChanged: (isFavorite) {
                         setState(() {
                           final next = <String>{..._favoriteChannelIds};
                           if (isFavorite) {
@@ -357,6 +384,144 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _createFolder() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Crear carpeta'),
+        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'Nombre')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Crear')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.isEmpty) return;
+    await _organizationRepository.createFolder(_playlist!.id, name);
+    _organization = await _organizationRepository.syncWithGroups(
+      _playlist!.id,
+      _playlist!.entries.map((entry) => entry.category?.trim().isEmpty ?? true ? 'Sin categoría' : (entry.category?.trim() ?? 'Sin categoría')),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _moveEntryToFolder(PlaylistEntry entry) async {
+    final folders = _organization.folders.where((folder) => !folder.hidden).toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+    final selected = await showDialog<String?>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Mover canal a carpeta'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, ''),
+            child: const Text('Usar categoría original'),
+          ),
+          ...folders.where((folder) => folder.custom).map((folder) =>
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, folder.id),
+              child: Text(folder.name),
+            )),
+        ],
+      ),
+    );
+    if (selected == null) return;
+    await _organizationRepository.moveEntry(
+      _playlist!.id, entry.id, selected.isEmpty ? null : selected,
+    );
+    _organization = await _organizationRepository.load(_playlist!.id);
+    if (mounted) setState(() => _category = 'Todos');
+  }
+
+  Future<void> _manageFolders() async {
+    final folders = [..._organization.folders]..sort((a, b) => a.order.compareTo(b.order));
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Administrar carpetas'),
+        content: SizedBox(
+          width: 520,
+          child: ListView(
+            shrinkWrap: true,
+            children: folders.map((folder) => ListTile(
+              leading: Icon(folder.custom ? Icons.folder : Icons.folder_copy_outlined),
+              title: Text(folder.name),
+              subtitle: Text(folder.custom ? 'Carpeta personalizada' : 'Categoría original M3U'),
+              trailing: Wrap(
+                spacing: 0,
+                children: [
+                  IconButton(
+                    tooltip: 'Subir',
+                    onPressed: folder.order == 0 ? null : () async {
+                      await _organizationRepository.reorder(_playlist!.id, folder.id, -1);
+                      if (context.mounted) Navigator.pop(context);
+                      await _reloadOrganization();
+                    },
+                    icon: const Icon(Icons.arrow_upward),
+                  ),
+                  IconButton(
+                    tooltip: 'Bajar',
+                    onPressed: () async {
+                      await _organizationRepository.reorder(_playlist!.id, folder.id, 1);
+                      if (context.mounted) Navigator.pop(context);
+                      await _reloadOrganization();
+                    },
+                    icon: const Icon(Icons.arrow_downward),
+                  ),
+                  if (folder.custom)
+                    PopupMenuButton<String>(
+                      onSelected: (action) async {
+                        if (action == 'rename') await _renameFolder(folder);
+                        if (action == 'delete') await _deleteFolder(folder);
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'rename', child: Text('Renombrar')),
+                        PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                      ],
+                    ),
+                ],
+              ),
+            )).toList(),
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar'))],
+      ),
+    );
+  }
+
+  Future<void> _renameFolder(PlaylistFolder folder) async {
+    final controller = TextEditingController(text: folder.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Renombrar carpeta'),
+        content: TextField(controller: controller, autofocus: true),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Guardar')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name != null && name.isNotEmpty) {
+      await _organizationRepository.renameFolder(_playlist!.id, folder.id, name);
+      await _reloadOrganization();
+    }
+  }
+
+  Future<void> _deleteFolder(PlaylistFolder folder) async {
+    await _organizationRepository.deleteFolder(_playlist!.id, folder.id);
+    await _reloadOrganization();
+  }
+
+  Future<void> _reloadOrganization() async {
+    _organization = await _organizationRepository.load(_playlist!.id);
+    if (mounted) setState(() {});
+  }
+
   static String _demoM3u() => '#EXTM3U\n'
       '#EXTINF:-1 tvg-id="demo-news" group-title="Noticias",Demo News\n'
       'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8\n'
@@ -367,10 +532,11 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _ChannelCard extends StatefulWidget {
-  const _ChannelCard({required this.entry, required this.playlistId, required this.onFavoriteChanged, this.autofocus = false});
+  const _ChannelCard({required this.entry, required this.playlistId, required this.onFavoriteChanged, required this.onMoveToFolder, this.autofocus = false});
   final PlaylistEntry entry;
   final String playlistId;
   final ValueChanged<bool> onFavoriteChanged;
+  final ValueChanged<PlaylistEntry> onMoveToFolder;
   final bool autofocus;
 
   @override
@@ -443,10 +609,19 @@ class _ChannelCardState extends State<_ChannelCard> {
                   dense: true,
                   title: Text(widget.entry.channel.displayName,
                       maxLines: 1, overflow: TextOverflow.ellipsis),
-                  trailing: IconButton(
+                  trailing: Wrap(
+                    children: [
+                      IconButton(
+                        tooltip: 'Mover a carpeta',
+                        onPressed: () => widget.onMoveToFolder(widget.entry),
+                        icon: const Icon(Icons.drive_file_move_outlined),
+                      ),
+                      IconButton(
                     tooltip: _favorite ? 'Quitar favorito' : 'Agregar favorito',
                     onPressed: _toggleFavorite,
                     icon: Icon(_favorite ? Icons.star : Icons.star_outline),
+                  ),
+                    ],
                   ),
                 ),
               ],
