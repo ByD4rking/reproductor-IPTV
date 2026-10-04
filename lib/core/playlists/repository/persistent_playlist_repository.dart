@@ -31,6 +31,7 @@ class PersistentPlaylistRepository implements PlaylistRepository {
   @override
   Playlist? getById(String id) => _items[id];
 
+  @override
   Future<void> load() async {
     if (_loaded) return;
 
