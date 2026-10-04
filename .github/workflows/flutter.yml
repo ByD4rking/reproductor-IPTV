@@ -40,6 +40,8 @@ jobs:
       - name: Generate Android and Web platforms
         run: flutter create --platforms=android,web --project-name reproductor_iptv .
 
+      - name: Configure Android network permission
+        run: dart run tool/ensure_android_network_permission.dart
       - name: Build Android APKs
         run: flutter build apk --release --split-per-abi
 
