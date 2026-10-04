@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/settings/settings_repository.dart';
+import '../../core/playlists/repository/persistent_playlist_repository.dart';
+import '../playlists/playlist_import_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -9,7 +11,9 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _repository = SettingsRepository();
+  final _playlists = PersistentPlaylistRepository();
   AppSettings _settings = const AppSettings();
+  int _playlistCount = 0;
   bool _loading = true;
 
   @override
@@ -20,9 +24,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _load() async {
     final settings = await _repository.load();
+    await _playlists.load();
     if (!mounted) return;
     setState(() {
       _settings = settings;
+      _playlistCount = _playlists.playlists.length;
       _loading = false;
     });
   }
@@ -60,6 +66,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
               autoRecovery: _settings.autoRecovery,
               autoSourceSwitching: value,
             )),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.storage_outlined),
+            title: const Text('Playlists guardadas'),
+            subtitle: Text(
+              '$_playlistCount listas almacenadas en los datos privados de la aplicación.',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => PlaylistImportScreen(repository: _playlists),
+                ),
+              );
+              await _playlists.load();
+              if (mounted) {
+                setState(() => _playlistCount = _playlists.playlists.length);
+              }
+            },
+          ),
+          const ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text('Almacenamiento local'),
+            subtitle: Text(
+              'Las playlists locales se conservan al cerrar la aplicación y no dependen de la caché.',
+            ),
           ),
           const Divider(),
           const ListTile(
