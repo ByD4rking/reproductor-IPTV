@@ -1,0 +1,86 @@
+
+::group::✅ Passing tests
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/epg_test.dart: parses minimal XMLTV programme
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playlist_repository_test.dart: keeps multiple playlists independently in app storage
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playlist_repository_test.dart: restores playlists and their URL after a new repository instance
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playlist_repository_test.dart: migrates the legacy SharedPreferences playlist payload
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/atomic_storage_test.dart: keeps the previous committed snapshot until the new slot is selected
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/resilience_test.dart: brief buffering is not treated as a hard stall
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/resilience_test.dart: moving playhead prevents a false stall even while buffering
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/resilience_test.dart: HTTP auth and not-found errors switch source
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/resilience_test.dart: URL policy blocks non-http schemes and excessive redirects
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/resilience_test.dart: recovery policy rejects invalid counters
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/resilience_test.dart: circuit breaker permits one half-open probe
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/resilience_test.dart: paused and ended playback are never classified as stalls
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/data_resilience_test.dart: remote playlist status preserves last known good hash
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_engine_error_test.dart: stale generation can be rejected by the playback owner
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_engine_error_test.dart: playback engine error keeps generation and source identity
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_engine_error_test.dart: playback engine error carries structured transport metadata
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/player_features_test.dart: playback request merges source headers, cookies and user agent
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/player_features_test.dart: adaptive buffer increases target after instability
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/player_features_test.dart: search prioritizes exact and prefix channel matches
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/player_features_test.dart: catchup window validates time boundaries
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/hls_playlist_parser_test.dart: parses a media playlist and resolves relative segments
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/hls_playlist_parser_test.dart: parses a master playlist and resolves variants
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/hls_playlist_parser_test.dart: supports BOM and low-latency HLS parts
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/hls_playlist_parser_test.dart: rejects non-HLS text
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: buffer monitor ignores a brief low-buffer transient
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: buffer monitor detects sustained starvation while playback still moves
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: buffer monitor detects starvation even when engine is not buffering
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: buffer monitor resets when the buffer recovers
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: stall detector ignores healthy incoming data before hard stall
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: stall detector exposes hard stall after the recovery deadline
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: stream kind uses MIME when URL has no useful extension
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: playback engine state event preserves generation and state
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: backoff is bounded and deterministic with injected jitter value
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: user stop is terminal and never becomes a retry
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: stopped session invalidates old operations
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: recovery policy escalates retry, reprepare and source switch
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: classifies HTTP auth, missing, transient and timeout failures
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: classifies runtime player messages conservatively
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: classifies common upstream and unsupported-format runtime failures
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: recovery coordinator serializes recovery and preserves escalation
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: cancel invalidates a delayed recovery
+::endgroup::
+::group::❌ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/app_smoke_test.dart: app renders IPTV home shell (failed)
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following assertion was thrown running a test:
+pumpAndSettle timed out
+
+When the exception was thrown, this was the stack:
+#0      WidgetTester.pumpAndSettle.<anonymous closure> (package:flutter_test/src/widget_tester.dart:717:11)
+<asynchronous suspension>
+#1      TestAsyncUtils.guard.<anonymous closure> (package:flutter_test/src/test_async_utils.dart:130:27)
+<asynchronous suspension>
+#2      main.<anonymous closure> (file:///home/runner/work/reproductor-IPTV/reproductor-IPTV/test/app_smoke_test.dart:15:5)
+<asynchronous suspension>
+#3      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#4      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+The test description was:
+  app renders IPTV home shell
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Test failed. See exception logs above.
+The test description was: app renders IPTV home shell
+
+::endgroup::
+::group::✅ Passing tests
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/stream_probe_test.dart: rejects unsafe stream URLs before making a request
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/stream_probe_test.dart: deeply validates HLS master and child playlist
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/stream_probe_test.dart: rejects a valid HLS child playlist when its media segment is dead
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/stream_probe_test.dart: accepts a master when one rendition is healthy and another is down
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/stream_probe_test.dart: rejects an HLS master whose child playlist is unavailable
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/core_test.dart: M3U parser rejects non-http executable schemes
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/core_test.dart: recovery retries before failover
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/core_test.dart: stop is terminal and stale events are rejected
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/core_test.dart: secrets are redacted
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/core_test.dart: M3U uses deterministic hash and groups explicit tvg-id sources
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/core_test.dart: M3U accepts single-quoted attributes
+✅ /home/runner/work/reproductor-IPTV/reproductor-IPTV/test/playback_resilience_test.dart: stable playback resets recovery budget
+::endgroup::
+
+::error::53 tests passed, 1 failed.
