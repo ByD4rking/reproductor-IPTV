@@ -17,7 +17,9 @@ class MemoryPlaylistStorage implements PlaylistStorage {
   Future<Map<String, String>> load() async => Map.of(values);
 
   @override
-  Future<void> save(String id, String value) async => values[id] = value;
+  Future<void> save(String id, String value) async {
+    values[id] = value;
+  }
 
   @override
   Future<void> remove(String id) async {
