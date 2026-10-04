@@ -26,19 +26,9 @@ jobs:
 
       - run: flutter --version
       - run: flutter pub get
-      - name: Format Dart sources
-        shell: bash
-        run: |
-          set -euo pipefail
-          dart format .
-          if git diff --quiet -- '*.dart'; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- '*.dart'
-          git commit -m "style: format Dart sources [skip ci]"
-          git push
+      - name: Check Dart formatting
+        run: dart format --output=none --set-exit-if-changed .
+
       - run: flutter analyze
 
       - name: Validate build tools
