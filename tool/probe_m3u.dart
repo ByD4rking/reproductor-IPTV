@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import 'package:reproductor_iptv/core/playback/engine/stream_probe.dart';
-import '../lib/core/domain/entities/stream_source.dart';
 import 'package:reproductor_iptv/core/playlists/m3u/m3u_parser.dart';
 
 Future<void> main(List<String> args) async {
