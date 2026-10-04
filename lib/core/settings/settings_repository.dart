@@ -37,8 +37,7 @@ class SettingsRepository {
     if (settings.activePlaylistId == null) {
       await _preferences.remove(_activePlaylist);
     } else {
-      await _preferences.setString(
-          _activePlaylist, settings.activePlaylistId!);
+      await _preferences.setString(_activePlaylist, settings.activePlaylistId!);
     }
     await _preferences.setBool(_demoSeeded, settings.demoSeeded);
   }
@@ -51,6 +50,5 @@ class SettingsRepository {
     }
   }
 
-  Future<void> markDemoSeeded() =>
-      _preferences.setBool(_demoSeeded, true);
+  Future<void> markDemoSeeded() => _preferences.setBool(_demoSeeded, true);
 }

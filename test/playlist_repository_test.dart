@@ -64,7 +64,8 @@ void main() {
     await repository.upsert(playlist('one', 'Uno'));
     await repository.upsert(playlist('two', 'Dos'));
 
-    expect(repository.playlists.map((p) => p.id), containsAll(<String>['one', 'two']));
+    expect(repository.playlists.map((p) => p.id),
+        containsAll(<String>['one', 'two']));
     expect(storage.values.length, 2);
 
     await repository.remove('one');
@@ -74,7 +75,8 @@ void main() {
     expect(storage.values.keys, contains('two'));
   });
 
-  test('restores playlists and their URL after a new repository instance', () async {
+  test('restores playlists and their URL after a new repository instance',
+      () async {
     final storage = MemoryPlaylistStorage();
     final first = PersistentPlaylistRepository(storage: storage);
     await first.upsert(playlist('one', 'Uno'));

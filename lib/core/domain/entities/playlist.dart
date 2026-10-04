@@ -26,6 +26,7 @@ class Playlist {
   final String id;
   final String name;
   final List<PlaylistEntry> entries;
+
   /// Original remote playlist URL, when this playlist was imported from a URL.
   final Uri? sourceUri;
   final String? rawContentHash;

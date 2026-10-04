@@ -45,8 +45,7 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
   String get _playlistName =>
       _name.text.trim().isEmpty ? 'Mi playlist' : _name.text.trim();
 
-  String _newId() =>
-      'playlist-${DateTime.now().microsecondsSinceEpoch}';
+  String _newId() => 'playlist-${DateTime.now().microsecondsSinceEpoch}';
 
   Future<void> _importUrl() async {
     final uri = Uri.tryParse(_url.text.trim());
@@ -386,8 +385,10 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
                       }
                     },
                     itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'use', child: Text('Usar esta lista')),
-                      PopupMenuItem(value: 'refresh', child: Text('Actualizar')),
+                      PopupMenuItem(
+                          value: 'use', child: Text('Usar esta lista')),
+                      PopupMenuItem(
+                          value: 'refresh', child: Text('Actualizar')),
                       PopupMenuItem(value: 'rename', child: Text('Renombrar')),
                       PopupMenuItem(value: 'delete', child: Text('Eliminar')),
                     ],

@@ -156,8 +156,9 @@ class PersistentPlaylistRepository implements PlaylistRepository {
       id: map['id'] as String,
       name: map['name'] as String,
       entries: entries,
-      sourceUri:
-          map['sourceUri'] == null ? null : Uri.tryParse(map['sourceUri'] as String),
+      sourceUri: map['sourceUri'] == null
+          ? null
+          : Uri.tryParse(map['sourceUri'] as String),
       rawContentHash: map['rawContentHash'] as String?,
       updatedAt: map['updatedAt'] == null
           ? null
