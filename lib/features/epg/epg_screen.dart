@@ -9,7 +9,8 @@ class EpgScreen extends StatefulWidget {
   State<EpgScreen> createState() => _EpgScreenState();
 }
 
-class _EpgScreenState extends State<EpgScreen> {
+class _EpgScreenState extends State<EpgScreen>
+    with WidgetsBindingObserver {
   final _repository = EpgRepository();
   final _xml = TextEditingController();
   final _url = TextEditingController();
@@ -22,9 +23,17 @@ class _EpgScreenState extends State<EpgScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
     _refreshTimer =
         Timer.periodic(const Duration(hours: 6), (_) => _refreshRemote());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshRemote();
+    }
   }
 
   Future<void> _load() async {
@@ -91,6 +100,7 @@ class _EpgScreenState extends State<EpgScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     _xml.dispose();
     _url.dispose();
