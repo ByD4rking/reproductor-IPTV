@@ -51,9 +51,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final activeId = settings.activePlaylistId;
-    final selected = activeId == null
-        ? null
-        : playlists.where((playlist) => playlist.id == activeId).firstOrNull;
+    final matches = activeId == null
+        ? const <Playlist>[]
+        : playlists.where((playlist) => playlist.id == activeId).toList();
+    final selected = matches.isEmpty ? null : matches.first;
     final playlist = selected ?? (playlists.isEmpty ? null : playlists.first);
 
     if (playlist != null && activeId != playlist.id) {
