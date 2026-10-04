@@ -9,6 +9,7 @@ import '../../network/url_policy.dart';
 
 class XtreamException implements Exception {
   const XtreamException(this.message);
+
   final String message;
 
   @override
@@ -62,9 +63,9 @@ class XtreamImportService {
     };
 
     final entries = <PlaylistEntry>[];
-    var index = 0;
     for (final raw in streams) {
       if (raw is! Map<String, dynamic>) continue;
+
       final streamId = raw['stream_id']?.toString();
       final name = (raw['name'] ?? '').toString().trim();
       if (streamId == null || streamId.isEmpty || name.isEmpty) continue;
@@ -73,9 +74,8 @@ class XtreamImportService {
       if (!await urlPolicy.acceptsResolved(uri)) continue;
 
       final iconText = raw['stream_icon']?.toString();
-      final icon = iconText == null || iconText.isEmpty
-          ? null
-          : Uri.tryParse(iconText);
+      final icon =
+          iconText == null || iconText.isEmpty ? null : Uri.tryParse(iconText);
       final safeIcon =
           icon != null && await urlPolicy.acceptsResolved(icon) ? icon : null;
 
@@ -105,8 +105,8 @@ class XtreamImportService {
           ],
         ),
       );
-      index++;
-      if (index >= 100000) break;
+
+      if (entries.length >= 100000) break;
     }
 
     if (entries.isEmpty) {
@@ -118,7 +118,7 @@ class XtreamImportService {
     return Playlist(
       id: 'xtream-${DateTime.now().microsecondsSinceEpoch}',
       name: playlistName?.trim().isEmpty ?? true
-          ? 'Xtream · ${server.host}'
+          ? 'Xtream · ${base.host}'
           : playlistName!.trim(),
       entries: List.unmodifiable(entries),
       sourceUri: base,
@@ -128,76 +128,16 @@ class XtreamImportService {
 
   Uri _normalizeServer(Uri value) {
     var path = value.path;
-    path = path.replaceFirst(RegExp(r'/+player_api\\.php/?
-
-  Uri _apiUri(
-    Uri base,
-    String username,
-    String password,
-    String action,
-  ) {
-    final query = <String, String>{
-      'username': username,
-      'password': password,
-      'action': action,
-    };
-    return base.resolve(
-      'player_api.php?${_encodeQuery(query)}',
-    );
-  }
-
-  Uri _streamUri(
-    Uri base,
-    String username,
-    String password,
-    String streamId,
-  ) {
-    final encodedUser = Uri.encodeComponent(username);
-    final encodedPassword = Uri.encodeComponent(password);
-    final encodedId = Uri.encodeComponent(streamId);
-    return base.resolve(
-      'live/$encodedUser/$encodedPassword/$encodedId.m3u8',
-    );
-  }
-
-  String _encodeQuery(Map<String, String> values) => values.entries
-      .map(
-        (entry) =>
-            '${Uri.encodeQueryComponent(entry.key)}=${Uri.encodeQueryComponent(entry.value)}',
-      )
-      .join('&');
-
-  Future<List<dynamic>> _getJsonList(Uri uri, String label) async {
-    if (!await urlPolicy.acceptsResolved(uri)) {
-      throw XtreamException('URL de $label no permitida.');
+    const suffix = '/player_api.php';
+    if (path.endsWith(suffix)) {
+      path = path.substring(0, path.length - suffix.length);
     }
-    final response = await _client.get(uri).timeout(timeout);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw XtreamException(
-        'El servidor Xtream respondió HTTP ${response.statusCode} al solicitar $label.',
-      );
+    while (path.length > 1 && path.endsWith('/')) {
+      path = path.substring(0, path.length - 1);
     }
-    try {
-      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-      if (decoded is List) return decoded;
-      if (decoded is Map && decoded['error'] != null) {
-        throw XtreamException('Xtream rechazó la solicitud de $label.');
-      }
-      throw XtreamException('Respuesta Xtream inválida para $label.');
-    } on FormatException {
-      throw XtreamException(
-        'El servidor Xtream devolvió JSON inválido para $label.',
-      );
-    }
-  }
-
-  void dispose() {
-    if (_ownsClient) _client.close();
-  }
-}
-), '');
     if (path.isEmpty) path = '/';
     if (!path.endsWith('/')) path = '$path/';
+
     return value.replace(
       path: path,
       query: null,
@@ -247,12 +187,14 @@ class XtreamImportService {
     if (!await urlPolicy.acceptsResolved(uri)) {
       throw XtreamException('URL de $label no permitida.');
     }
+
     final response = await _client.get(uri).timeout(timeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw XtreamException(
         'El servidor Xtream respondió HTTP ${response.statusCode} al solicitar $label.',
       );
     }
+
     try {
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
       if (decoded is List) return decoded;
