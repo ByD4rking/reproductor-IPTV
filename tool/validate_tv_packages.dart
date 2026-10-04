@@ -19,8 +19,8 @@ Future<void> main(List<String> args) async {
     final root = Directory('dist/$platform/package');
     final manifestName = platform == 'tizen' ? 'config.xml' : 'appinfo.json';
     final manifest = File('${root.path}/$manifestName');
-    final index = File(root.path + '/index.html');
-    final icon = File(root.path + '/icon.png');
+    final index = File('${root.path}/index.html');
+    final icon = File('${root.path}/icon.png');
     final checks = <String, bool>{
       'package directory': root.existsSync(),
       'index.html': index.existsSync() && index.lengthSync() > 0,
