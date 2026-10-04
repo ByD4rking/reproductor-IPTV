@@ -74,4 +74,39 @@ void main() {
     expect(first.map((group) => group.name), ['Nacional']);
     expect(second.map((group) => group.name), ['Fútbol']);
   });
+
+  test('creates a favorites folder without changing original categories', () {
+    final playlist = _playlist(
+      'favorites',
+      'Lista',
+      [
+        _entry('one', 'Noticias'),
+        _entry('two', 'Deportes'),
+      ],
+    );
+
+    final groups = PlaylistGroups.fromPlaylist(
+      playlist,
+      favoriteChannelIds: {'two'},
+    );
+
+    expect(groups.first.name, 'Favoritos');
+    expect(groups.first.isFavorites, isTrue);
+    expect(groups.first.entries.single.channel.id, 'two');
+    expect(groups.any((group) => group.name == 'Noticias'), isTrue);
+    expect(groups.any((group) => group.name == 'Deportes'), isTrue);
+  });
+
+  test('does not create an empty favorites folder', () {
+    final playlist = _playlist(
+      'no-favorites',
+      'Lista',
+      [_entry('one', 'Noticias')],
+    );
+
+    final groups = PlaylistGroups.fromPlaylist(playlist);
+
+    expect(groups.any((group) => group.name == 'Favoritos'), isFalse);
+  });
+
 }
