@@ -16,5 +16,7 @@ void main() {
     expect(find.text('Reproductor IPTV'), findsWidgets);
     expect(find.text('TV en directo'), findsOneWidget);
     expect(find.text('Demo News'), findsOneWidget);
+    expect(find.byTooltip('Ajustes'), findsOneWidget);
+    expect(find.byTooltip('Playlists'), findsOneWidget);
   });
 }
