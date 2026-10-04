@@ -117,8 +117,8 @@ jobs:
 
   publish:
     name: Publish downloadable release
-    needs: [android, webos]
-    if: ${{ needs.android.result == 'success' && needs.webos.result == 'success' }}
+    needs: [android, webos, tizen]
+    if: ${{ always() && needs.android.result == 'success' && needs.webos.result == 'success' && (needs.tizen.result == 'success' || needs.tizen.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
