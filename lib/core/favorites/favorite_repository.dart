@@ -1,16 +1,20 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/entities/favorite.dart';
+import '../storage/atomic_string_list_store.dart';
 
 class FavoriteRepository {
   FavoriteRepository({SharedPreferencesAsync? preferences})
-      : _preferences = preferences ?? SharedPreferencesAsync();
+      : _store = AtomicStringListStore(
+          preferences: preferences ?? SharedPreferencesAsync(),
+          key: _key,
+        );
 
   static const _key = 'favorites.v1';
-  final SharedPreferencesAsync _preferences;
+  final AtomicStringListStore _store;
 
   Future<List<Favorite>> load() async {
-    final raw = await _preferences.getStringList(_key) ?? const <String>[];
+    final raw = await _store.load();
     return raw.map((value) {
       try {
         final map = jsonDecode(value) as Map<String, dynamic>;
@@ -37,12 +41,11 @@ class FavoriteRepository {
     await _save(values.where((v) => v.channelId != channelId).toList());
   }
 
-  Future<void> _save(List<Favorite> values) => _preferences.setStringList(
-    _key,
-    values.map((v) => jsonEncode({
-      'channelId': v.channelId,
-      'preferredPlaylistId': v.preferredPlaylistId,
-      'preferredSourceId': v.preferredSourceId,
-    })).toList(),
-  );
+  Future<void> _save(List<Favorite> values) => _store.save(
+        values.map((v) => jsonEncode({
+              'channelId': v.channelId,
+              'preferredPlaylistId': v.preferredPlaylistId,
+              'preferredSourceId': v.preferredSourceId,
+            })).toList(growable: false),
+      );
 }
