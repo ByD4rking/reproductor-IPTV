@@ -26,8 +26,8 @@ jobs:
 
       - run: flutter --version
       - run: flutter pub get
-      - name: Format Dart sources for validation
-        run: dart format .
+      - name: Validate Dart formatting
+        run: dart format --output=none --set-exit-if-changed .
 
       - run: flutter analyze
 
