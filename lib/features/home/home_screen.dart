@@ -400,7 +400,7 @@ class _ChannelCardState extends State<_ChannelCard> {
 
   Future<void> _toggleFavorite() async {
     if (_favorite) {
-      await _favorites.remove(widget.entry.channel.id);
+      await _favorites.remove(widget.entry.channel.id, playlistId: _playlistId);
     } else {
       await _favorites.setFavorite(Favorite(
         channelId: widget.entry.channel.id,
