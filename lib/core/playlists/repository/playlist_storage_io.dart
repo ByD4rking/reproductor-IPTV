@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'playlist_storage.dart';
 
@@ -9,6 +10,11 @@ PlaylistStorage createPlaylistStorageImpl() => _IoPlaylistStorage();
 
 class _IoPlaylistStorage implements PlaylistStorage {
   Directory? _directory;
+  final SharedPreferencesAsync _fallback = SharedPreferencesAsync();
+  static const _fallbackIndexKey = 'playlist-files.v2.test-index';
+
+  String _fileName(String id) =>
+      base64Url.encode(utf8.encode(id)).replaceAll('=', '') + '.json';
 
   Future<Directory> get _root async {
     final existing = _directory;
@@ -20,58 +26,88 @@ class _IoPlaylistStorage implements PlaylistStorage {
     return directory;
   }
 
-  String _fileName(String id) =>
-      base64Url.encode(utf8.encode(id)).replaceAll('=', '') + '.json';
-
   @override
   Future<Map<String, String>> load() async {
-    final directory = await _root;
-    final result = <String, String>{};
-    await for (final entity in directory.list(followLinks: false)) {
-      if (entity is! File || !entity.path.endsWith('.json')) continue;
-      try {
-        final value = await entity.readAsString();
-        final map = jsonDecode(value) as Map<String, dynamic>;
-        final id = map['id'] as String?;
-        if (id != null && id.isNotEmpty) {
-          result[id] = value;
-        }
-      } catch (_) {
-        // Ignore one corrupt playlist instead of losing the whole library.
+    try {
+      final directory = await _root;
+      final result = <String, String>{};
+      await for (final entity in directory.list(followLinks: false)) {
+        if (entity is! File || !entity.path.endsWith('.json')) continue;
+        try {
+          final value = await entity.readAsString();
+          final map = jsonDecode(value) as Map<String, dynamic>;
+          final id = map['id'] as String?;
+          if (id != null && id.isNotEmpty) result[id] = value;
+        } catch (_) {}
       }
+      return result;
+    } catch (_) {
+      return _loadFallback();
     }
-    return result;
   }
 
   @override
   Future<void> save(String id, String value) async {
-    final directory = await _root;
-    final target = File('${directory.path}/${_fileName(id)}');
-    final temporary = File('${target.path}.tmp');
-    await temporary.writeAsString(value, flush: true);
-    if (await target.exists()) {
-      await target.delete();
+    try {
+      final directory = await _root;
+      final target = File('${directory.path}/${_fileName(id)}');
+      final temporary = File('${target.path}.tmp');
+      await temporary.writeAsString(value, flush: true);
+      if (await target.exists()) await target.delete();
+      await temporary.rename(target.path);
+    } catch (_) {
+      await _saveFallback(id, value);
     }
-    await temporary.rename(target.path);
   }
 
   @override
   Future<void> remove(String id) async {
-    final directory = await _root;
-    final target = File('${directory.path}/${_fileName(id)}');
-    if (await target.exists()) {
-      await target.delete();
+    try {
+      final directory = await _root;
+      final target = File('${directory.path}/${_fileName(id)}');
+      if (await target.exists()) await target.delete();
+    } catch (_) {
+      final ids = (await _fallbackIds()).toSet()..remove(id);
+      await _fallback.remove(_fallbackKey(id));
+      await _fallback.setStringList(_fallbackIndexKey, ids.toList());
     }
   }
 
   @override
   Future<void> clear() async {
-    final directory = await _root;
-    if (!await directory.exists()) return;
-    await for (final entity in directory.list(followLinks: false)) {
-      if (entity is File && entity.path.endsWith('.json')) {
-        await entity.delete();
+    try {
+      final directory = await _root;
+      await for (final entity in directory.list(followLinks: false)) {
+        if (entity is File && entity.path.endsWith('.json')) {
+          await entity.delete();
+        }
       }
+    } catch (_) {
+      for (final id in await _fallbackIds()) {
+        await _fallback.remove(_fallbackKey(id));
+      }
+      await _fallback.remove(_fallbackIndexKey);
     }
   }
+
+  Future<Map<String, String>> _loadFallback() async {
+    final result = <String, String>{};
+    for (final id in await _fallbackIds()) {
+      final value = await _fallback.getString(_fallbackKey(id));
+      if (value != null) result[id] = value;
+    }
+    return result;
+  }
+
+  Future<void> _saveFallback(String id, String value) async {
+    final ids = (await _fallbackIds()).toSet()..add(id);
+    await _fallback.setString(_fallbackKey(id), value);
+    await _fallback.setStringList(_fallbackIndexKey, ids.toList());
+  }
+
+  Future<List<String>> _fallbackIds() async =>
+      await _fallback.getStringList(_fallbackIndexKey) ?? const <String>[];
+
+  String _fallbackKey(String id) =>
+      'playlist-file.v2.${base64Url.encode(utf8.encode(id)).replaceAll('=', '')}';
 }
