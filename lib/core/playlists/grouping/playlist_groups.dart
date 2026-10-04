@@ -47,10 +47,6 @@ class PlaylistGroups {
 
     final groups = <PlaylistGroup>[];
     for (final item in grouped.entries) {
-      final folder = organization.folders.firstWhere(
-        (candidate) => candidate.name == item.key,
-        orElse: () => PlaylistFolder(id: '', name: item.key, order: 999999, custom: false),
-      );
       groups.add(PlaylistGroup(name: item.key, entries: List.unmodifiable(item.value)));
     }
 
