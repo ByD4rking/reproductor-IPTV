@@ -1,4 +1,4 @@
-name: TV Packages
+name: Build and publish installers
 
 on:
   push:
@@ -9,75 +9,83 @@ on:
       - 'tool/**'
       - 'pubspec.yaml'
       - '.github/workflows/tv-packages.yml'
-  pull_request:
-    paths:
-      - 'lib/**'
-      - 'platform/**'
-      - 'tool/**'
-      - 'pubspec.yaml'
-      - '.github/workflows/tv-packages.yml'
   workflow_dispatch:
 
+concurrency:
+  group: installers-main
+  cancel-in-progress: false
+
 permissions:
-  contents: read
+  contents: write
+
+env:
+  FLUTTER_VERSION: 3.47.6
 
 jobs:
+  android:
+    name: Android APKs
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [mobile, tv, firetv]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: dart run tool/build_android_profile.dart --profile=${{ matrix.profile }}
+      - name: Validate APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/android/${{ matrix.profile }}/profile.json
+          count=$(find dist/android/${{ matrix.profile }} -type f -name '*.apk' | wc -l)
+          test "$count" -ge 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ matrix.profile }}
+          path: dist/android/${{ matrix.profile }}/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
   webos:
-    name: Build webOS .ipk
+    name: LG webOS .ipk
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.47.6
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - uses: actions/setup-node@v4
         with:
           node-version: 24
       - run: flutter pub get
-      - name: Generate Web platform
-        run: flutter create --platforms=web --project-name reproductor_iptv .
+      - run: flutter create --platforms=web --project-name reproductor_iptv .
       - run: flutter build web --release
       - run: dart run tool/build.dart --target=webos
       - name: Install official webOS CLI
         run: npm install --global @webos-tools/cli@3.2.6
-      - name: Package and inspect .ipk
+      - name: Build and validate .ipk
         run: |
+          set -euo pipefail
           dart run tool/package_tv.dart --target=webos
           dart run tool/validate_tv_packages.dart webos --require-native
+          test "$(find dist/webos/native -type f -name '*.ipk' | wc -l)" -eq 1
       - uses: actions/upload-artifact@v4
         with:
-          name: reproductor-iptv-webos-ipk
+          name: webos-ipk
           path: dist/webos/native/*.ipk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
-  tizen-payload:
-    name: Validate Samsung Tizen payload
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: 3.47.6
-          cache: true
-      - run: flutter pub get
-      - name: Generate Web platform
-        run: flutter create --platforms=web --project-name reproductor_iptv .
-      - run: flutter build web --release
-      - run: dart run tool/build.dart --target=tizen
-      - run: dart run tool/validate_tv_packages.dart tizen
-      - uses: actions/upload-artifact@v4
-        with:
-          name: reproductor-iptv-tizen-payload
-          path: dist/tizen/package
-          if-no-files-found: error
-          retention-days: 14
-
-  tizen-native:
-    name: Build Samsung Tizen .wgt
+  tizen:
+    name: Samsung Tizen .wgt
     if: ${{ vars.TIZEN_CLI_ENABLED == 'true' }}
     runs-on: [self-hosted, linux, tizen]
     steps:
@@ -85,22 +93,66 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.47.6
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: flutter pub get
-      - name: Generate Web platform
-        run: flutter create --platforms=web --project-name reproductor_iptv .
+      - run: flutter create --platforms=web --project-name reproductor_iptv .
       - run: flutter build web --release
       - run: dart run tool/build.dart --target=tizen
-      - name: Package signed .wgt
+      - name: Build and validate .wgt
         env:
           TIZEN_CERT_PROFILE: ${{ secrets.TIZEN_CERT_PROFILE }}
         run: |
+          set -euo pipefail
+          test -n "$TIZEN_CERT_PROFILE"
           dart run tool/package_tv.dart --target=tizen
           dart run tool/validate_tv_packages.dart tizen --require-native
+          test "$(find dist/tizen/native -type f -name '*.wgt' | wc -l)" -eq 1
       - uses: actions/upload-artifact@v4
         with:
-          name: reproductor-iptv-tizen-wgt
+          name: tizen-wgt
           path: dist/tizen/native/*.wgt
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
+
+  publish:
+    name: Publish downloadable release
+    needs: [android, webos]
+    if: ${{ needs.android.result == 'success' && needs.webos.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      - name: Collect installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          find release-assets -type f -name '*.apk' -exec cp {} release/ \;
+          find release-assets -type f -name '*.ipk' -exec cp {} release/ \;
+          find release-assets -type f -name '*.wgt' -exec cp {} release/ \; || true
+          cat > release/README.txt <<'EOF'
+          reproductor-IPTV — instaladores oficiales
+
+          Android: APK mobile.
+          Android TV / Google TV: APK TV.
+          Fire TV / Fire OS: APK Fire TV.
+          LG webOS: IPK.
+          Samsung Tizen: WGT cuando el certificado y runner Tizen estén configurados.
+
+          No necesitas compilar nada en tu PC. Descarga el archivo correspondiente a tu dispositivo.
+          EOF
+          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 5
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)
+          tag="v${version}-build.${{ github.run_number }}"
+          gh release create "$tag" release/*             --repo "${{ github.repository }}"             --target "${{ github.sha }}"             --title "reproductor-IPTV $tag"             --notes "Instaladores generados automáticamente desde commit ${{ github.sha }}. Incluye Android, Android TV, Fire TV y LG webOS. Tizen se publica cuando su runner/certificado están configurados."
