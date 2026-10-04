@@ -34,8 +34,9 @@ class RecoveryEngine {
       if (decision.level == RecoveryLevel.stopped) return decision.level;
       if (decision.delay > Duration.zero) {
         await Future<void>.delayed(decision.delay);
-        if (!session.isCurrentOperation(operation))
+        if (!session.isCurrentOperation(operation)) {
           return RecoveryLevel.stopped;
+        }
       }
       switch (decision.level) {
         case RecoveryLevel.retry:
