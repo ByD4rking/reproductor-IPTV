@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   test:
@@ -26,9 +26,19 @@ jobs:
 
       - run: flutter --version
       - run: flutter pub get
-      - name: Check Dart formatting
-        continue-on-error: true
-        run: dart format --output=none --set-exit-if-changed .
+      - name: Format Dart sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format .
+          if git diff --quiet -- '*.dart'; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- '*.dart'
+          git commit -m "style: format Dart sources [skip ci]"
+          git push
       - run: flutter analyze
       - name: Validate build tools
         run: dart format --output=none --set-exit-if-changed tool/build.dart tool/build_android_profile.dart tool/probe_m3u.dart
