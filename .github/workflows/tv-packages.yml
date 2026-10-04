@@ -127,26 +127,62 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: release-assets
-      - name: Collect installers
+      - name: Collect and name installers
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release
-          find release-assets -type f -name '*.apk' -exec cp {} release/ \;
-          find release-assets -type f -name '*.ipk' -exec cp {} release/ \;
-          find release-assets -type f -name '*.wgt' -exec cp {} release/ \; || true
-          cat > release/README.txt <<'EOF'
-          reproductor-IPTV — instaladores oficiales
+          version=$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)
 
-          Android: APK mobile.
-          Android TV / Google TV: APK TV.
-          Fire TV / Fire OS: APK Fire TV.
-          LG webOS: IPK.
-          Samsung Tizen: WGT cuando el certificado y runner Tizen estén configurados.
+          for file in release-assets/android-mobile/*.apk; do
+            [ -f "$file" ] || continue
+            abi=$(basename "$file" | sed 's/-release\.apk$//')
+            cp "$file" "release/Reproductor-IPTV-${version}-Android-${abi}.apk"
+          done
+          for file in release-assets/android-tv/*.apk; do
+            [ -f "$file" ] || continue
+            abi=$(basename "$file" | sed 's/-release\.apk$//')
+            cp "$file" "release/Reproductor-IPTV-${version}-AndroidTV-GoogleTV-${abi}.apk"
+          done
+          for file in release-assets/android-firetv/*.apk; do
+            [ -f "$file" ] || continue
+            abi=$(basename "$file" | sed 's/-release\.apk$//')
+            cp "$file" "release/Reproductor-IPTV-${version}-FireTV-FireOS-${abi}.apk"
+          done
 
-          No necesitas compilar nada en tu PC. Descarga el archivo correspondiente a tu dispositivo.
+          for file in release-assets/webos-ipk/*.ipk; do
+            [ -f "$file" ] || continue
+            cp "$file" "release/Reproductor-IPTV-${version}-LG-webOS.ipk"
+          done
+          for file in release-assets/tizen-wgt/*.wgt; do
+            [ -f "$file" ] || continue
+            cp "$file" "release/Reproductor-IPTV-${version}-Samsung-Tizen.wgt"
+          done
+
+          cat > release/README.txt <<EOF
+          reproductor-IPTV ${version} — DESCARGAS OFICIALES
+
+          ANDROID
+          - Android teléfonos/tablets: Reproductor-IPTV-${version}-Android-*.apk
+
+          ANDROID TV / GOOGLE TV / TV BOX
+          - Reproductor-IPTV-${version}-AndroidTV-GoogleTV-*.apk
+
+          AMAZON FIRE TV / FIRE OS
+          - Reproductor-IPTV-${version}-FireTV-FireOS-*.apk
+
+          LG SMART TV
+          - Reproductor-IPTV-${version}-LG-webOS.ipk
+
+          SAMSUNG SMART TV
+          - Reproductor-IPTV-${version}-Samsung-Tizen.wgt
+
+          IMPORTANTE
+          - Chromecast con Google TV usa la versión Android TV/Google TV.
+          - Chromecast tradicional no instala APK.
+          - Descarga únicamente el archivo correspondiente a tu dispositivo.
           EOF
-          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 5
+          test "$(find release -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) | wc -l)" -ge 5
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -155,4 +191,33 @@ jobs:
           set -euo pipefail
           version=$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)
           tag="v${version}-build.${{ github.run_number }}"
-          gh release create "$tag" release/*             --repo "${{ github.repository }}"             --target "${{ github.sha }}"             --title "reproductor-IPTV $tag"             --notes "Instaladores generados automáticamente desde commit ${{ github.sha }}. Incluye Android, Android TV, Fire TV y LG webOS. Tizen se publica cuando su runner/certificado están configurados."
+          notes_file=$(mktemp)
+          cat > "$notes_file" <<EOF
+          # reproductor-IPTV ${version}
+
+          Descargas oficiales. Elige según tu dispositivo:
+
+          ## 📱 Android
+          APK para teléfonos y tablets Android.
+
+          ## 📺 Android TV / Google TV / TV Box
+          APK para dispositivos Android de salón. Chromecast con Google TV usa esta versión.
+
+          ## 🔥 Amazon Fire TV / Fire OS
+          APK para Fire TV y dispositivos Fire OS.
+
+          ## 🟦 LG webOS
+          IPK para LG Smart TV. Incluye compatibilidad de renderizado webOS y diagnóstico de arranque.
+
+          ## 🟩 Samsung Tizen
+          WGT cuando el runner y certificado Tizen estén configurados.
+
+          ## ℹ️ Importante
+          Los nombres de los archivos indican claramente la plataforma. No necesitas compilar nada.
+          La generación del paquete no sustituye la prueba física en cada modelo de TV.
+          EOF
+          gh release create "$tag" release/* \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "reproductor-IPTV ${version}" \
+            --notes-file "$notes_file"
