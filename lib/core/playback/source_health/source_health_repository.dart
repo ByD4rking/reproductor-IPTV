@@ -7,8 +7,7 @@ import '../../storage/atomic_string_list_store.dart';
 
 class SourceHealthRepository {
   SourceHealthRepository({SharedPreferencesAsync? preferences})
-      : _preferences = preferences ?? SharedPreferencesAsync(),
-        _store = AtomicStringListStore(
+      : _store = AtomicStringListStore(
           preferences: preferences ?? SharedPreferencesAsync(),
           key: _key,
         );
