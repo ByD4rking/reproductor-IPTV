@@ -28,7 +28,8 @@ Future<void> main(List<String> args) async {
       'manifest': manifest.existsSync() && manifest.lengthSync() > 0,
       'icon': icon.existsSync() && icon.lengthSync() > 0,
       if (platform == 'webos')
-        'webOS flutter bootstrap': bootstrap.existsSync() && bootstrap.lengthSync() > 0,
+        'webOS flutter bootstrap':
+            bootstrap.existsSync() && bootstrap.lengthSync() > 0,
     };
     if (platform == 'webos' && bootstrap.existsSync()) {
       final source = bootstrap.readAsStringSync();

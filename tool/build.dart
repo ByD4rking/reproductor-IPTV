@@ -118,7 +118,6 @@ Future<void> _buildWebAdapter(String platform) async {
   );
 }
 
-
 Future<void> _writeWebOsBootstrap(Directory webBuild) async {
   final bootstrap = File('${webBuild.path}/flutter_bootstrap.js');
   if (!await bootstrap.exists()) {
@@ -142,7 +141,6 @@ _flutter.loader.load({
 });
 ''');
 }
-
 
 Future<void> _writeWebOsDiagnostics(Directory webBuild) async {
   final index = File('${webBuild.path}/index.html');
