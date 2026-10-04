@@ -29,7 +29,8 @@ class PlaylistGroups {
     };
 
     for (final entry in playlist.entries) {
-      final assignedId = organization.assignments[entry.id];
+      final assignedId = organization.assignments[PlaylistOrganizationRepository.entryKey(entry)] ??
+          organization.assignments[entry.id];
       final assigned = assignedId == null ? null : folderById[assignedId];
       if (assigned != null && !assigned.hidden) {
         grouped.putIfAbsent(assigned.name, () => <PlaylistEntry>[]).add(entry);
