@@ -49,10 +49,15 @@ Future<void> _buildWeb(String profile) async {
 Future<void> _buildWebAdapter(String platform) async {
   await _buildWeb(platform);
   final output = Directory('dist/$platform');
+  final package = Directory('${output.path}/package');
+  await package.create(recursive: true);
+  await File('${package.path}/${platform == 'tizen' ? 'config.xml' : 'appinfo.json'}').writeAsString(
+    await File('platform/$platform/${platform == 'tizen' ? 'config.xml' : 'appinfo.json'}').readAsString(),
+  );
   await File('${output.path}/PLATFORM_ADAPTER.md').writeAsString(
     '# $platform adapter\n\n'
     'Payload Flutter Web generado desde el núcleo único reproductor-IPTV.\n\n'
-    'El empaquetado nativo/launcher debe realizarse con las herramientas oficiales de $platform.\n'
+    'El directorio package/ contiene la plantilla de empaquetado; el paquete final debe generarse con las herramientas oficiales de $platform.\n'
     'La lógica IPTV permanece compartida: M3U, HLS, recuperación, salud de fuentes y catálogo.\n',
   );
 }
