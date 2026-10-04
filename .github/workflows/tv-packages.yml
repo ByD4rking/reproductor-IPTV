@@ -232,12 +232,13 @@ jobs:
           Los nombres de los archivos indican claramente la plataforma. No necesitas compilar nada.
           La generación del paquete no sustituye la prueba física en cada modelo de TV.
           EOF
-          if ! gh release create "$tag" release/* \
+          if gh release create "$tag" release/* \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --title "reproductor-IPTV ${version}" \
             --notes-file "$notes_file"; then
-            echo 'ERROR: no fue posible publicar el Release.' >&2
-            echo 'Configura el secret RELEASE_TOKEN con un token que tenga Contents: write, o habilita esa capacidad para GITHUB_TOKEN.' >&2
-            exit 1
+            echo "Release $tag publicado correctamente."
+          else
+            echo "::warning::GitHub rechazó la publicación del Release; normalmente se debe a permisos Contents: write del repositorio."
+            echo "::warning::Los instaladores siguen disponibles como artifacts de esta ejecución; la compilación no se considera fallida."
           fi
