@@ -116,7 +116,7 @@ class M3uParser {
             id: existing.id,
             channel: existing.channel,
             sources: List.unmodifiable([...existing.sources, source]),
-            category: existing.category ?? attrs['group-title'],
+            category: existing.category ?? _category(attrs),
             logoUrl: existing.logoUrl ?? logoUrl,
           );
           sourceIndex++;
@@ -139,7 +139,7 @@ class M3uParser {
           language: attrs['tvg-language'],
         ),
         sources: [source],
-        category: attrs['group-title'],
+        category: _category(attrs),
         logoUrl: logoUrl,
       );
       entries.add(entry);
@@ -222,6 +222,13 @@ class M3uParser {
           match.group(2) ?? match.group(3) ?? match.group(4) ?? '';
     }
     return out;
+  }
+
+  String? _category(Map<String, String> attrs) {
+    final group = attrs['group-title']?.trim();
+    if (group != null && group.isNotEmpty) return group;
+    final tvgGroup = attrs['tvg-group']?.trim();
+    return tvgGroup == null || tvgGroup.isEmpty ? null : tvgGroup;
   }
 
   String _displayName(String line) {
