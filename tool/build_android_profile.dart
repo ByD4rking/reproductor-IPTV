@@ -96,6 +96,10 @@ Future<void> _ensureInternetPermission(File manifest) async {
   var changed = false;
   if (!xml.contains('android.permission.INTERNET')) {
     xml = xml.replaceRange(applicationIndex, applicationIndex, permission);
+    applicationIndex = xml.indexOf('<application');
+    if (applicationIndex < 0) {
+      throw StateError('AndroidManifest perdió <application> después de insertar INTERNET.');
+    }
     changed = true;
   }
 
