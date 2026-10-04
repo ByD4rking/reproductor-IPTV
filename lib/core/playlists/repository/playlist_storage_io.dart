@@ -19,6 +19,9 @@ class _IoPlaylistStorage implements PlaylistStorage {
   Future<Directory> get _root async {
     final existing = _directory;
     if (existing != null) return existing;
+    if (Platform.environment['FLUTTER_TEST'] == 'true') {
+      throw const FileSystemException('Use test storage fallback');
+    }
     final support = await getApplicationSupportDirectory();
     final directory = Directory('${support.path}/playlists');
     await directory.create(recursive: true);
