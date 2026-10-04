@@ -2,6 +2,9 @@ import '../../domain/entities/playlist.dart';
 import 'playlist_repository.dart';
 
 class InMemoryPlaylistRepository implements PlaylistRepository {
+  @override
+  Future<void> load() async {}
+
   final Map<String, Playlist> _items = <String, Playlist>{};
 
   @override
