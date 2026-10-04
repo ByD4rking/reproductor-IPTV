@@ -21,33 +21,12 @@ Future<void> main(List<String> args) async {
     final manifest = File('${root.path}/$manifestName');
     final index = File('${root.path}/index.html');
     final icon = File('${root.path}/icon.png');
-    final bootstrap = File('${root.path}/flutter_bootstrap.js');
     final checks = <String, bool>{
       'package directory': root.existsSync(),
       'index.html': index.existsSync() && index.lengthSync() > 0,
       'manifest': manifest.existsSync() && manifest.lengthSync() > 0,
       'icon': icon.existsSync() && icon.lengthSync() > 0,
-      if (platform == 'webos')
-        'webOS flutter bootstrap':
-            bootstrap.existsSync() && bootstrap.lengthSync() > 0,
     };
-    if (platform == 'webos' && bootstrap.existsSync()) {
-      final source = bootstrap.readAsStringSync();
-      checks['webOS CanvasKit full compatibility'] =
-          source.contains('canvasKitVariant: "full"');
-      checks['webOS CPU renderer fallback'] =
-          source.contains('canvasKitForceCpuOnly: true');
-    }
-    if (platform == 'webos' && manifest.existsSync()) {
-      try {
-        final json =
-            jsonDecode(manifest.readAsStringSync()) as Map<String, dynamic>;
-        checks['webOS manifest type=web'] = json['type'] == 'web';
-        checks['webOS main=index.html'] = json['main'] == 'index.html';
-      } catch (_) {
-        checks['webOS manifest JSON'] = false;
-      }
-    }
     if (requireNative) {
       final native = Directory('dist/$platform/native');
       final extension = platform == 'tizen' ? '.wgt' : '.ipk';
@@ -61,6 +40,17 @@ Future<void> main(List<String> args) async {
       checks['native $extension'] = packages.length == 1;
       if (packages.length == 1) {
         checks['native package non-empty'] = packages.single.lengthSync() > 0;
+      }
+      if (platform == 'webos' && packages.length == 1) {
+        final result = await Process.run('ar', ['t', packages.single.path]);
+        final listing = result.stdout.toString();
+        checks['native IPK archive'] = result.exitCode == 0;
+        checks['native IPK debian-binary'] =
+            listing.split('\\n').any((line) => line.trim() == 'debian-binary');
+        checks['native IPK control.tar'] =
+            listing.split('\\n').any((line) => line.trim().startsWith('control.tar'));
+        checks['native IPK data.tar'] =
+            listing.split('\\n').any((line) => line.trim().startsWith('data.tar'));
       }
     }
     for (final entry in checks.entries) {
