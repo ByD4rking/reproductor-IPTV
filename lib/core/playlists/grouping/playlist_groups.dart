@@ -39,7 +39,7 @@ class PlaylistGroups {
 
       final raw = entry.category?.trim();
       final name = raw == null || raw.isEmpty ? 'Sin categoría' : raw;
-      final id = 'group:' + name.toLowerCase();
+      final id = 'group:${name.toLowerCase()}';
       final folder = folderById[id];
       if (folder?.hidden == true) continue;
       grouped.putIfAbsent(name, () => <PlaylistEntry>[]).add(entry);
