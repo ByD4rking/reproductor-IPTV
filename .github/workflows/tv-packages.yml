@@ -185,7 +185,7 @@ jobs:
             echo "- Android teléfonos/tablets: Reproductor-IPTV-${version}-Android-*.apk"
             echo
             echo "ANDROID TV / GOOGLE TV / TV BOX"
-            echo "- Reproductor-IPTV-${version}-AndroidTV-GoogleTV-${abi}.apk"
+            echo "- Reproductor-IPTV-${version}-AndroidTV-GoogleTV-*.apk"
             echo
             echo "AMAZON FIRE TV / FIRE OS"
             echo "- Reproductor-IPTV-${version}-FireTV-FireOS-*.apk"
