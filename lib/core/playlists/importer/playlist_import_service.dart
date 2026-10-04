@@ -21,6 +21,7 @@ class PlaylistImportService {
     this.urlPolicy = const UrlPolicy(),
     RemotePlaylistStateRepository? stateRepository,
     http.Client? client,
+    this.timeout = const Duration(seconds: 15),
   })  : _stateRepository = stateRepository,
         _client = client ?? http.Client();
 
@@ -29,6 +30,7 @@ class PlaylistImportService {
   final UrlPolicy urlPolicy;
   final RemotePlaylistStateRepository? _stateRepository;
   final http.Client _client;
+  final Duration timeout;
 
   PlaylistImportResult importText({
     required String text,
@@ -126,7 +128,7 @@ class PlaylistImportService {
       }
 
       final request = http.Request('GET', current)..followRedirects = false;
-      final response = await _client.send(request);
+      final response = await _client.send(request).timeout(timeout);
       if (response.statusCode < 300 || response.statusCode >= 400) {
         return response;
       }
