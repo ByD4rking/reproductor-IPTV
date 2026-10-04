@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets"
+        xmlns:tizen="http://tizen.org/ns/widgets"
+        id="https://reproductor-iptv.local"
+        version="1.0.0"
+        viewmodes="maximized">
+  <name>Reproductor IPTV</name>
+  <content src="index.html"/>
+  <feature name="http://tizen.org/feature/screen.size.normal"/>
+  <tizen:profile name="tv-samsung"/>
+  <tizen:application id="reproductor.iptv"
+                     package="reproductor"
+                     required_version="5.5"
+                     exec="index.html"/>
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+</widget>
