@@ -60,6 +60,7 @@ class StreamProbe {
   }) async {
     if (!_urlPolicy.accepts(source.url)) return null;
     try {
+      final budget = _ProbeBudget(maxHlsRequests + 1);
       final response = await _send(source.url, source, headers);
       final contentType = response.headers['content-type'];
       var kind = const StreamKindDetector().detect(
@@ -101,7 +102,7 @@ class StreamProbe {
           final uris = playlist.uris.take(maxHlsRequests).toList();
           hlsCheckedUriCount = uris.length;
           final checks = await Future.wait(
-            uris.map((uri) => _checkHlsChild(uri, source, headers)),
+            uris.map((uri) => _checkHlsChild(uri, source, headers, budget: budget)),
           );
           // A master playlist is healthy when at least one rendition works;
           // one dead variant must not invalidate the entire adaptive stream.
@@ -132,8 +133,11 @@ class StreamProbe {
     StreamSource source,
     Map<String, String> headers, {
     int depth = 0,
+    _ProbeBudget? budget,
   }) async {
     if (!_urlPolicy.accepts(uri)) return false;
+    final requestBudget = budget ?? _ProbeBudget(maxHlsRequests + 1);
+    if (!requestBudget.take()) return false;
     try {
       final response = await _send(uri, source, headers);
       if (response.statusCode < 200 || response.statusCode >= 400) {
@@ -164,6 +168,7 @@ class StreamProbe {
             source,
             headers,
             depth: depth + 1,
+            budget: requestBudget,
           ),
         ),
       );
@@ -212,5 +217,16 @@ class StreamProbe {
 
   void dispose() {
     if (_ownsClient) _client.close();
+  }
+}
+
+class _ProbeBudget {
+  _ProbeBudget(this.remaining);
+  int remaining;
+
+  bool take() {
+    if (remaining <= 0) return false;
+    remaining--;
+    return true;
   }
 }
