@@ -12,6 +12,23 @@ class AppSettings {
   final bool autoSourceSwitching;
   final String? activePlaylistId;
   final bool demoSeeded;
+
+  AppSettings copyWith({
+    bool? autoRecovery,
+    bool? autoSourceSwitching,
+    String? activePlaylistId,
+    bool keepActivePlaylist = true,
+    bool? demoSeeded,
+  }) =>
+      AppSettings(
+        autoRecovery: autoRecovery ?? this.autoRecovery,
+        autoSourceSwitching:
+            autoSourceSwitching ?? this.autoSourceSwitching,
+        activePlaylistId: keepActivePlaylist
+            ? (activePlaylistId ?? this.activePlaylistId)
+            : activePlaylistId,
+        demoSeeded: demoSeeded ?? this.demoSeeded,
+      );
 }
 
 class SettingsRepository {
