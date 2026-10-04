@@ -15,6 +15,19 @@ dependencies:
   shared_preferences: ^2.5.3
   file_picker: ^13.1.0
   path_provider: ^2.1.5
+  # Official LG webOS implementations. They are selected only on webOS.
+  video_player_webos:
+    git:
+      url: https://github.com/lg-flutter-webos/plugins.git
+      path: packages/video_player_webos
+  shared_preferences_webos:
+    git:
+      url: https://github.com/lg-flutter-webos/plugins.git
+      path: packages/shared_preferences_webos
+  path_provider_webos:
+    git:
+      url: https://github.com/lg-flutter-webos/plugins.git
+      path: packages/path_provider_webos
 
 dev_dependencies:
   flutter_test:
