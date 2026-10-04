@@ -21,12 +21,22 @@ Future<void> main(List<String> args) async {
     final manifest = File('${root.path}/$manifestName');
     final index = File('${root.path}/index.html');
     final icon = File('${root.path}/icon.png');
+    final bootstrap = File('${root.path}/flutter_bootstrap.js');
     final checks = <String, bool>{
       'package directory': root.existsSync(),
       'index.html': index.existsSync() && index.lengthSync() > 0,
       'manifest': manifest.existsSync() && manifest.lengthSync() > 0,
       'icon': icon.existsSync() && icon.lengthSync() > 0,
+      if (platform == 'webos')
+        'webOS flutter bootstrap': bootstrap.existsSync() && bootstrap.lengthSync() > 0,
     };
+    if (platform == 'webos' && bootstrap.existsSync()) {
+      final source = bootstrap.readAsStringSync();
+      checks['webOS CanvasKit full compatibility'] =
+          source.contains('canvasKitVariant: "full"');
+      checks['webOS CPU renderer fallback'] =
+          source.contains('canvasKitForceCpuOnly: true');
+    }
     if (platform == 'webos' && manifest.existsSync()) {
       try {
         final json =
