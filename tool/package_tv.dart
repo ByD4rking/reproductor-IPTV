@@ -84,6 +84,7 @@ void _require(FileSystemEntity entity, String label) {
   if (!entity.existsSync()) {
     throw StateError('Falta $label: ${entity.path}');
   }
+}
 
 List<File> _filesWithExtension(Directory dir, String extension) {
   if (!dir.existsSync()) return const [];
