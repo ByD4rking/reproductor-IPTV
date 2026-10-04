@@ -392,7 +392,9 @@ class _ChannelCardState extends State<_ChannelCard> {
     final values = await _favorites.load();
     if (mounted) {
       setState(() => _favorite =
-          values.any((f) => f.channelId == widget.entry.channel.id));
+          values.any((f) =>
+          f.channelId == widget.entry.channel.id &&
+          (f.preferredPlaylistId == null || f.preferredPlaylistId == _playlistId)));
     }
   }
 
@@ -402,6 +404,7 @@ class _ChannelCardState extends State<_ChannelCard> {
     } else {
       await _favorites.setFavorite(Favorite(
         channelId: widget.entry.channel.id,
+        preferredPlaylistId: _playlistId,
         preferredSourceId:
             widget.entry.sources.isEmpty ? null : widget.entry.sources.first.id,
       ));
