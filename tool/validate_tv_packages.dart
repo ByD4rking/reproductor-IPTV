@@ -46,7 +46,7 @@ Future<void> main(List<String> args) async {
         final listing = result.stdout.toString();
         checks['native IPK archive'] = result.exitCode == 0;
         checks['native IPK debian-binary'] =
-            listing.split('\\n').any((line) => line.trim() == 'debian-binary');
+            listing.split('\n').any((line) => line.trim() == 'debian-binary');
         checks['native IPK control.tar'] =
             listing.split('\\n').any((line) => line.trim().startsWith('control.tar'));
         checks['native IPK data.tar'] =
