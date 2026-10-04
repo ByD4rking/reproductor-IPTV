@@ -12,6 +12,7 @@ import '../settings/settings_screen.dart';
 import '../../core/favorites/favorite_repository.dart';
 import '../../core/domain/entities/favorite.dart';
 import '../../core/platform/tv_focus.dart';
+import '../../core/settings/settings_repository.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,6 +22,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _repository = PersistentPlaylistRepository();
+  final _settings = SettingsRepository();
   Playlist? _playlist;
   SearchIndex? _searchIndex;
   bool _loading = true;
@@ -35,19 +37,36 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadLibrary() async {
     await _repository.load();
-    var playlist =
-        _repository.playlists.isEmpty ? null : _repository.playlists.first;
-    if (playlist == null) {
-      playlist = const M3uParser()
+    var playlists = _repository.playlists;
+    final settings = await _settings.load();
+
+    if (playlists.isNotEmpty && !settings.demoSeeded) {
+      await _settings.markDemoSeeded();
+    } else if (playlists.isEmpty && !settings.demoSeeded) {
+      final demo = const M3uParser()
           .parse(_demoM3u(), playlistId: 'demo', name: 'Demo IPTV');
-      await _repository.upsert(playlist);
+      await _repository.upsert(demo);
+      await _settings.markDemoSeeded();
+      playlists = _repository.playlists;
     }
+
+    final activeId = settings.activePlaylistId;
+    final selected = activeId == null
+        ? null
+        : playlists.where((playlist) => playlist.id == activeId).firstOrNull;
+    final playlist = selected ?? (playlists.isEmpty ? null : playlists.first);
+
+    if (playlist != null && activeId != playlist.id) {
+      await _settings.setActivePlaylistId(playlist.id);
+    }
+
     if (!mounted) return;
-    final loadedPlaylist = playlist;
     setState(() {
-      _playlist = loadedPlaylist;
-      _searchIndex = SearchIndex()
-        ..replace(loadedPlaylist.entries.map((e) => e.channel));
+      _playlist = playlist;
+      _searchIndex = playlist == null
+          ? null
+          : SearchIndex()
+            ..replace(playlist.entries.map((e) => e.channel));
       _loading = false;
     });
   }
@@ -82,8 +101,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading || _playlist == null) {
+    if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_playlist == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Reproductor IPTV')),
+        body: Center(
+          child: FilledButton.icon(
+            onPressed: () async {
+              final selected = await Navigator.of(context).push<String>(
+                MaterialPageRoute(
+                  builder: (_) => PlaylistImportScreen(repository: _repository),
+                ),
+              );
+              if (selected != null) {
+                await _settings.setActivePlaylistId(selected);
+              }
+              await _loadLibrary();
+            },
+            icon: const Icon(Icons.playlist_add),
+            label: const Text('Agregar playlist'),
+          ),
+        ),
+      );
     }
     final playlist = _playlist!;
     final entries = _visibleEntries;
@@ -94,9 +135,14 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             tooltip: 'Playlists',
             onPressed: () async {
-              await Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) =>
-                      PlaylistImportScreen(repository: _repository)));
+              final selected = await Navigator.of(context).push<String>(
+                MaterialPageRoute(
+                  builder: (_) => PlaylistImportScreen(repository: _repository),
+                ),
+              );
+              if (selected != null) {
+                await _settings.setActivePlaylistId(selected);
+              }
               await _loadLibrary();
             },
             icon: const Icon(Icons.playlist_play),
