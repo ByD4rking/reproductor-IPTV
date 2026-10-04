@@ -52,20 +52,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Recuperación automática'),
             subtitle: const Text(
                 'Detectar congelamientos y reintentar la reproducción.'),
-            onChanged: (value) => _save(AppSettings(
-              autoRecovery: value,
-              autoSourceSwitching: _settings.autoSourceSwitching,
-            )),
+            onChanged: (value) =>
+                _save(_settings.copyWith(autoRecovery: value)),
           ),
           SwitchListTile(
             value: _settings.autoSourceSwitching,
             title: const Text('Cambio automático de fuente'),
             subtitle: const Text(
                 'Cambiar a otra fuente del mismo canal cuando corresponda.'),
-            onChanged: (value) => _save(AppSettings(
-              autoRecovery: _settings.autoRecovery,
-              autoSourceSwitching: value,
-            )),
+            onChanged: (value) =>
+                _save(_settings.copyWith(autoSourceSwitching: value)),
           ),
           const Divider(),
           ListTile(
