@@ -41,8 +41,9 @@ class _EpgScreenState extends State<EpgScreen> {
       final count = await _repository.refreshConfigured();
       if (count != null && mounted) {
         await _load();
-        if (mounted)
+        if (mounted) {
           setState(() => _message = 'EPG actualizado: $count programas');
+        }
       }
     } catch (error) {
       if (mounted) setState(() => _message = 'Error actualizando EPG: $error');
@@ -62,8 +63,9 @@ class _EpgScreenState extends State<EpgScreen> {
     try {
       final count = await _repository.importXmltvUrl(uri);
       await _load();
-      if (mounted)
+      if (mounted) {
         setState(() => _message = 'EPG remoto guardado: $count programas');
+      }
     } catch (error) {
       if (mounted) setState(() => _message = 'Error: $error');
     } finally {
