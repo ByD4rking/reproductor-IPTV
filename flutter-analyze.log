@@ -1,10 +1,7 @@
 Analyzing reproductor-IPTV...                                   
 
-   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/core/playlists/repository/playlist_storage_io.dart:17:7 • prefer_interpolation_to_compose_strings
   error • The method 'replace' can't be unconditionally invoked because the receiver can be 'null'. Try making the call conditional (using '?.') or adding a null check to the target ('!') • lib/features/home/home_screen.dart:68:11 • unchecked_use_of_nullable_value
   error • The property 'entries' can't be unconditionally accessed because the receiver can be 'null'. Try making the access conditional (using '?.') or adding a null check to the target ('!') • lib/features/home/home_screen.dart:68:28 • unchecked_use_of_nullable_value
-  error • 3 positional arguments expected by 'setStringList', but 2 found. Try adding the missing arguments • test/playlist_repository_test.dart:128:58 • not_enough_positional_arguments
-  error • The argument type 'InMemorySharedPreferencesAsync' can't be assigned to the parameter type 'SharedPreferencesAsync?'.  • test/playlist_repository_test.dart:131:20 • argument_type_not_assignable
-  error • 2 positional arguments expected by 'getStringList', but 1 found. Try adding the missing arguments • test/playlist_repository_test.dart:139:58 • not_enough_positional_arguments
+  error • The function 'SharedPreferencesAsync' isn't defined. Try importing the library that defines 'SharedPreferencesAsync', correcting the name to the name of an existing function, or defining a function named 'SharedPreferencesAsync' • test/playlist_repository_test.dart:95:25 • undefined_function
 
-6 issues found. (ran in 8.2s)
+3 issues found. (ran in 8.2s)
