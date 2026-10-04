@@ -88,6 +88,22 @@ void main() {
         first.entries.single.sources[1].headers['Referer'], 'https://ref.test');
   });
 
+  test('M3U parseLines keeps the same hash without joining input', () {
+    final lines = <String>[
+      '#EXTM3U',
+      '#EXTINF:-1 tvg-id="news" group-title="News",News',
+      'https://example.com/news.m3u8',
+    ];
+    final parser = const M3uParser();
+
+    final fromText = parser.parse(lines.join('\n'));
+    final fromLines = parser.parseLines(lines);
+
+    expect(fromLines.rawContentHash, fromText.rawContentHash);
+    expect(fromLines.entries.single.sources.single.url,
+        fromText.entries.single.sources.single.url);
+  });
+
   test('M3U accepts single-quoted attributes', () {
     const text =
         "#EXTM3U\n#EXTINF:-1 tvg-id='abc' group-title='Kids',Kids\nhttps://example.com/live";
