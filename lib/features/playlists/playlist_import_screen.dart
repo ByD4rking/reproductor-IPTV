@@ -223,13 +223,9 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
         title: const Text('PC o teléfono → TV'),
         content: const Text(
           'La lista que está en tu PC o teléfono no aparece automáticamente '
-          'en un Smart TV.
-
-'
+          'en un Smart TV.\\n\\n'
           'Android TV / Google TV / Fire TV permiten seleccionar un archivo '
-          'local desde un proveedor de archivos compatible.
-
-'
+          'local desde un proveedor de archivos compatible.\\n\\n'
           'En LG webOS y Samsung Tizen todavía necesitamos un canal de '
           'transferencia específico (QR/código o servicio local seguro). '
           'La aplicación no lo presenta como implementado hasta tenerlo '
