@@ -28,6 +28,10 @@ La interfaz debe ser usable con mando a distancia: foco visible, targets
 grandes, navegación direccional y activación con Enter/Select. La lógica de
 reproducción no debe depender del dispositivo de entrada.
 
+## Tizen y webOS
+
+El generador crea el payload Web y una plantilla de empaquetado en `dist/tizen/package/` o `dist/webos/package/`. Esto separa el núcleo compartido de los manifiestos específicos de cada TV. El empaquetado, firma e instalación final siguen dependiendo de los SDK oficiales de cada fabricante.
+
 ## Próximas plataformas
 
 Samsung Tizen y LG webOS no se tratan como otro APK Flutter. Se prepararán
