@@ -15,6 +15,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Reproductor IPTV'), findsWidgets);
     expect(find.text('TV en directo'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Demo News'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Demo News'), findsOneWidget);
     expect(find.byTooltip('Ajustes'), findsOneWidget);
     expect(find.byTooltip('Playlists'), findsOneWidget);
