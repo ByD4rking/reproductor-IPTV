@@ -8,6 +8,7 @@ import '../../core/playlists/importer/playlist_import_service.dart';
 import '../../core/playlists/m3u/m3u_parser.dart';
 import '../../core/playlists/repository/playlist_repository.dart';
 import '../../core/playlists/repository/remote_playlist_state_repository.dart';
+import '../../core/playlists/xtream/xtream_import_service.dart';
 
 class PlaylistImportScreen extends StatefulWidget {
   const PlaylistImportScreen({required this.repository, super.key});
@@ -22,6 +23,7 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
   final _name = TextEditingController(text: 'Mi playlist');
   final _text = TextEditingController();
   late final PlaylistImportService _service;
+  late final XtreamImportService _xtream;
   bool _busy = false;
   String? _message;
 
@@ -31,6 +33,7 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     _service = PlaylistImportService(
       stateRepository: RemotePlaylistStateRepository(),
     );
+    _xtream = XtreamImportService();
     _loadSavedPlaylists();
   }
 
@@ -51,6 +54,7 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     _name.dispose();
     _text.dispose();
     _service.dispose();
+    _xtream.dispose();
     super.dispose();
   }
 
@@ -118,6 +122,98 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
       if (mounted) {
         setState(() => _message =
             'Archivo guardado: ${result.playlist.entries.length} canales');
+      }
+    });
+  }
+
+  Future<void> _importXtream() async {
+    final server = TextEditingController();
+    final username = TextEditingController();
+    final password = TextEditingController();
+    final name = TextEditingController(text: 'Xtream IPTV');
+
+    final values = await showDialog<List<String>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Agregar cuenta Xtream'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: server,
+                keyboardType: TextInputType.url,
+                decoration: const InputDecoration(
+                  labelText: 'Servidor',
+                  hintText: 'https://servidor:puerto',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: username,
+                decoration: const InputDecoration(labelText: 'Usuario'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Contraseña'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'Nombre de la lista'),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Las credenciales solo se usan para esta importación y no se guardan en la playlist.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              context,
+              [
+                server.text.trim(),
+                username.text.trim(),
+                password.text,
+                name.text.trim(),
+              ],
+            ),
+            child: const Text('Importar'),
+          ),
+        ],
+      ),
+    );
+    server.dispose();
+    username.dispose();
+    password.dispose();
+    name.dispose();
+
+    if (values == null) return;
+    final uri = Uri.tryParse(values[0]);
+    if (uri == null) {
+      setState(() => _message = 'Servidor Xtream inválido');
+      return;
+    }
+
+    await _run(() async {
+      final playlist = await _xtream.importLiveChannels(
+        server: uri,
+        username: values[1],
+        password: values[2],
+        playlistName: values[3],
+      );
+      await widget.repository.upsert(playlist);
+      if (mounted) {
+        setState(() => _message =
+            'Xtream guardado: ${playlist.entries.length} canales. Las credenciales no quedaron almacenadas.');
       }
     });
   }
@@ -320,6 +416,11 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
             label: const Text('Cargar archivo M3U/M3U8/TXT'),
           ),
           const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _importXtream,
+            icon: const Icon(Icons.account_tree_outlined),
+            label: const Text('Agregar Xtream Codes'),
+          ),
           OutlinedButton.icon(
             onPressed: _busy ? null : _showTvTransferHelp,
             icon: const Icon(Icons.devices_other),
