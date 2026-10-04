@@ -88,14 +88,32 @@ Future<void> _ensureInternetPermission(File manifest) async {
   var xml = await manifest.readAsString();
   const permission =
       '    <uses-permission android:name="android.permission.INTERNET" />\n';
-  if (xml.contains('android.permission.INTERNET')) return;
-
   final applicationIndex = xml.indexOf('<application');
   if (applicationIndex < 0) {
     throw StateError('AndroidManifest no contiene <application>.');
   }
-  xml = xml.replaceRange(applicationIndex, applicationIndex, permission);
-  await manifest.writeAsString(xml);
+
+  var changed = false;
+  if (!xml.contains('android.permission.INTERNET')) {
+    xml = xml.replaceRange(applicationIndex, applicationIndex, permission);
+    changed = true;
+  }
+
+  final applicationTagEnd = xml.indexOf('>', applicationIndex);
+  if (applicationTagEnd < 0) {
+    throw StateError('No se pudo localizar la etiqueta <application>.');
+  }
+  final applicationTag = xml.substring(applicationIndex, applicationTagEnd + 1);
+  if (!applicationTag.contains('android:usesCleartextTraffic=')) {
+    xml = xml.replaceRange(
+      applicationTagEnd,
+      applicationTagEnd,
+      ' android:usesCleartextTraffic="true"',
+    );
+    changed = true;
+  }
+
+  if (changed) await manifest.writeAsString(xml);
 }
 
 Future<void> _configureAndroidTv(File manifest) async {
