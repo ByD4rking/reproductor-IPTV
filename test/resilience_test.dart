@@ -51,6 +51,14 @@ void main() {
     expect(p.accepts(Uri.parse('https://user:pass@example.com')), isFalse);
     expect(p.acceptsRedirectCount(6), isFalse);
   });
+  test('URL policy rejects local and metadata destinations', () async {
+    const p = UrlPolicy();
+    expect(p.accepts(Uri.parse('http://127.0.0.1/playlist.m3u')), isFalse);
+    expect(p.accepts(Uri.parse('http://192.168.1.20/playlist.m3u')), isFalse);
+    expect(p.accepts(Uri.parse('http://169.254.169.254/latest/meta-data')), isFalse);
+    expect(await p.acceptsResolved(Uri.parse('https://example.com')), isTrue);
+  });
+
   test('recovery policy rejects invalid counters', () {
     const policy = RecoveryPolicy();
     final decision = policy.decide(
