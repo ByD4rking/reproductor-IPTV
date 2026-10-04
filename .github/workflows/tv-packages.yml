@@ -203,7 +203,10 @@ jobs:
             echo "- Los archivos se acompañan de SHA256SUMS.txt para verificar integridad."
           } > release/README.txt
           test "$(find release -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) | wc -l)" -ge 4
-          (cd release && sha256sum *.apk *.ipk *.wgt 2>/dev/null > SHA256SUMS.txt)
+          (
+            cd release
+            find . -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          )
           test -s release/SHA256SUMS.txt
       - name: Create GitHub Release
         env:
