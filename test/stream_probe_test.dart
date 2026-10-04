@@ -217,4 +217,29 @@ void main() {
     expect(result.hlsDeepValid, isFalse);
     expect(result.isAvailable, isFalse);
   });
+  test('blocks a redirect to a private network during probing', () async {
+    var requests = 0;
+    final client = MockClient((request) async {
+      requests++;
+      return http.Response('', 302, headers: {
+        'location': 'http://127.0.0.1/private.m3u8',
+      });
+    });
+    final probe = StreamProbe(
+      client: client,
+      timeout: const Duration(seconds: 1),
+    );
+    addTearDown(probe.dispose);
+
+    final result = await probe.probe(
+      StreamSource(
+        id: 'redirect',
+        url: Uri.parse('https://example.com/redirect.m3u8'),
+      ),
+    );
+
+    expect(result, isNull);
+    expect(requests, 1);
+  });
+
 }
