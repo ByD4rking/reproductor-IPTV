@@ -23,13 +23,19 @@ Future<void> main(List<String> args) async {
 
   final max = _max(args);
   final client = http.Client();
-  final probe = StreamProbe(client: client, timeout: const Duration(seconds: 6), maxHlsRequests: 2);
+  final probe = StreamProbe(
+    client: client,
+    timeout: const Duration(seconds: 6),
+    maxHlsRequests: 2,
+  );
   try {
     final response = await client.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
     if (response.statusCode < 200 || response.statusCode >= 400) {
       throw StateError('M3U respondió HTTP ${response.statusCode}');
     }
-    if (response.body.length > 64 * 1024 * 1024) throw StateError('M3U supera el límite de 64 MiB');
+    if (response.body.length > 64 * 1024 * 1024) {
+      throw StateError('M3U supera el límite de 64 MiB');
+    }
 
     final playlist = const M3uParser().parse(response.body, playlistId: 'probe', name: url);
     final rows = <Map<String, Object?>>[];
