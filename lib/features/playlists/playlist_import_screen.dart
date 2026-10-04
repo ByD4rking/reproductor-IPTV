@@ -301,6 +301,12 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
   }
 
   Future<void> _refresh(Playlist playlist) async {
+    if (playlist.id.startsWith('xtream-')) {
+      setState(() => _message =
+          'Las cuentas Xtream no guardan las credenciales. Vuelve a importarlas para actualizar.');
+      return;
+    }
+
     final uri = playlist.sourceUri;
     if (uri == null) {
       setState(() => _message =
