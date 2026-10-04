@@ -2,15 +2,6 @@ name: Android device smoke tests
 
 on:
   workflow_dispatch:
-    inputs:
-      profile:
-        description: Android target
-        required: true
-        default: mobile
-        type: choice
-        options:
-          - mobile
-          - tv
   push:
     branches: [main]
   pull_request:
@@ -20,6 +11,10 @@ on:
       - 'pubspec.yaml'
       - '.github/workflows/android-device.yml'
 
+concurrency:
+  group: android-device-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -28,9 +23,13 @@ env:
 
 jobs:
   smoke:
-    name: Android emulator (${{ inputs.profile || 'mobile' }})
+    name: Android emulator (${{ matrix.profile }})
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [mobile, tv]
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -46,7 +45,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
-          target: ${{ inputs.profile == 'tv' && 'android-tv' || 'google_apis' }}
+          target: ${{ matrix.profile == 'tv' && 'android-tv' || 'google_apis' }}
           arch: x86_64
-          profile: ${{ inputs.profile == 'tv' && 'tv_1080p' || 'pixel_6' }}
+          profile: ${{ matrix.profile == 'tv' && 'tv_1080p' || 'pixel_6' }}
           script: flutter test integration_test/smoke_test.dart
