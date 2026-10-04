@@ -226,8 +226,10 @@ jobs:
             echo "AMAZON FIRE TV / FIRE OS"
             echo "- Reproductor-IPTV-${version}-FireTV-FireOS-*.apk"
             echo
-            echo "LG SMART TV"
-            echo "- Reproductor-IPTV-${version}-LG-webOS.ipk"
+            if compgen -G "release/*-LG-webOS.ipk" > /dev/null; then
+              echo "LG SMART TV"
+              echo "- Reproductor-IPTV-${version}-LG-webOS.ipk"
+            fi
             if compgen -G "release/*-Samsung-Tizen.wgt" > /dev/null; then
               echo
               echo "SAMSUNG SMART TV"
