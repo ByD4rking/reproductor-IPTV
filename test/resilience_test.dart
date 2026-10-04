@@ -51,6 +51,7 @@ void main() {
     expect(p.accepts(Uri.parse('https://user:pass@example.com')), isFalse);
     expect(p.acceptsRedirectCount(6), isFalse);
   });
+
   test('URL policy rejects local and metadata destinations', () async {
     const p = UrlPolicy();
     expect(p.accepts(Uri.parse('http://127.0.0.1/playlist.m3u')), isFalse);
@@ -58,6 +59,20 @@ void main() {
     expect(p.accepts(Uri.parse('http://169.254.169.254/latest/meta-data')),
         isFalse);
     expect(await p.acceptsResolved(Uri.parse('https://example.com')), isTrue);
+  });
+
+  test('URL policy rejects reserved IPv4 and IPv4-mapped IPv6 ranges', () {
+    const p = UrlPolicy();
+    for (final uri in [
+      'http://100.64.0.1/',
+      'http://192.0.0.2/',
+      'http://198.18.0.1/',
+      'http://203.0.113.10/',
+      'http://[::ffff:127.0.0.1]/',
+      'http://[::ffff:192.168.1.1]/',
+    ]) {
+      expect(p.accepts(Uri.parse(uri)), isFalse, reason: uri);
+    }
   });
 
   test('recovery policy rejects invalid counters', () {
