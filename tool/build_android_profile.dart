@@ -19,6 +19,8 @@ Future<void> main(List<String> args) async {
     throw StateError('No se encontró el AndroidManifest generado por Flutter.');
   }
 
+  await _ensureInternetPermission(manifest);
+
   if (profile == 'tv' || profile == 'firetv') {
     await _configureAndroidTv(manifest);
   }
@@ -80,6 +82,21 @@ String? _profile(List<String> args) {
     }
   }
   return null;
+}
+
+
+Future<void> _ensureInternetPermission(File manifest) async {
+  var xml = await manifest.readAsString();
+  const permission =
+      '    <uses-permission android:name="android.permission.INTERNET" />\\n';
+  if (xml.contains('android.permission.INTERNET')) return;
+
+  final applicationIndex = xml.indexOf('<application');
+  if (applicationIndex < 0) {
+    throw StateError('AndroidManifest no contiene <application>.');
+  }
+  xml = xml.replaceRange(applicationIndex, applicationIndex, permission);
+  await manifest.writeAsString(xml);
 }
 
 Future<void> _configureAndroidTv(File manifest) async {
