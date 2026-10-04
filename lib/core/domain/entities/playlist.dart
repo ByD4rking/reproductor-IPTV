@@ -20,11 +20,14 @@ class Playlist {
       {required this.id,
       required this.name,
       required this.entries,
+      this.sourceUri,
       this.rawContentHash,
       this.updatedAt});
   final String id;
   final String name;
   final List<PlaylistEntry> entries;
+  /// Original remote playlist URL, when this playlist was imported from a URL.
+  final Uri? sourceUri;
   final String? rawContentHash;
   final DateTime? updatedAt;
 }
