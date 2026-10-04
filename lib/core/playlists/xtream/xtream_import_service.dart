@@ -71,13 +71,16 @@ class XtreamImportService {
       if (streamId == null || streamId.isEmpty || name.isEmpty) continue;
 
       final uri = _streamUri(base, username, password, streamId);
-      if (!await urlPolicy.acceptsResolved(uri)) continue;
+      if (!urlPolicy.accepts(uri) || uri.host != base.host) continue;
 
       final iconText = raw['stream_icon']?.toString();
       final icon =
           iconText == null || iconText.isEmpty ? null : Uri.tryParse(iconText);
-      final safeIcon =
-          icon != null && await urlPolicy.acceptsResolved(icon) ? icon : null;
+      final safeIcon = icon != null &&
+              urlPolicy.accepts(icon) &&
+              icon.host == base.host
+          ? icon
+          : null;
 
       final categoryId = raw['category_id']?.toString();
       final category =
