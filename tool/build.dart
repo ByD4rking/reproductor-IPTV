@@ -77,6 +77,7 @@ Future<void> _buildWebAdapter(String platform) async {
 
   if (platform == 'webos') {
     await _writeWebOsBootstrap(Directory('build/web'));
+    await _writeWebOsDiagnostics(Directory('build/web'));
   }
 
   final output = Directory('dist/$platform');
@@ -140,6 +141,65 @@ _flutter.loader.load({
   },
 });
 ''');
+}
+
+
+Future<void> _writeWebOsDiagnostics(Directory webBuild) async {
+  final index = File('${webBuild.path}/index.html');
+  if (!await index.exists()) {
+    throw StateError('Flutter Web no generó index.html para webOS.');
+  }
+  var html = await index.readAsString();
+  const marker = '<!-- REPRODUCTOR-IPTV-WEBOS-DIAGNOSTICS -->';
+  if (html.contains(marker)) return;
+
+  const script = '''
+$marker
+<script>
+(function () {
+  var timer = null;
+  function show(message) {
+    var box = document.getElementById('reproductor-ip-tv-webos-error');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'reproductor-ip-tv-webos-error';
+      box.style.cssText =
+        'position:fixed;left:0;right:0;top:0;bottom:0;z-index:2147483647;' +
+        'background:#080b10;color:#fff;font-family:Arial,sans-serif;' +
+        'padding:32px;box-sizing:border-box;font-size:24px;';
+      document.body.appendChild(box);
+    }
+    box.innerHTML =
+      '<h2 style="margin:0 0 16px">Reproductor IPTV</h2>' +
+      '<p>No se pudo iniciar la interfaz en este navegador webOS.</p>' +
+      '<p style="font-size:16px;opacity:.8;word-break:break-word">' +
+      String(message || 'Error de inicialización') + '</p>';
+  }
+  window.addEventListener('error', function (event) {
+    show(event && (event.message || event.error) || 'JavaScript error');
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    show(event && event.reason || 'Promise rejection');
+  });
+  timer = window.setTimeout(function () {
+    if (!document.querySelector('flt-glass-pane')) {
+      show('Flutter Web no creó la superficie de renderizado.');
+    }
+  }, 30000);
+  window.addEventListener('flutter-first-frame', function () {
+    if (timer) window.clearTimeout(timer);
+  });
+}());
+</script>
+''';
+
+  final bodyIndex = html.indexOf('</body>');
+  if (bodyIndex >= 0) {
+    html = html.replaceRange(bodyIndex, bodyIndex, script);
+  } else {
+    html += script;
+  }
+  await index.writeAsString(html);
 }
 
 Future<void> _writeIconPair(Directory package) async {
