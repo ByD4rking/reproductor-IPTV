@@ -75,7 +75,7 @@ Future<void> _packageTizen() async {
   final destination =
       File('${output.path}/${produced.single.uri.pathSegments.last}');
   await produced.single.copy(destination.path);
-  stdout.writeln('Tizen OK: ' + destination.path);
+  stdout.writeln('Tizen OK: ${destination.path}');
 }
 
 String _resolveExecutable(String fallback, String variable) {
