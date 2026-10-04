@@ -8,6 +8,7 @@ on:
       - 'platform/**'
       - 'tool/**'
       - 'pubspec.yaml'
+      - 'integration_test/**'
       - '.github/workflows/tv-packages.yml'
   workflow_dispatch:
 
@@ -175,30 +176,35 @@ jobs:
             cp "$file" "release/Reproductor-IPTV-${version}-Samsung-Tizen.wgt"
           done
 
-          cat > release/README.txt <<EOF
-          reproductor-IPTV ${version} — DESCARGAS OFICIALES
-
-          ANDROID
-          - Android teléfonos/tablets: Reproductor-IPTV-${version}-Android-*.apk
-
-          ANDROID TV / GOOGLE TV / TV BOX
-          - Reproductor-IPTV-${version}-AndroidTV-GoogleTV-*.apk
-
-          AMAZON FIRE TV / FIRE OS
-          - Reproductor-IPTV-${version}-FireTV-FireOS-*.apk
-
-          LG SMART TV
-          - Reproductor-IPTV-${version}-LG-webOS.ipk
-
-          SAMSUNG SMART TV
-          - Reproductor-IPTV-${version}-Samsung-Tizen.wgt
-
-          IMPORTANTE
-          - Chromecast con Google TV usa la versión Android TV/Google TV.
-          - Chromecast tradicional no instala APK.
-          - Descarga únicamente el archivo correspondiente a tu dispositivo.
-          EOF
-          test "$(find release -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) | wc -l)" -ge 5
+          {
+            echo "reproductor-IPTV ${version} — DESCARGAS OFICIALES"
+            echo
+            echo "ANDROID"
+            echo "- Android teléfonos/tablets: Reproductor-IPTV-${version}-Android-*.apk"
+            echo
+            echo "ANDROID TV / GOOGLE TV / TV BOX"
+            echo "- Reproductor-IPTV-${version}-AndroidTV-GoogleTV-*.apk"
+            echo
+            echo "AMAZON FIRE TV / FIRE OS"
+            echo "- Reproductor-IPTV-${version}-FireTV-FireOS-*.apk"
+            echo
+            echo "LG SMART TV"
+            echo "- Reproductor-IPTV-${version}-LG-webOS.ipk"
+            if compgen -G "release/*-Samsung-Tizen.wgt" > /dev/null; then
+              echo
+              echo "SAMSUNG SMART TV"
+              echo "- Reproductor-IPTV-${version}-Samsung-Tizen.wgt"
+            fi
+            echo
+            echo "IMPORTANTE"
+            echo "- Chromecast con Google TV usa la versión Android TV/Google TV."
+            echo "- Chromecast tradicional no instala APK."
+            echo "- Descarga únicamente el archivo correspondiente a tu dispositivo."
+            echo "- Los archivos se acompañan de SHA256SUMS.txt para verificar integridad."
+          } > release/README.txt
+          test "$(find release -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) | wc -l)" -ge 4
+          (cd release && sha256sum *.apk *.ipk *.wgt 2>/dev/null > SHA256SUMS.txt)
+          test -s release/SHA256SUMS.txt
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
