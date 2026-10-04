@@ -75,11 +75,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<PlaylistGroup> get _groups =>
       PlaylistGroups.fromPlaylist(_playlist!);
 
-  List<String> get _categories => [
-        'Todos',
-        ..._groups.map((group) => group.name),
-      ];
-
   List<PlaylistEntry> get _visibleEntries {
     final playlist = _playlist!;
     final index = _searchIndex!;
@@ -303,21 +298,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () => setState(() => _category = group.name),
                     );
                   },
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 0,
-                  child: ListView.separated(
-                    padding: EdgeInsets.zero,
-                    scrollDirection: Axis.horizontal,
-                    itemCount: 0,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (_, index) {
-                      final category = _categories[index];
-                      return const SizedBox.shrink();
-                    },
-                  ),
                 ),
               ),
               SliverPadding(
