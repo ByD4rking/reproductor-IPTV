@@ -114,6 +114,22 @@ Future<void> _ensureInternetPermission(File manifest) async {
   }
 
   if (changed) await manifest.writeAsString(xml);
+
+  final verified = await manifest.readAsString();
+  if (!verified.contains('android.permission.INTERNET')) {
+    throw StateError('La APK release no quedó configurada con INTERNET.');
+  }
+  final applicationStart = verified.indexOf('<application');
+  final applicationEnd = verified.indexOf('>', applicationStart);
+  final applicationTag =
+      applicationStart >= 0 && applicationEnd >= 0
+          ? verified.substring(applicationStart, applicationEnd + 1)
+          : '';
+  if (!applicationTag.contains('android:usesCleartextTraffic="true"')) {
+    throw StateError(
+      'La APK release no quedó configurada para los streams IPTV HTTP.',
+    );
+  }
 }
 
 Future<void> _configureAndroidTv(File manifest) async {
