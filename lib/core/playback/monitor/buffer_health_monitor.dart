@@ -37,7 +37,7 @@ class BufferHealthMonitor {
     final previous = _previousAhead;
     final low = bufferedAhead <= degradedThreshold;
 
-    if (!low || (!buffering && bufferedAhead > previous)) {
+    if (!low) {
       _lowSince = null;
     } else {
       _lowSince ??= now;
