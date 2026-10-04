@@ -53,8 +53,10 @@ Future<void> _buildTarget(String target) async {
       await _buildWebAdapter('tizen');
       return;
     case 'webos':
-      await _buildWebAdapter('webos');
-      return;
+      throw StateError(
+        'webOS no usa Flutter Web. Use flutter-webos build webos --release '
+        'con el SDK/NDK oficial de LG.',
+      );
   }
 }
 
@@ -73,15 +75,7 @@ Future<void> _buildWeb(String profile) async {
 }
 
 Future<void> _buildWebAdapter(String platform) async {
-  if (platform == 'webos') {
-    await _ensureWebOsBootstrapTemplate();
-  }
   await _run('flutter', ['build', 'web', '--release']);
-
-  if (platform == 'webos') {
-    await _validateWebOsBootstrap(Directory('build/web'));
-    await _writeWebOsDiagnostics(Directory('build/web'));
-  }
 
   final output = Directory('dist/$platform');
   if (await output.exists()) {
@@ -119,110 +113,6 @@ Future<void> _buildWebAdapter(String platform) async {
     'del fabricante. La firma e instalación requieren el SDK y certificado del '
     'dispositivo objetivo.\n',
   );
-}
-
-Future<void> _ensureWebOsBootstrapTemplate() async {
-  final web = Directory('web');
-  if (!await web.exists()) {
-    throw StateError(
-      'Falta el directorio web/. Ejecuta flutter create --platforms=web . '
-      'antes de construir el adaptador webOS.',
-    );
-  }
-  final bootstrap = File('${web.path}/flutter_bootstrap.js');
-  await bootstrap.writeAsString('''{{flutter_js}}
-{{flutter_build_config}}
-
-_flutter.loader.load({
-  config: {
-    canvasKitVariant: "full",
-    canvasKitForceCpuOnly: true,
-  },
-});
-''');
-}
-
-Future<void> _validateWebOsBootstrap(Directory webBuild) async {
-  final bootstrap = File('${webBuild.path}/flutter_bootstrap.js');
-  if (!await bootstrap.exists()) {
-    throw StateError(
-      'Flutter Web no generó flutter_bootstrap.js; no se puede validar webOS.',
-    );
-  }
-  final source = await bootstrap.readAsString();
-  if (source.contains('{{flutter_js}}') ||
-      source.contains('{{flutter_build_config}}') ||
-      source.contains('{{flutter_service_worker_version}}')) {
-    throw StateError(
-      'flutter_bootstrap.js contiene placeholders sin resolver después de '
-      'flutter build web. No se debe empaquetar este runtime.',
-    );
-  }
-  if (!source.contains('canvasKitVariant') ||
-      !source.contains('canvasKitForceCpuOnly')) {
-    throw StateError(
-      'flutter_bootstrap.js no contiene la configuración de compatibilidad '
-      'webOS esperada.',
-    );
-  }
-}
-
-Future<void> _writeWebOsDiagnostics(Directory webBuild) async {
-  final index = File('${webBuild.path}/index.html');
-  if (!await index.exists()) {
-    throw StateError('Flutter Web no generó index.html para webOS.');
-  }
-  var html = await index.readAsString();
-  const marker = '<!-- REPRODUCTOR-IPTV-WEBOS-DIAGNOSTICS -->';
-  if (html.contains(marker)) return;
-
-  const script = '''
-$marker
-<script>
-(function () {
-  var timer = null;
-  function show(message) {
-    var box = document.getElementById('reproductor-ip-tv-webos-error');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = 'reproductor-ip-tv-webos-error';
-      box.style.cssText =
-        'position:fixed;left:0;right:0;top:0;bottom:0;z-index:2147483647;' +
-        'background:#080b10;color:#fff;font-family:Arial,sans-serif;' +
-        'padding:32px;box-sizing:border-box;font-size:24px;';
-      document.body.appendChild(box);
-    }
-    box.innerHTML =
-      '<h2 style="margin:0 0 16px">Reproductor IPTV</h2>' +
-      '<p>No se pudo iniciar la interfaz en este navegador webOS.</p>' +
-      '<p style="font-size:16px;opacity:.8;word-break:break-word">' +
-      String(message || 'Error de inicialización') + '</p>';
-  }
-  window.addEventListener('error', function (event) {
-    show(event && (event.message || event.error) || 'JavaScript error');
-  });
-  window.addEventListener('unhandledrejection', function (event) {
-    show(event && event.reason || 'Promise rejection');
-  });
-  timer = window.setTimeout(function () {
-    if (!document.querySelector('flt-glass-pane')) {
-      show('Flutter Web no creó la superficie de renderizado.');
-    }
-  }, 30000);
-  window.addEventListener('flutter-first-frame', function () {
-    if (timer) window.clearTimeout(timer);
-  });
-}());
-</script>
-''';
-
-  final bodyIndex = html.indexOf('</body>');
-  if (bodyIndex >= 0) {
-    html = html.replaceRange(bodyIndex, bodyIndex, script);
-  } else {
-    html += script;
-  }
-  await index.writeAsString(html);
 }
 
 Future<void> _writeIconPair(Directory package) async {
