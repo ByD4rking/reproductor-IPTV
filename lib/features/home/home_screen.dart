@@ -64,8 +64,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     setState(() {
       _playlist = playlist;
-      _searchIndex = playlist == null ? null : SearchIndex()
-        ..replace(playlist.entries.map((e) => e.channel));
+      _searchIndex = playlist == null
+          ? null
+          : (SearchIndex()..replace(playlist.entries.map((e) => e.channel)));
       _loading = false;
     });
   }
