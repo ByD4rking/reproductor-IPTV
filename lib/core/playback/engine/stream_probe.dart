@@ -58,7 +58,7 @@ class StreamProbe {
     StreamSource source, {
     Map<String, String> headers = const <String, String>{},
   }) async {
-    if (!_urlPolicy.accepts(source.url)) return null;
+    if (!await _urlPolicy.acceptsResolved(source.url)) return null;
     try {
       final budget = _ProbeBudget(maxHlsRequests + 2);
       final response = await _send(source.url, source, headers);
@@ -136,7 +136,7 @@ class StreamProbe {
     int depth = 0,
     _ProbeBudget? budget,
   }) async {
-    if (!_urlPolicy.accepts(uri)) return false;
+    if (!await _urlPolicy.acceptsResolved(uri)) return false;
     final requestBudget = budget ?? _ProbeBudget(maxHlsRequests + 1);
     if (!requestBudget.take()) return false;
     try {
