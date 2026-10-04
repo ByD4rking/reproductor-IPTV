@@ -31,6 +31,18 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     _service = PlaylistImportService(
       stateRepository: RemotePlaylistStateRepository(),
     );
+    _loadSavedPlaylists();
+  }
+
+  Future<void> _loadSavedPlaylists() async {
+    try {
+      await widget.repository.load();
+      if (mounted) setState(() {});
+    } catch (error) {
+      if (mounted) {
+        setState(() => _message = 'No se pudieron cargar las playlists guardadas: $error');
+      }
+    }
   }
 
   @override
