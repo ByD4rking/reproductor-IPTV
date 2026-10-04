@@ -80,7 +80,7 @@ class PlaylistImportService {
 
       final parsed =
           parser.parseLines(lines, playlistId: playlistId, name: name);
-      final result = _validateAndPromote(parsed, previous);
+      final result = _validateAndPromote(parsed, previous, sourceUri: uri);
       await _stateRepository?.markActive(
           playlistId, uri, parsed.rawContentHash);
       return result;
@@ -92,8 +92,9 @@ class PlaylistImportService {
 
   PlaylistImportResult _validateAndPromote(
     Playlist parsed,
-    Playlist? previous,
-  ) {
+    Playlist? previous, {
+    Uri? sourceUri,
+  }) {
     final validation = validator.validate(parsed);
     if (!validation.valid) {
       throw FormatException(validation.reason);
@@ -106,6 +107,7 @@ class PlaylistImportService {
         id: parsed.id,
         name: parsed.name,
         entries: parsed.entries,
+        sourceUri: sourceUri ?? previous?.sourceUri,
         rawContentHash: parsed.rawContentHash,
         updatedAt: DateTime.now(),
       ),
