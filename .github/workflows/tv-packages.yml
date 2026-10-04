@@ -36,6 +36,8 @@ jobs:
         with:
           node-version: 24
       - run: flutter pub get
+      - name: Generate Web platform
+        run: flutter create --platforms=web --project-name reproductor_iptv .
       - run: flutter build web --release
       - run: dart run tool/build.dart --target=webos
       - name: Install official webOS CLI
