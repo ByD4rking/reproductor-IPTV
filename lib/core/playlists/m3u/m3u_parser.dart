@@ -33,8 +33,20 @@ class M3uParser {
     if (content.length > maxContentCharacters) {
       throw const M3uParseException('Playlist content limit exceeded');
     }
+    return _parseIterable(
+      content.split(RegExp(r'\r?\n')),
+      playlistId: playlistId,
+      name: name,
+      rawContentHash: sha256.convert(utf8.encode(content)).toString(),
+    );
+  }
 
-    final lines = content.split(RegExp(r'\r?\n'));
+  Playlist _parseIterable(
+    Iterable<String> lines, {
+    String playlistId = 'imported',
+    String name = 'Imported playlist',
+    required String rawContentHash,
+  }) {
     final entries = <PlaylistEntry>[];
     final byTvgId = <String, int>{};
     String? pendingExtInf;
@@ -146,7 +158,7 @@ class M3uParser {
       id: playlistId,
       name: name,
       entries: List.unmodifiable(entries),
-      rawContentHash: sha256.convert(utf8.encode(content)).toString(),
+      rawContentHash: rawContentHash,
       updatedAt: DateTime.now(),
     );
   }
@@ -155,12 +167,50 @@ class M3uParser {
     Iterable<String> lines, {
     String playlistId = 'imported',
     String name = 'Imported playlist',
-  }) =>
-      parse(
-        lines.join('\n'),
-        playlistId: playlistId,
-        name: name,
+  }) {
+    final digestSink = _DigestSink();
+    final hashSink = sha256.startChunkedConversion(digestSink);
+    var characters = 0;
+    var firstLine = true;
+
+    Iterable<String> normalizedLines() sync* {
+      for (final line in lines) {
+        if (line.length > maxLineLength) {
+          throw const M3uParseException('Playlist line limit exceeded');
+        }
+        characters += line.length + 1;
+        if (characters > maxContentCharacters) {
+          throw const M3uParseException('Playlist content limit exceeded');
+        }
+        if (!firstLine) hashSink.add(const [10]);
+        hashSink.add(utf8.encode(line));
+        firstLine = false;
+        yield line;
+      }
+    }
+
+    final playlist = _parseIterable(
+      normalizedLines(),
+      playlistId: playlistId,
+      name: name,
+      rawContentHash: '',
+    );
+    hashSink.close();
+    final digest = digestSink.value;
+    if (digest == null) {
+      throw const M3uParseException(
+        'No se pudo calcular el hash de la playlist',
       );
+    }
+    return Playlist(
+      id: playlist.id,
+      name: playlist.name,
+      entries: playlist.entries,
+      sourceUri: playlist.sourceUri,
+      rawContentHash: digest.toString(),
+      updatedAt: playlist.updatedAt,
+    );
+  }
 
   Map<String, String> _attributes(String line) {
     final out = <String, String>{};
@@ -178,4 +228,16 @@ class M3uParser {
     final index = line.indexOf(',');
     return index < 0 ? '' : line.substring(index + 1).trim();
   }
+  class _DigestSink implements Sink<Digest> {
+    Digest? value;
+
+    @override
+    void add(Digest data) {
+      value = data;
+    }
+
+    @override
+    void close() {}
+  }
+
 }
