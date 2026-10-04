@@ -12,8 +12,9 @@ class HistoryScreen extends StatelessWidget {
       body: FutureBuilder(
         future: repository.load(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
           final history = snapshot.data!;
           if (history.isEmpty) {
             return const Center(
