@@ -3,8 +3,10 @@ import 'dart:io';
 
 Future<void> main(List<String> args) async {
   final requireNative = args.contains('--require-native');
-  final platforms = args.where((arg) => !arg.startsWith('--'))
-      .map((arg) => arg.toLowerCase()).toList(growable: false);
+  final platforms = args
+      .where((arg) => !arg.startsWith('--'))
+      .map((arg) => arg.toLowerCase())
+      .toList(growable: false);
   final selected = platforms.isEmpty ? const ['tizen', 'webos'] : platforms;
   var failed = false;
 
@@ -27,7 +29,8 @@ Future<void> main(List<String> args) async {
     };
     if (platform == 'webos' && manifest.existsSync()) {
       try {
-        final json = jsonDecode(manifest.readAsStringSync()) as Map<String, dynamic>;
+        final json =
+            jsonDecode(manifest.readAsStringSync()) as Map<String, dynamic>;
         checks['webOS manifest type=web'] = json['type'] == 'web';
         checks['webOS main=index.html'] = json['main'] == 'index.html';
       } catch (_) {
@@ -38,8 +41,11 @@ Future<void> main(List<String> args) async {
       final native = Directory('dist/' + platform + '/native');
       final extension = platform == 'tizen' ? '.wgt' : '.ipk';
       final packages = native.existsSync()
-          ? native.listSync(recursive: true).whereType<File>()
-              .where((file) => file.path.toLowerCase().endsWith(extension)).toList()
+          ? native
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((file) => file.path.toLowerCase().endsWith(extension))
+              .toList()
           : <File>[];
       checks['native ' + extension] = packages.length == 1;
       if (packages.length == 1) {
@@ -47,7 +53,12 @@ Future<void> main(List<String> args) async {
       }
     }
     for (final entry in checks.entries) {
-      stdout.writeln('[' + (entry.value ? 'OK' : 'FAIL') + '] ' + platform + ': ' + entry.key);
+      stdout.writeln('[' +
+          (entry.value ? 'OK' : 'FAIL') +
+          '] ' +
+          platform +
+          ': ' +
+          entry.key);
       if (!entry.value) failed = true;
     }
   }
