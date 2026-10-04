@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +11,7 @@ import 'package:reproductor_iptv/core/domain/entities/playlist.dart';
 import 'package:reproductor_iptv/core/domain/entities/stream_source.dart';
 import 'package:reproductor_iptv/core/playlists/repository/persistent_playlist_repository.dart';
 import 'package:reproductor_iptv/core/playlists/repository/playlist_storage.dart';
+import 'package:reproductor_iptv/core/playlists/repository/playlist_storage_io.dart';
 
 class MemoryPlaylistStorage implements PlaylistStorage {
   final Map<String, String> values = <String, String>{};
@@ -90,6 +92,33 @@ void main() {
       second.getById('one')?.sourceUri,
       Uri.parse('https://example.com/one.m3u'),
     );
+  });
+
+  test('persists playlists through the real file storage layer', () async {
+    final directory = await Directory.systemTemp.createTemp('reproductor-iptv-');
+    addTearDown(() => directory.delete(recursive: true));
+
+    final storage = FilePlaylistStorage(root: directory);
+    final first = PersistentPlaylistRepository(storage: storage);
+    await first.upsert(playlist('real', 'Archivo real'));
+
+    final second = PersistentPlaylistRepository(
+      storage: FilePlaylistStorage(root: directory),
+    );
+    await second.load();
+
+    expect(second.getById('real')?.name, 'Archivo real');
+    expect(
+      second.getById('real')?.sourceUri,
+      Uri.parse('https://example.com/real.m3u'),
+    );
+
+    await second.remove('real');
+    final third = PersistentPlaylistRepository(
+      storage: FilePlaylistStorage(root: directory),
+    );
+    await third.load();
+    expect(third.getById('real'), isNull);
   });
 
   test('migrates the legacy SharedPreferences playlist payload', () async {
