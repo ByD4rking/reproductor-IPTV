@@ -129,7 +129,7 @@ Future<void> _ensureWebOsBootstrapTemplate() async {
       'antes de construir el adaptador webOS.',
     );
   }
-  final bootstrap = File('\${web.path}/flutter_bootstrap.js');
+  final bootstrap = File('${web.path}/flutter_bootstrap.js');
   await bootstrap.writeAsString('''{{flutter_js}}
 {{flutter_build_config}}
 
@@ -143,7 +143,7 @@ _flutter.loader.load({
 }
 
 Future<void> _validateWebOsBootstrap(Directory webBuild) async {
-  final bootstrap = File('\${webBuild.path}/flutter_bootstrap.js');
+  final bootstrap = File('${webBuild.path}/flutter_bootstrap.js');
   if (!await bootstrap.exists()) {
     throw StateError(
       'Flutter Web no generó flutter_bootstrap.js; no se puede validar webOS.',
