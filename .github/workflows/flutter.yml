@@ -30,6 +30,8 @@ jobs:
         continue-on-error: true
         run: dart format --output=none --set-exit-if-changed .
       - run: flutter analyze
+      - name: Validate build tools
+        run: dart format --output=none --set-exit-if-changed tool/build.dart tool/build_android_profile.dart tool/probe_m3u.dart
       - run: flutter test
 
       # Generate native hosts needed by CI from the pinned Flutter toolchain.
