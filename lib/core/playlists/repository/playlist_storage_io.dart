@@ -14,7 +14,7 @@ class _IoPlaylistStorage implements PlaylistStorage {
   static const _fallbackIndexKey = 'playlist-files.v2.test-index';
 
   String _fileName(String id) =>
-      base64Url.encode(utf8.encode(id)).replaceAll('=', '') + '.json';
+      '${base64Url.encode(utf8.encode(id)).replaceAll('=', '')}.json';
 
   Future<Directory> get _root async {
     final existing = _directory;
