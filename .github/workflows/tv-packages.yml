@@ -125,12 +125,16 @@ jobs:
           test "${#packages[@]}" -eq 1
           cp "${packages[0]}" dist/webos/native/reproductor-IPTV-LG-webOS-native.ipk
       - name: Validate native IPK
+        shell: bash
         run: |
           set -euo pipefail
           ipk=dist/webos/native/reproductor-IPTV-LG-webOS-native.ipk
           test -s "$ipk"
           file "$ipk"
-          ar t "$ipk" | grep -E '^debian-binary
+          ar t "$ipk" | grep -E '^debian-binary$'
+          ar t "$ipk" | grep -E '^control.tar'
+          ar t "$ipk" | grep -E '^data.tar'
+          echo "LG webOS IPK: native Flutter webOS toolchain"
       - uses: actions/upload-artifact@v4
         with:
           name: webos-ipk
