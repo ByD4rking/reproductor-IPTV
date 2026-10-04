@@ -43,27 +43,7 @@ jobs:
 
       - name: Validate build tools
         run: dart format --output=none --set-exit-if-changed tool/build.dart tool/build_android_profile.dart tool/probe_m3u.dart
-      - name: Run flutter test
-        id: tests
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          flutter test 2>&1 | tee flutter-test.log
-          exit ${PIPESTATUS[0]}
-      - name: Capture test diagnostics
-        if: steps.tests.outcome == 'failure'
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add flutter-test.log
-          git commit -m "ci: capture test diagnostics [skip ci]"
-          git push
-      - name: Stop on test failure
-        if: steps.tests.outcome == 'failure'
-        run: exit 1
+      - run: flutter test
 
       # Generate native hosts needed by CI from the pinned Flutter toolchain.
       # The Dart core remains platform-neutral and can be packaged for each target.
