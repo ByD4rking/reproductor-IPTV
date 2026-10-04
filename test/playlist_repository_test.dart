@@ -20,7 +20,9 @@ class MemoryPlaylistStorage implements PlaylistStorage {
   Future<void> save(String id, String value) async => values[id] = value;
 
   @override
-  Future<void> remove(String id) async => values.remove(id);
+  Future<void> remove(String id) async {
+    values.remove(id);
+  }
 
   @override
   Future<void> clear() async => values.clear();
