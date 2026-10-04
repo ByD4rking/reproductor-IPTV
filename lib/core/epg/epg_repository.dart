@@ -43,10 +43,12 @@ class EpgRepository {
     return parsed.length;
   }
 
-  Future<int> importXmltvUrl(Uri uri, {Duration timeout = const Duration(seconds: 15)}) async {
+  Future<int> importXmltvUrl(Uri uri,
+      {Duration timeout = const Duration(seconds: 15)}) async {
     const policy = UrlPolicy();
     if (!await policy.acceptsResolved(uri)) {
-      throw const FormatException('URL XMLTV no permitida o apunta a una red local');
+      throw const FormatException(
+          'URL XMLTV no permitida o apunta a una red local');
     }
     final response = await http.get(uri).timeout(timeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -55,7 +57,8 @@ class EpgRepository {
     if (response.bodyBytes.length > _maxXmltvBytes) {
       throw const FormatException('El XMLTV supera el límite de 16 MiB');
     }
-    final count = await importXmltv(utf8.decode(response.bodyBytes, allowMalformed: false));
+    final count = await importXmltv(
+        utf8.decode(response.bodyBytes, allowMalformed: false));
     await _preferences.setString(_sourceUrlKey, uri.toString());
     return count;
   }

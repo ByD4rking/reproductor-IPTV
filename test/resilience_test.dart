@@ -55,7 +55,8 @@ void main() {
     const p = UrlPolicy();
     expect(p.accepts(Uri.parse('http://127.0.0.1/playlist.m3u')), isFalse);
     expect(p.accepts(Uri.parse('http://192.168.1.20/playlist.m3u')), isFalse);
-    expect(p.accepts(Uri.parse('http://169.254.169.254/latest/meta-data')), isFalse);
+    expect(p.accepts(Uri.parse('http://169.254.169.254/latest/meta-data')),
+        isFalse);
     expect(await p.acceptsResolved(Uri.parse('https://example.com')), isTrue);
   });
 

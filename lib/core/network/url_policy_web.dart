@@ -13,7 +13,8 @@ class UrlPolicy {
     return !_isBlockedLiteralIp(uri.host);
   }
 
-  Future<bool> acceptsResolved(Uri uri, {bool allowPrivateNetwork = false}) async {
+  Future<bool> acceptsResolved(Uri uri,
+      {bool allowPrivateNetwork = false}) async {
     if (!accepts(uri)) return false;
     if (allowPrivateNetwork) return true;
     return true;
@@ -39,7 +40,9 @@ class UrlPolicy {
       final octets = parts.map(int.parse).toList(growable: false);
       if (octets.any((v) => v < 0 || v > 255)) return true;
       final a = octets[0], b = octets[1];
-      return a == 0 || a == 10 || a == 127 ||
+      return a == 0 ||
+          a == 10 ||
+          a == 127 ||
           (a == 169 && b == 254) ||
           (a == 172 && b >= 16 && b <= 31) ||
           (a == 192 && b == 168) ||
@@ -50,8 +53,11 @@ class UrlPolicy {
 
   static bool _isBlockedIpv6(String value) {
     final normalized = value.toLowerCase();
-    return normalized == '::' || normalized == '::1' ||
-        normalized.startsWith('fe80:') || normalized.startsWith('fc') ||
-        normalized.startsWith('fd') || normalized.startsWith('ff');
+    return normalized == '::' ||
+        normalized == '::1' ||
+        normalized.startsWith('fe80:') ||
+        normalized.startsWith('fc') ||
+        normalized.startsWith('fd') ||
+        normalized.startsWith('ff');
   }
 }

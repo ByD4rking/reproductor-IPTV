@@ -23,7 +23,8 @@ class _EpgScreenState extends State<EpgScreen> {
   void initState() {
     super.initState();
     _load();
-    _refreshTimer = Timer.periodic(const Duration(hours: 6), (_) => _refreshRemote());
+    _refreshTimer =
+        Timer.periodic(const Duration(hours: 6), (_) => _refreshRemote());
   }
 
   Future<void> _load() async {
@@ -40,7 +41,8 @@ class _EpgScreenState extends State<EpgScreen> {
       final count = await _repository.refreshConfigured();
       if (count != null && mounted) {
         await _load();
-        if (mounted) setState(() => _message = 'EPG actualizado: $count programas');
+        if (mounted)
+          setState(() => _message = 'EPG actualizado: $count programas');
       }
     } catch (error) {
       if (mounted) setState(() => _message = 'Error actualizando EPG: $error');
@@ -53,11 +55,15 @@ class _EpgScreenState extends State<EpgScreen> {
       setState(() => _message = 'URL XMLTV inválida');
       return;
     }
-    setState(() { _importing = true; _message = null; });
+    setState(() {
+      _importing = true;
+      _message = null;
+    });
     try {
       final count = await _repository.importXmltvUrl(uri);
       await _load();
-      if (mounted) setState(() => _message = 'EPG remoto guardado: $count programas');
+      if (mounted)
+        setState(() => _message = 'EPG remoto guardado: $count programas');
     } catch (error) {
       if (mounted) setState(() => _message = 'Error: $error');
     } finally {

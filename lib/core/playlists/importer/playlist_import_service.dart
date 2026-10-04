@@ -47,7 +47,8 @@ class PlaylistImportService {
     Playlist? previous,
   }) async {
     if (!await urlPolicy.acceptsResolved(uri)) {
-      throw const FormatException('URL de playlist no permitida o apunta a una red local');
+      throw const FormatException(
+          'URL de playlist no permitida o apunta a una red local');
     }
 
     await _stateRepository?.markUpdating(playlistId, uri);

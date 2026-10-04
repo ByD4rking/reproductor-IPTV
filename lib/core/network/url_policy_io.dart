@@ -15,7 +15,8 @@ class UrlPolicy {
     return !_isBlockedLiteralIp(uri.host);
   }
 
-  Future<bool> acceptsResolved(Uri uri, {bool allowPrivateNetwork = false}) async {
+  Future<bool> acceptsResolved(Uri uri,
+      {bool allowPrivateNetwork = false}) async {
     if (!accepts(uri)) return false;
     if (allowPrivateNetwork) return true;
     try {
@@ -59,7 +60,9 @@ class UrlPolicy {
     final bytes = address.rawAddress;
     if (address.type == InternetAddressType.IPv4 && bytes.length == 4) {
       final a = bytes[0], b = bytes[1];
-      return a == 0 || a == 10 || a == 127 ||
+      return a == 0 ||
+          a == 10 ||
+          a == 127 ||
           (a == 169 && b == 254) ||
           (a == 172 && b >= 16 && b <= 31) ||
           (a == 192 && b == 168) ||
@@ -73,7 +76,11 @@ class UrlPolicy {
       final isLinkLocal = first == 0xfe && (second & 0xc0) == 0x80;
       final isUniqueLocal = (first & 0xfe) == 0xfc;
       final isMulticast = first == 0xff;
-      return isLoopback || isUnspecified || isLinkLocal || isUniqueLocal || isMulticast;
+      return isLoopback ||
+          isUnspecified ||
+          isLinkLocal ||
+          isUniqueLocal ||
+          isMulticast;
     }
     return false;
   }
