@@ -53,7 +53,8 @@ Future<void> main(List<String> args) async {
       }
     }
     for (final entry in checks.entries) {
-      stdout.writeln('[${entry.value ? 'OK' : 'FAIL'}] $platform: ${entry.key}');
+      stdout
+          .writeln('[${entry.value ? 'OK' : 'FAIL'}] $platform: ${entry.key}');
       if (!entry.value) failed = true;
     }
   }

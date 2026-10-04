@@ -41,7 +41,8 @@ Future<void> _packageWebOs() async {
   await _run(cli, ['-o', output.path, app.path]);
   final packages = _filesWithExtension(output, '.ipk');
   if (packages.length != 1) {
-    throw StateError('webOS debe producir exactamente un .ipk; encontrados: ${packages.length}.');
+    throw StateError(
+        'webOS debe producir exactamente un .ipk; encontrados: ${packages.length}.');
   }
   await _run(cli, ['-I', packages.single.path]);
   stdout.writeln('webOS OK: ${packages.single.path}');
@@ -51,7 +52,8 @@ Future<void> _packageTizen() async {
   final cli = _resolveExecutable('tizen', 'TIZEN_CLI');
   final profile = Platform.environment['TIZEN_CERT_PROFILE']?.trim();
   if (profile == null || profile.isEmpty) {
-    throw StateError('Falta TIZEN_CERT_PROFILE. Samsung exige un certificado válido para generar un .wgt instalable.');
+    throw StateError(
+        'Falta TIZEN_CERT_PROFILE. Samsung exige un certificado válido para generar un .wgt instalable.');
   }
   final project = Directory('dist/tizen/package');
   _require(project, 'Tizen package payload');
@@ -67,7 +69,8 @@ Future<void> _packageTizen() async {
   await _run(cli, ['package', '-t', 'wgt', '-s', profile, '--', build.path]);
   final produced = _filesWithExtension(build, '.wgt');
   if (produced.length != 1) {
-    throw StateError('Tizen debe producir exactamente un .wgt; encontrados: ${produced.length}.');
+    throw StateError(
+        'Tizen debe producir exactamente un .wgt; encontrados: ${produced.length}.');
   }
   final destination =
       File('${output.path}/${produced.single.uri.pathSegments.last}');
@@ -102,10 +105,7 @@ Future<void> _run(String executable, List<String> arguments) async {
   stdout.write(result.stdout);
   stderr.write(result.stderr);
   if (result.exitCode != 0) {
-    throw ProcessException(
-        executable,
-        arguments,
-        'El comando terminó con código ${result.exitCode}.',
-        result.exitCode);
+    throw ProcessException(executable, arguments,
+        'El comando terminó con código ${result.exitCode}.', result.exitCode);
   }
 }
