@@ -187,14 +187,34 @@ class StreamProbe {
     Uri uri,
     StreamSource source,
     Map<String, String> headers,
-  ) {
-    final request = http.Request('GET', uri)
-      ..headers.addAll(source.headers)
-      ..headers.addAll(headers);
-    if (source.userAgent != null && source.userAgent!.isNotEmpty) {
-      request.headers['User-Agent'] = source.userAgent!;
+  ) async {
+    var current = uri;
+    for (var redirectCount = 0;; redirectCount++) {
+      if (!await _urlPolicy.acceptsResolved(current) ||
+          !_urlPolicy.acceptsRedirectCount(redirectCount)) {
+        throw const FormatException('Redirección de stream no permitida');
+      }
+
+      final request = http.Request('GET', current)
+        ..followRedirects = false
+        ..headers.addAll(source.headers)
+        ..headers.addAll(headers);
+      if (source.userAgent != null && source.userAgent!.isNotEmpty) {
+        request.headers['User-Agent'] = source.userAgent!;
+      }
+
+      final response = await _client.send(request).timeout(timeout);
+      if (response.statusCode < 300 || response.statusCode >= 400) {
+        return response;
+      }
+
+      final location = response.headers['location'];
+      await response.stream.drain();
+      if (location == null || location.isEmpty) {
+        throw const FormatException('Redirección sin destino');
+      }
+      current = current.resolve(location);
     }
-    return _client.send(request).timeout(timeout);
   }
 
   static Future<Uint8List> _readBounded(
