@@ -1,24 +1,36 @@
 import 'dart:convert';
 import 'dart:io';
 
-const _icon80Base64 = 'iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAA3klEQVR42u3b2w2AIBAEQDvw0x7svz/twQjsHWOyDUzwwR4e53U/8j0HBIAAAQIUgAABAhSAAAEClKWAFS4r0C0MUAACBAhQAAIECBBg1/y9790KcERxsAXgyOalPeDo6qot4KzuryXgzPK0HeDs9rkN4Kr6vgXgyvlHacCEAVJZwJQJXEnApBFmKcDEGXAZwNQhejxg+ikEK9AzEKC3sO9AOxF7YYDaGH2gRhqgmYipnLmwkwkAnY1xOgsgCIAAAQIUgAABAvTLvxXoFgYIUAACBAhQAAIECFAAAgzOCzuBv0oZ88FFAAAAAElFTkSuQmCC';
-const _icon130Base64 = 'iVBORw0KGgoAAAANSUhEUgAAAIIAAACCCAYAAACKAxD9AAABPUlEQVR42u3csQ3AIAwAQW9AyQ7Zfz+noKNFEQQf0i+ATq7A0fqTUrgEgSAQBIJAEAgCQSAIBIEgEASCQBAIAkEgCASBIBAEgkAQCKoFwRnHRJCJIBAEgkAQCAJBIAgEgSAQBIJAEAgCQSAIBIEELT4HA8ECECAIEEAIEGAAAQAQIAABAhAAAAECECAAAQAQIAABABAgAAECEAAAAQIQAAABAhAgACEAACEchAqL9QEoZ+x3RUEIECAAQQgQIABBBhAAAIEGEAAAgQYQIABBCBAgAEE+ekkfx/lN7TsR5CNKbJDSR+DAAEGEIAAQRMGEASC/hMIAkEgCASBIBAEgkAQCAJBIAgEgSAQBIJA0HUQnDOespkIAkEgCASBIBAEgkAQCAJBIAgEgSAQBIJAEAgCQSAIBIEgEASCNvQCYLjDoUyMm2YAAAAASUVORK5CYII=';
+const _icon80Base64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAA3klEQVR42u3b2w2AIBAEQDvw0x7svz/twQjsHWOyDUzwwR4e53U/8j0HBIAAAQIUgAABAhSAAAEClKWAFS4r0C0MUAACBAhQAAIECBBg1/y9790KcERxsAXgyOalPeDo6qot4KzuryXgzPK0HeDs9rkN4Kr6vgXgyvlHacCEAVJZwJQJXEnApBFmKcDEGXAZwNQhejxg+ikEK9AzEKC3sO9AOxF7YYDaGH2gRhqgmYipnLmwkwkAnY1xOgsgCIAAAQIUgAABAvTLvxXoFgYIUAACBAhQAAIECFAAAgzOCzuBv0oZ88FFAAAAAElFTkSuQmCC';
+const _icon130Base64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAIIAAACCCAYAAACKAxD9AAABPUlEQVR42u3csQ3AIAwAQW9AyQ7Zfz+noKNFEQQf0i+ATq7A0fqTUrgEgSAQBIJAEAgCQSAIBIEgEASCQBAIAkEgCASBIBAEgkAQCKoFwRnHRJCJIBAEgkAQCAJBIAgEgSAQBIJAEAgCQSAIBIEELT4HA8ECECAIEEAIEGAAAQAQIAABAhAAAAECECAAAQAQIAABABAgAAECEAAAAQIQAAABAhAgACEAACEchAqL9QEoZ+x3RUEIECAAQQgQIABBBhAAAIEGEAAAgQYQIABBCBAgAEE+ekkfx/lN7TsR5CNKbJDSR+DAAEGEIAAQRMGEASC/hMIAkEgCASBIBAEgkAQCAJBIAgEgSAQBIJA0HUQnDOespkIAkEgCASBIBAEgkAQCAJBIAgEgSAQBIJAEAgCQSAIBIEgEASCNvQCYLjDoUyMm2YAAAAASUVORK5CYII=';
 
 Future<void> main(List<String> args) async {
   final targets = _targets(args);
   if (targets.isEmpty) {
-    stderr.writeln('Uso: dart run tool/build.dart --target=mobile,tv,firetv,web,tizen,webos');
+    stderr.writeln(
+      'Uso: dart run tool/build.dart --target=mobile,tv,firetv,web,tizen,webos',
+    );
     exitCode = 64;
     return;
   }
-  for (final target in targets) { await _buildTarget(target); }
+  for (final target in targets) {
+    await _buildTarget(target);
+  }
 }
 
 Set<String> _targets(List<String> args) {
   final result = <String>{};
   for (final arg in args) {
     if (!arg.startsWith('--target=')) continue;
-    result.addAll(arg.substring('--target='.length).split(',').map((v) => v.trim().toLowerCase()).where((v) => v.isNotEmpty));
+    result.addAll(
+      arg
+          .substring('--target='.length)
+          .split(',')
+          .map((v) => v.trim().toLowerCase())
+          .where((v) => v.isNotEmpty),
+    );
   }
   const supported = {'mobile','tv','firetv','web','tizen','webos'};
   return result.where(supported.contains).toSet();
@@ -29,7 +41,10 @@ Future<void> _buildTarget(String target) async {
     case 'mobile':
     case 'tv':
     case 'firetv':
-      await _run('dart', ['run', 'tool/build_android_profile.dart', '--profile=$target']);
+      await _run(
+        'dart',
+        ['run', 'tool/build_android_profile.dart', '--profile=$target'],
+      );
       return;
     case 'web':
       await _buildWeb('web');
@@ -45,15 +60,22 @@ Future<void> _buildTarget(String target) async {
 
 Future<void> _buildWeb(String profile) async {
   await _run('flutter', ['build', 'web', '--release']);
-  await _copyDirectory(Directory('build/web'), Directory('dist/$profile'));
-  await _writeMetadata('dist/$profile/profile.json', <String, Object>{'profile': profile, 'platform': 'web', 'runtime': 'flutter-web', 'generatedFrom': 'reproductor_iptv'});
+  await _copyDirectory(
+    Directory('build/web'),
+    Directory('dist/$profile'),
+  );
+  await _writeMetadata(
+    'dist/$profile/profile.json',
+    <String, Object>{'profile': profile, 'platform': 'web', 'runtime': 'flutter-web', 'generatedFrom': 'reproductor_iptv'});
 }
 
 Future<void> _buildWebAdapter(String platform) async {
   await _run('flutter', ['build', 'web', '--release']);
 
   final output = Directory('dist/$platform');
-  if (await output.exists()) await output.delete(recursive: true);
+  if (await output.exists()) {
+    await output.delete(recursive: true);
+  }
   await output.create(recursive: true);
 
   // Copy from build/web directly. Never copy dist/<platform> into package/
@@ -88,13 +110,24 @@ Future<void> _buildWebAdapter(String platform) async {
 }
 
 Future<void> _writeIconPair(Directory package) async {
-  await File('${package.path}/icon.png').writeAsBytes(base64Decode(_icon80Base64));
-  await File('${package.path}/largeicon.png').writeAsBytes(base64Decode(_icon130Base64));
+  await File('${package.path}/icon.png').writeAsBytes(
+    base64Decode(_icon80Base64),
+  );
+  await File('${package.path}/largeicon.png').writeAsBytes(
+    base64Decode(_icon130Base64),
+  );
 }
 
-Future<void> _copyDirectory(Directory source, Directory destination) async {
-  if (!await source.exists()) throw StateError('No existe el directorio de build: ${source.path}');
-  if (await destination.exists()) await destination.delete(recursive: true);
+Future<void> _copyDirectory(
+  Directory source,
+  Directory destination,
+) async {
+  if (!await source.exists()) {
+    throw StateError('No existe el directorio de build: ${source.path}');
+  }
+  if (await destination.exists()) {
+    await destination.delete(recursive: true);
+  }
   await destination.create(recursive: true);
   await for (final entity in source.list(recursive: true)) {
     final relative = entity.path.substring(source.path.length + 1);
@@ -108,10 +141,15 @@ Future<void> _copyDirectory(Directory source, Directory destination) async {
   }
 }
 
-Future<void> _writeMetadata(String path, Map<String, Object> metadata) async {
+Future<void> _writeMetadata(
+  String path,
+  Map<String, Object> metadata,
+) async {
   final file = File(path);
   await file.parent.create(recursive: true);
-  await file.writeAsString(const JsonEncoder.withIndent('  ').convert(metadata));
+  await file.writeAsString(
+    const JsonEncoder.withIndent('  ').convert(metadata),
+  );
 }
 
 Future<void> _run(String executable, List<String> arguments) async {
@@ -119,5 +157,12 @@ Future<void> _run(String executable, List<String> arguments) async {
   final result = await Process.run(executable, arguments, runInShell: Platform.isWindows);
   stdout.write(result.stdout);
   stderr.write(result.stderr);
-  if (result.exitCode != 0) throw ProcessException(executable, arguments, 'El comando terminó con código ${result.exitCode}.', result.exitCode);
+  if (result.exitCode != 0) {
+    throw ProcessException(
+      executable,
+      arguments,
+      'El comando terminó con código ${result.exitCode}.',
+      result.exitCode,
+    );
+  }
 }
