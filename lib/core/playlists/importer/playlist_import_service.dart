@@ -53,7 +53,7 @@ class PlaylistImportService {
 
     await _stateRepository?.markUpdating(playlistId, uri);
     try {
-      final response = await _client.send(http.Request('GET', uri));
+      final response = await _sendFollowingSafeRedirects(uri);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw FormatException(
           'La playlist respondió HTTP ${response.statusCode}',
@@ -114,6 +114,30 @@ class PlaylistImportService {
       ),
       replaced: true,
     );
+  }
+
+  Future<http.StreamedResponse> _sendFollowingSafeRedirects(Uri uri) async {
+    var current = uri;
+    const maxRedirects = 5;
+
+    for (var redirects = 0;; redirects++) {
+      if (!await urlPolicy.acceptsResolved(current) || redirects > maxRedirects) {
+        throw const FormatException('Redirección de playlist no permitida');
+      }
+
+      final request = http.Request('GET', current)..followRedirects = false;
+      final response = await _client.send(request);
+      if (response.statusCode < 300 || response.statusCode >= 400) {
+        return response;
+      }
+
+      final location = response.headers['location'];
+      await response.stream.drain();
+      if (location == null || location.isEmpty) {
+        throw const FormatException('Redirección de playlist sin destino');
+      }
+      current = current.resolve(location);
+    }
   }
 
   void dispose() => _client.close();
