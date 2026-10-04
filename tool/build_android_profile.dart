@@ -88,7 +88,7 @@ String? _profile(List<String> args) {
 Future<void> _ensureInternetPermission(File manifest) async {
   var xml = await manifest.readAsString();
   const permission =
-      '    <uses-permission android:name="android.permission.INTERNET" />\\n';
+      '    <uses-permission android:name="android.permission.INTERNET" />\n';
   if (xml.contains('android.permission.INTERNET')) return;
 
   final applicationIndex = xml.indexOf('<application');
