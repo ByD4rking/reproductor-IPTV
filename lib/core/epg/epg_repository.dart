@@ -1,10 +1,12 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'epg_matcher.dart';
 import 'xmltv/xmltv_parser.dart';
 import '../storage/atomic_string_list_store.dart';
+import '../network/url_policy.dart';
 
 class EpgRepository {
   EpgRepository({SharedPreferencesAsync? preferences})
@@ -15,6 +17,9 @@ class EpgRepository {
 
   static const _key = 'epg.v1';
   final AtomicStringListStore _store;
+  final _preferences = SharedPreferencesAsync();
+  static const _sourceUrlKey = 'epg.source_url.v1';
+  static const _maxXmltvBytes = 16 * 1024 * 1024;
   List<EpgProgramme>? _cache;
 
   Future<List<EpgProgramme>> load() async {
@@ -36,6 +41,35 @@ class EpgRepository {
     await _store.save(encoded);
     _cache = parsed;
     return parsed.length;
+  }
+
+  Future<int> importXmltvUrl(Uri uri, {Duration timeout = const Duration(seconds: 15)}) async {
+    const policy = UrlPolicy();
+    if (!await policy.acceptsResolved(uri)) {
+      throw const FormatException('URL XMLTV no permitida o apunta a una red local');
+    }
+    final response = await http.get(uri).timeout(timeout);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw FormatException('El XMLTV respondió HTTP ${response.statusCode}');
+    }
+    if (response.bodyBytes.length > _maxXmltvBytes) {
+      throw const FormatException('El XMLTV supera el límite de 16 MiB');
+    }
+    final count = await importXmltv(utf8.decode(response.bodyBytes, allowMalformed: false));
+    await _preferences.setString(_sourceUrlKey, uri.toString());
+    return count;
+  }
+
+  Future<Uri?> sourceUrl() async {
+    final value = await _preferences.getString(_sourceUrlKey);
+    if (value == null || value.isEmpty) return null;
+    return Uri.tryParse(value);
+  }
+
+  Future<int?> refreshConfigured() async {
+    final uri = await sourceUrl();
+    if (uri == null) return null;
+    return importXmltvUrl(uri);
   }
 
   Future<void> clear() async {
