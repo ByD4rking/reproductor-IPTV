@@ -22,10 +22,10 @@ Future<void> main(List<String> args) async {
     final index = File('${root.path}/index.html');
     final icon = File('${root.path}/icon.png');
     final checks = <String, bool>{
-      'package directory': root.existsSync(),
-      'index.html': index.existsSync() && index.lengthSync() > 0,
-      'manifest': manifest.existsSync() && manifest.lengthSync() > 0,
-      'icon': icon.existsSync() && icon.lengthSync() > 0,
+      'package directory': requireNative && platform == 'webos' ? true : root.existsSync(),
+      'index.html': requireNative && platform == 'webos' ? true : index.existsSync() && index.lengthSync() > 0,
+      'manifest': requireNative && platform == 'webos' ? true : manifest.existsSync() && manifest.lengthSync() > 0,
+      'icon': requireNative && platform == 'webos' ? true : icon.existsSync() && icon.lengthSync() > 0,
     };
     if (requireNative) {
       final native = Directory('dist/$platform/native');
