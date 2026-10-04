@@ -228,16 +228,16 @@ class M3uParser {
     final index = line.indexOf(',');
     return index < 0 ? '' : line.substring(index + 1).trim();
   }
-  class _DigestSink implements Sink<Digest> {
-    Digest? value;
+}
 
-    @override
-    void add(Digest data) {
-      value = data;
-    }
+class _DigestSink implements Sink<Digest> {
+  Digest? value;
 
-    @override
-    void close() {}
+  @override
+  void add(Digest data) {
+    value = data;
   }
 
+  @override
+  void close() {}
 }
