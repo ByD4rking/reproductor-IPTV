@@ -73,10 +73,13 @@ Future<void> _buildWeb(String profile) async {
 }
 
 Future<void> _buildWebAdapter(String platform) async {
+  if (platform == 'webos') {
+    await _ensureWebOsBootstrapTemplate();
+  }
   await _run('flutter', ['build', 'web', '--release']);
 
   if (platform == 'webos') {
-    await _writeWebOsBootstrap(Directory('build/web'));
+    await _validateWebOsBootstrap(Directory('build/web'));
     await _writeWebOsDiagnostics(Directory('build/web'));
   }
 
@@ -118,18 +121,15 @@ Future<void> _buildWebAdapter(String platform) async {
   );
 }
 
-Future<void> _writeWebOsBootstrap(Directory webBuild) async {
-  final bootstrap = File('${webBuild.path}/flutter_bootstrap.js');
-  if (!await bootstrap.exists()) {
+Future<void> _ensureWebOsBootstrapTemplate() async {
+  final web = Directory('web');
+  if (!await web.exists()) {
     throw StateError(
-      'Flutter Web no generó flutter_bootstrap.js; no se puede aplicar '
-      'la configuración de compatibilidad webOS.',
+      'Falta el directorio web/. Ejecuta flutter create --platforms=web . '
+      'antes de construir el adaptador webOS.',
     );
   }
-
-  // webOS TV browsers can expose limited WebGL capabilities. Keep the
-  // standard JavaScript Flutter build, but force CanvasKit to use the full
-  // compatibility variant and CPU rendering instead of relying on WebGL.
+  final bootstrap = File('\${web.path}/flutter_bootstrap.js');
   await bootstrap.writeAsString('''{{flutter_js}}
 {{flutter_build_config}}
 
@@ -140,6 +140,31 @@ _flutter.loader.load({
   },
 });
 ''');
+}
+
+Future<void> _validateWebOsBootstrap(Directory webBuild) async {
+  final bootstrap = File('\${webBuild.path}/flutter_bootstrap.js');
+  if (!await bootstrap.exists()) {
+    throw StateError(
+      'Flutter Web no generó flutter_bootstrap.js; no se puede validar webOS.',
+    );
+  }
+  final source = await bootstrap.readAsString();
+  if (source.contains('{{flutter_js}}') ||
+      source.contains('{{flutter_build_config}}') ||
+      source.contains('{{flutter_service_worker_version}}')) {
+    throw StateError(
+      'flutter_bootstrap.js contiene placeholders sin resolver después de '
+      'flutter build web. No se debe empaquetar este runtime.',
+    );
+  }
+  if (!source.contains('canvasKitVariant') ||
+      !source.contains('canvasKitForceCpuOnly')) {
+    throw StateError(
+      'flutter_bootstrap.js no contiene la configuración de compatibilidad '
+      'webOS esperada.',
+    );
+  }
 }
 
 Future<void> _writeWebOsDiagnostics(Directory webBuild) async {
