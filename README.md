@@ -29,7 +29,7 @@ No es necesario instalar Flutter, Android Studio, SDKs ni ejecutar comandos para
 | 📦 TV Box Android | `.apk` | 🟢 Compatible con el perfil Android TV |
 | 🔥 Fire TV / Fire OS | `.apk` | 🟢 Generación automática |
 | 📡 Chromecast con Google TV | `.apk` | 🟢 Usa el perfil Android TV |
-| 📺 LG webOS | `.ipk` | 🟢 Generación automática |
+| 📺 LG webOS | `.ipk` | 🔵 Paquete automático / 🟡 prueba física pendiente |
 | 📺 Samsung Tizen | `.wgt` | 🟡 Runner + certificado Tizen |
 | 🪟 Windows | Instalador | 🟡 En implementación |
 | 🐧 Linux | AppImage/paquete | 🟡 En implementación |
@@ -44,7 +44,19 @@ No es necesario instalar Flutter, Android Studio, SDKs ni ejecutar comandos para
 
 **[Abrir Descargas / Releases](https://github.com/ByD4rking/reproductor-IPTV/releases)**
 
-Las versiones anteriores permanecen disponibles para facilitar recuperación, comparación y pruebas.
+En cada Release los archivos se publican con nombres explícitos para que no tengas que adivinar qué descargar:
+
+| Dispositivo | Archivo que debes buscar |
+|---|---|
+| 📱 Android teléfono/tablet | `Reproductor-IPTV-<versión>-Android-*.apk` |
+| 📺 Android TV / Google TV / TV Box | `Reproductor-IPTV-<versión>-AndroidTV-GoogleTV-*.apk` |
+| 🔥 Fire TV / Fire OS | `Reproductor-IPTV-<versión>-FireTV-FireOS-*.apk` |
+| 🟦 LG Smart TV | `Reproductor-IPTV-<versión>-LG-webOS.ipk` |
+| 🟩 Samsung Smart TV | `Reproductor-IPTV-<versión>-Samsung-Tizen.wgt` |
+
+**Regla de descarga:** entra a la Release, identifica tu dispositivo en la tabla y descarga solamente ese grupo de archivos.
+
+Las versiones anteriores permanecen disponibles para recuperación, comparación y pruebas.
 
 ---
 
@@ -155,7 +167,7 @@ Los Chromecast tradicionales que funcionan únicamente como receptores de castin
 
 ### LG webOS
 
-LG utiliza paquetes `.ipk`. El pipeline prepara el contenido web y genera el paquete nativo mediante las herramientas de webOS.
+LG utiliza paquetes `.ipk`. El pipeline prepara el contenido web, aplica un arranque de compatibilidad CanvasKit para navegadores webOS con capacidades gráficas limitadas y genera el paquete nativo mediante las herramientas de webOS. Además, el paquete incorpora un diagnóstico visible si Flutter no consigue crear la superficie de renderizado. Esto mejora la recuperación frente a una pantalla negra, pero la validación física por modelo de TV sigue siendo necesaria.
 
 ### Samsung Tizen
 
