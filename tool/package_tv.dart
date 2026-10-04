@@ -30,22 +30,13 @@ Set<String> _targets(List<String> args) {
 }
 
 Future<void> _packageWebOs() async {
-  final cli = _resolveExecutable('ares-package', 'ARES_PACKAGE');
-  final app = Directory('dist/webos/package');
-  _require(app, 'webOS package payload');
-  _require(File('${app.path}/appinfo.json'), 'webOS appinfo.json');
-  _require(File('${app.path}/index.html'), 'webOS index.html');
-  final output = Directory('dist/webos/native');
-  if (await output.exists()) await output.delete(recursive: true);
-  await output.create(recursive: true);
-  await _run(cli, ['-o', output.path, app.path]);
-  final packages = _filesWithExtension(output, '.ipk');
-  if (packages.length != 1) {
-    throw StateError(
-        'webOS debe producir exactamente un .ipk; encontrados: ${packages.length}.');
-  }
-  await _run(cli, ['-I', packages.single.path]);
-  stdout.writeln('webOS OK: ${packages.single.path}');
+  throw StateError(
+    'webOS debe empaquetarse exclusivamente con el SDK flutter-webOS de LG. '
+    'No se permite convertir dist/webos/package/ en un IPK con ares-package, '
+    'porque eso produce una Web App distinta del embedder Flutter nativo. '
+    'Use: flutter-webos create --platforms webos . && '
+    'flutter-webos build webos --release.',
+  );
 }
 
 Future<void> _packageTizen() async {
