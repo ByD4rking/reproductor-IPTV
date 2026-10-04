@@ -35,24 +35,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadLibrary() async {
     await _repository.load();
-    var playlist = _repository.playlists.isEmpty ? null : _repository.playlists.first;
+    var playlist =
+        _repository.playlists.isEmpty ? null : _repository.playlists.first;
     if (playlist == null) {
-      playlist = const M3uParser().parse(_demoM3u(), playlistId: 'demo', name: 'Demo IPTV');
+      playlist = const M3uParser()
+          .parse(_demoM3u(), playlistId: 'demo', name: 'Demo IPTV');
       await _repository.upsert(playlist);
     }
     if (!mounted) return;
     final loadedPlaylist = playlist;
     setState(() {
       _playlist = loadedPlaylist;
-      _searchIndex = SearchIndex()..replace(loadedPlaylist.entries.map((e) => e.channel));
+      _searchIndex = SearchIndex()
+        ..replace(loadedPlaylist.entries.map((e) => e.channel));
       _loading = false;
     });
   }
 
   List<String> get _categories {
     final playlist = _playlist!;
-    final values = playlist.entries.map((e) => e.category)
-        .whereType<String>().where((v) => v.isNotEmpty).toSet().toList()..sort();
+    final values = playlist.entries
+        .map((e) => e.category)
+        .whereType<String>()
+        .where((v) => v.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
     return ['Todos', ...values];
   }
 
@@ -67,7 +75,9 @@ class _HomeScreenState extends State<HomeScreen> {
             }
             return const <PlaylistEntry>[];
           });
-    return candidates.where((e) => _category == 'Todos' || e.category == _category).toList();
+    return candidates
+        .where((e) => _category == 'Todos' || e.category == _category)
+        .toList();
   }
 
   @override
@@ -84,7 +94,9 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             tooltip: 'Playlists',
             onPressed: () async {
-              await Navigator.of(context).push(MaterialPageRoute(builder: (_) => PlaylistImportScreen(repository: _repository)));
+              await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) =>
+                      PlaylistImportScreen(repository: _repository)));
               await _loadLibrary();
             },
             icon: const Icon(Icons.playlist_play),
@@ -102,24 +114,37 @@ class _HomeScreenState extends State<HomeScreen> {
             const SettingsScreen(),
           ];
           if (index < pages.length && index > 0) {
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => pages[index]));
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => pages[index]));
           }
         },
         children: const [
           Padding(
             padding: EdgeInsets.fromLTRB(24, 28, 24, 12),
-            child: Text('Reproductor IPTV', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            child: Text('Reproductor IPTV',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           ),
-          NavigationDrawerDestination(icon: Icon(Icons.live_tv), label: Text('TV en directo')),
-          NavigationDrawerDestination(icon: Icon(Icons.star_outline), label: Text('Favoritos')),
-          NavigationDrawerDestination(icon: Icon(Icons.history), label: Text('Historial')),
-          NavigationDrawerDestination(icon: Icon(Icons.event_note), label: Text('EPG')),
-          NavigationDrawerDestination(icon: Icon(Icons.settings_outlined), label: Text('Ajustes')),
+          NavigationDrawerDestination(
+              icon: Icon(Icons.live_tv), label: Text('TV en directo')),
+          NavigationDrawerDestination(
+              icon: Icon(Icons.star_outline), label: Text('Favoritos')),
+          NavigationDrawerDestination(
+              icon: Icon(Icons.history), label: Text('Historial')),
+          NavigationDrawerDestination(
+              icon: Icon(Icons.event_note), label: Text('EPG')),
+          NavigationDrawerDestination(
+              icon: Icon(Icons.settings_outlined), label: Text('Ajustes')),
         ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 1400 ? 5 : constraints.maxWidth >= 1000 ? 4 : constraints.maxWidth >= 700 ? 3 : 2;
+          final columns = constraints.maxWidth >= 1400
+              ? 5
+              : constraints.maxWidth >= 1000
+                  ? 4
+                  : constraints.maxWidth >= 700
+                      ? 3
+                      : 2;
           return CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
@@ -131,17 +156,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('TV en directo', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                          const Text('TV en directo',
+                              style: TextStyle(
+                                  fontSize: 28, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 6),
-                          Text('${playlist.entries.length} canales · ${_categories.length - 1} categorías'),
+                          Text(
+                              '${playlist.entries.length} canales · ${_categories.length - 1} categorías'),
                           const SizedBox(height: 16),
                           TextField(
-                            onChanged: (value) => setState(() => _query = value),
+                            onChanged: (value) =>
+                                setState(() => _query = value),
                             decoration: InputDecoration(
                               prefixIcon: const Icon(Icons.search),
                               hintText: 'Buscar canal, TVG-ID o nombre...',
                               filled: true,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide.none),
                             ),
                           ),
                         ],
@@ -179,7 +210,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     childAspectRatio: 1.45,
                   ),
                   itemCount: entries.length,
-                  itemBuilder: (_, index) => _ChannelCard(entry: entries[index], autofocus: index == 0),
+                  itemBuilder: (_, index) => _ChannelCard(
+                      entry: entries[index], autofocus: index == 0),
                 ),
               ),
             ],
@@ -219,7 +251,9 @@ class _ChannelCardState extends State<_ChannelCard> {
 
   Future<void> _loadFavorite() async {
     final values = await _favorites.load();
-    if (mounted) setState(() => _favorite = values.any((f) => f.channelId == widget.entry.channel.id));
+    if (mounted)
+      setState(() => _favorite =
+          values.any((f) => f.channelId == widget.entry.channel.id));
   }
 
   Future<void> _toggleFavorite() async {
@@ -228,7 +262,8 @@ class _ChannelCardState extends State<_ChannelCard> {
     } else {
       await _favorites.setFavorite(Favorite(
         channelId: widget.entry.channel.id,
-        preferredSourceId: widget.entry.sources.isEmpty ? null : widget.entry.sources.first.id,
+        preferredSourceId:
+            widget.entry.sources.isEmpty ? null : widget.entry.sources.first.id,
       ));
     }
     if (mounted) setState(() => _favorite = !_favorite);
@@ -242,33 +277,34 @@ class _ChannelCardState extends State<_ChannelCard> {
 
   @override
   Widget build(BuildContext context) => TvFocusable(
-    autofocus: widget.autofocus,
-    onActivate: _openPlayer,
-    child: Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: _openPlayer,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Expanded(
-              child: ColoredBox(
-                color: Color(0xFF151B24),
-                child: Center(child: Icon(Icons.live_tv, size: 48)),
-              ),
+        autofocus: widget.autofocus,
+        onActivate: _openPlayer,
+        child: Card(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: _openPlayer,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Expanded(
+                  child: ColoredBox(
+                    color: Color(0xFF151B24),
+                    child: Center(child: Icon(Icons.live_tv, size: 48)),
+                  ),
+                ),
+                ListTile(
+                  dense: true,
+                  title: Text(widget.entry.channel.displayName,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  trailing: IconButton(
+                    tooltip: _favorite ? 'Quitar favorito' : 'Agregar favorito',
+                    onPressed: _toggleFavorite,
+                    icon: Icon(_favorite ? Icons.star : Icons.star_outline),
+                  ),
+                ),
+              ],
             ),
-            ListTile(
-              dense: true,
-              title: Text(widget.entry.channel.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
-              trailing: IconButton(
-                tooltip: _favorite ? 'Quitar favorito' : 'Agregar favorito',
-                onPressed: _toggleFavorite,
-                icon: Icon(_favorite ? Icons.star : Icons.star_outline),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }

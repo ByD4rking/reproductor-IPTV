@@ -81,9 +81,8 @@ void main() {
     expect(result.isAvailable, isTrue);
   });
 
-
-
-  test('rejects a valid HLS child playlist when its media segment is dead', () async {
+  test('rejects a valid HLS child playlist when its media segment is dead',
+      () async {
     final client = MockClient((request) async {
       if (request.url.path == '/master.m3u8') {
         return http.Response(
@@ -127,7 +126,8 @@ void main() {
     expect(result.isAvailable, isFalse);
   });
 
-  test('accepts a master when one rendition is healthy and another is down', () async {
+  test('accepts a master when one rendition is healthy and another is down',
+      () async {
     final client = MockClient((request) async {
       if (request.url.path == '/master.m3u8') {
         return http.Response(

@@ -95,7 +95,8 @@ class HlsPlaylistParser {
       }
     }
 
-    final isValid = hasStructure && (hasStreamInf || hasMediaSegment || hasPart);
+    final isValid =
+        hasStructure && (hasStreamInf || hasMediaSegment || hasPart);
     final isLive = isValid && !lines.contains('#EXT-X-ENDLIST');
 
     return HlsPlaylist(
@@ -108,12 +109,12 @@ class HlsPlaylistParser {
   }
 
   static HlsPlaylist _invalid() => const HlsPlaylist(
-    isValid: false,
-    isMaster: false,
-    uris: <Uri>[],
-    targetDuration: null,
-    isLive: false,
-  );
+        isValid: false,
+        isMaster: false,
+        uris: <Uri>[],
+        targetDuration: null,
+        isLive: false,
+      );
 
   static Uri? _nextUri(List<String> lines, int index) {
     if (index + 1 >= lines.length || lines[index + 1].startsWith('#')) {

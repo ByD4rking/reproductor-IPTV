@@ -63,9 +63,7 @@ class RecoveryPolicy {
 
     if (retryCount < maxRetries) {
       return RecoveryDecision(
-        level: retryCount == 0
-            ? RecoveryLevel.retry
-            : RecoveryLevel.reprepare,
+        level: retryCount == 0 ? RecoveryLevel.retry : RecoveryLevel.reprepare,
         delay: backoff.delay(retryCount, randomValue: randomValue),
       );
     }

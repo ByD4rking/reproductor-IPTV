@@ -39,5 +39,6 @@ class SearchIndex {
     return matches.take(limit).toList(growable: false);
   }
 
-  List<Channel> search(String text, {int limit = 50}) => query(text, limit: limit);
+  List<Channel> search(String text, {int limit = 50}) =>
+      query(text, limit: limit);
 }

@@ -32,7 +32,8 @@ class AtomicStringListStore {
     final active = await _preferences.getInt(_activeKey);
     final current = active == 1 ? 1 : 0;
     final target = 1 - current;
-    await _preferences.setStringList(_slotKey(target), List<String>.from(values));
+    await _preferences.setStringList(
+        _slotKey(target), List<String>.from(values));
     await _preferences.setInt(_activeKey, target);
   }
 

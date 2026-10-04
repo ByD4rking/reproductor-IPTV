@@ -22,9 +22,7 @@ class SecretRedactor {
   Map<String, String> headers(Map<String, String> input) {
     return Map.unmodifiable({
       for (final entry in input.entries)
-        entry.key: _sensitiveHeader(entry.key)
-            ? '[REDACTED]'
-            : entry.value,
+        entry.key: _sensitiveHeader(entry.key) ? '[REDACTED]' : entry.value,
     });
   }
 

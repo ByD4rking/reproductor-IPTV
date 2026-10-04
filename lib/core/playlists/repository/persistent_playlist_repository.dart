@@ -117,9 +117,8 @@ class PersistentPlaylistRepository implements PlaylistRepository {
         ),
         sources: sources,
         category: e['category'] as String?,
-        logoUrl: e['logoUrl'] == null
-            ? null
-            : Uri.parse(e['logoUrl'] as String),
+        logoUrl:
+            e['logoUrl'] == null ? null : Uri.parse(e['logoUrl'] as String),
       );
     }).toList(growable: false);
 

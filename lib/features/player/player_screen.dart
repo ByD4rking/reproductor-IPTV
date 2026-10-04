@@ -67,7 +67,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _playbackErrorSubscription = _engine.errors.listen(_handleEngineError);
     _playbackStateSubscription = _engine.states.listen(_handleEngineState);
     _loadSettingsAndOpen();
-    _healthTimer = Timer.periodic(const Duration(seconds: 3), (_) => _checkHealth());
+    _healthTimer =
+        Timer.periodic(const Duration(seconds: 3), (_) => _checkHealth());
   }
 
   void _handleEngineState(PlaybackEngineStateEvent event) {
@@ -101,7 +102,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             : _errorClassifier.classifyMessage(event.message);
     _error = classified.message;
     if (mounted) {
-      setState(() => _status = 'Error de reproducción: ${classified.kind.name}');
+      setState(
+          () => _status = 'Error de reproducción: ${classified.kind.name}');
     }
     if (!_autoRecovery) return;
 
@@ -141,12 +143,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
         continue;
       }
 
-      if (mounted) setState(() => _status = 'Conectando fuente ${_sourceIndex + 1}');
+      if (mounted)
+        setState(() => _status = 'Conectando fuente ${_sourceIndex + 1}');
       final started = DateTime.now();
       _sourceAttemptStarted = started;
       try {
         await _engine.prepare(PlaybackRequest(source: source));
-        if (!_session.isCurrentOperation(operation) || _session.isStopped) return;
+        if (!_session.isCurrentOperation(operation) || _session.isStopped)
+          return;
         await _engine.play();
         _lastPosition = _engine.position;
         _lastBufferedAhead = _engine.buffered;
@@ -262,7 +266,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _lastProgress = progressAt;
         _stablePlaybackSince ??= progressAt;
         if (_stablePlaybackSince != null &&
-            progressAt.difference(_stablePlaybackSince!) >= const Duration(seconds: 15)) {
+            progressAt.difference(_stablePlaybackSince!) >=
+                const Duration(seconds: 15)) {
           _recoveryCoordinator.resetAfterStablePlayback();
           _stablePlaybackSince = progressAt;
         }
@@ -300,9 +305,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       );
 
       if (mounted && buffering && !stalled) {
-        setState(() => _status = buffer.degraded
-            ? 'Buffer bajo · recuperando...'
-            : 'Buffering');
+        setState(() => _status =
+            buffer.degraded ? 'Buffer bajo · recuperando...' : 'Buffering');
       }
       if ((stalled || buffer.severe) && _autoRecovery) {
         await _recover(markFailure: true);
@@ -323,7 +327,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _recover({bool retryable = true, bool markFailure = false}) async {
+  Future<void> _recover(
+      {bool retryable = true, bool markFailure = false}) async {
     if (_recovering || _session.isStopped) return;
     final source = widget.entry.sources.isEmpty
         ? null
@@ -349,17 +354,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
         retryable: retryable,
         reprepare: () async {
           if (_session.isCurrentOperation(operation)) {
-            await _openSource(automatic: true, operationId: operation, allowNestedRecovery: false);
+            await _openSource(
+                automatic: true,
+                operationId: operation,
+                allowNestedRecovery: false);
           }
         },
-        allowSourceSwitch: _autoSourceSwitching && widget.entry.sources.length > 1,
+        allowSourceSwitch:
+            _autoSourceSwitching && widget.entry.sources.length > 1,
         switchSource: () async {
           if (!_autoSourceSwitching || widget.entry.sources.length <= 1) {
             return;
           }
           if (_session.isCurrentOperation(operation)) {
             _advanceSource();
-            await _openSource(automatic: true, operationId: operation, allowNestedRecovery: false);
+            await _openSource(
+                automatic: true,
+                operationId: operation,
+                allowNestedRecovery: false);
           }
         },
       );
@@ -380,7 +392,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
         channelId: widget.entry.channel.id,
         startedAt: _startedAt,
         duration: duration,
-        sourceId: widget.entry.sources.isEmpty ? null : widget.entry.sources[_sourceIndex].id,
+        sourceId: widget.entry.sources.isEmpty
+            ? null
+            : widget.entry.sources[_sourceIndex].id,
       ));
     }
     _session.stop();
@@ -481,9 +495,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: FloatingActionButton(
           onPressed: null,
           child: Icon(
-            activeController.value.isPlaying
-                ? Icons.pause
-                : Icons.play_arrow,
+            activeController.value.isPlaying ? Icons.pause : Icons.play_arrow,
           ),
         ),
       ),

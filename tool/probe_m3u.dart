@@ -29,7 +29,8 @@ Future<void> main(List<String> args) async {
     maxHlsRequests: 2,
   );
   try {
-    final response = await client.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+    final response =
+        await client.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
     if (response.statusCode < 200 || response.statusCode >= 400) {
       throw StateError('M3U respondió HTTP ${response.statusCode}');
     }
@@ -37,7 +38,8 @@ Future<void> main(List<String> args) async {
       throw StateError('M3U supera el límite de 64 MiB');
     }
 
-    final playlist = const M3uParser().parse(response.body, playlistId: 'probe', name: url);
+    final playlist =
+        const M3uParser().parse(response.body, playlistId: 'probe', name: url);
     final rows = <Map<String, Object?>>[];
     var tested = 0;
     var available = 0;
@@ -68,7 +70,8 @@ Future<void> main(List<String> args) async {
       'tested': tested,
       'available': available,
       'failed': tested - available,
-      'availabilityPercent': tested == 0 ? 0 : (available * 100 / tested).round(),
+      'availabilityPercent':
+          tested == 0 ? 0 : (available * 100 / tested).round(),
       'results': rows,
     };
     stdout.writeln(const JsonEncoder.withIndent('  ').convert(summary));

@@ -32,7 +32,7 @@ Set<String> _targets(List<String> args) {
           .where((v) => v.isNotEmpty),
     );
   }
-  const supported = {'mobile','tv','firetv','web','tizen','webos'};
+  const supported = {'mobile', 'tv', 'firetv', 'web', 'tizen', 'webos'};
   return result.where(supported.contains).toSet();
 }
 
@@ -64,9 +64,12 @@ Future<void> _buildWeb(String profile) async {
     Directory('build/web'),
     Directory('dist/$profile'),
   );
-  await _writeMetadata(
-    'dist/$profile/profile.json',
-    <String, Object>{'profile': profile, 'platform': 'web', 'runtime': 'flutter-web', 'generatedFrom': 'reproductor_iptv'});
+  await _writeMetadata('dist/$profile/profile.json', <String, Object>{
+    'profile': profile,
+    'platform': 'web',
+    'runtime': 'flutter-web',
+    'generatedFrom': 'reproductor_iptv'
+  });
 }
 
 Future<void> _buildWebAdapter(String platform) async {
@@ -154,7 +157,8 @@ Future<void> _writeMetadata(
 
 Future<void> _run(String executable, List<String> arguments) async {
   stdout.writeln('> $executable ${arguments.join(' ')}');
-  final result = await Process.run(executable, arguments, runInShell: Platform.isWindows);
+  final result =
+      await Process.run(executable, arguments, runInShell: Platform.isWindows);
   stdout.write(result.stdout);
   stderr.write(result.stderr);
   if (result.exitCode != 0) {

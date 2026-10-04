@@ -72,9 +72,8 @@ class M3uParser {
           : '${Channel.normalizeIdentity(displayName)}:${entries.length}';
 
       final logoText = attrs['tvg-logo']?.trim();
-      final logoUrl = logoText == null || logoText.isEmpty
-          ? null
-          : Uri.tryParse(logoText);
+      final logoUrl =
+          logoText == null || logoText.isEmpty ? null : Uri.tryParse(logoText);
 
       final headers = <String, String>{};
       final userAgent = attrs['http-user-agent']?.trim();

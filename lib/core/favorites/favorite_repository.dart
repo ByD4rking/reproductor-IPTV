@@ -15,18 +15,21 @@ class FavoriteRepository {
 
   Future<List<Favorite>> load() async {
     final raw = await _store.load();
-    return raw.map((value) {
-      try {
-        final map = jsonDecode(value) as Map<String, dynamic>;
-        return Favorite(
-          channelId: map['channelId'] as String,
-          preferredPlaylistId: map['preferredPlaylistId'] as String?,
-          preferredSourceId: map['preferredSourceId'] as String?,
-        );
-      } catch (_) {
-        return null;
-      }
-    }).whereType<Favorite>().toList(growable: false);
+    return raw
+        .map((value) {
+          try {
+            final map = jsonDecode(value) as Map<String, dynamic>;
+            return Favorite(
+              channelId: map['channelId'] as String,
+              preferredPlaylistId: map['preferredPlaylistId'] as String?,
+              preferredSourceId: map['preferredSourceId'] as String?,
+            );
+          } catch (_) {
+            return null;
+          }
+        })
+        .whereType<Favorite>()
+        .toList(growable: false);
   }
 
   Future<void> setFavorite(Favorite favorite) async {
@@ -42,10 +45,12 @@ class FavoriteRepository {
   }
 
   Future<void> _save(List<Favorite> values) => _store.save(
-        values.map((v) => jsonEncode({
-              'channelId': v.channelId,
-              'preferredPlaylistId': v.preferredPlaylistId,
-              'preferredSourceId': v.preferredSourceId,
-            })).toList(growable: false),
+        values
+            .map((v) => jsonEncode({
+                  'channelId': v.channelId,
+                  'preferredPlaylistId': v.preferredPlaylistId,
+                  'preferredSourceId': v.preferredSourceId,
+                }))
+            .toList(growable: false),
       );
 }

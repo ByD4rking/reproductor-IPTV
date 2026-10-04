@@ -35,7 +35,11 @@ class XmltvParser {
       final end = _time(attrs['stop']);
       final title = _text(match.group(2) ?? '');
 
-      if (channel == null || channel.isEmpty || start == null || end == null || title.isEmpty) {
+      if (channel == null ||
+          channel.isEmpty ||
+          start == null ||
+          end == null ||
+          title.isEmpty) {
         continue;
       }
       if (!end.isAfter(start)) continue;

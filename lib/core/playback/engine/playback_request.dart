@@ -27,7 +27,9 @@ class PlaybackRequest {
       merged['User-Agent'] = source.userAgent!;
     }
     if (cookies.isNotEmpty) {
-      merged['Cookie'] = cookies.entries.map((entry) => '${entry.key}=${entry.value}').join('; ');
+      merged['Cookie'] = cookies.entries
+          .map((entry) => '${entry.key}=${entry.value}')
+          .join('; ');
     }
     return Map.unmodifiable(merged);
   }

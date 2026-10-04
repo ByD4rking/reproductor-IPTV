@@ -10,13 +10,31 @@ import 'package:reproductor_iptv/core/network/url_policy.dart';
 void main() {
   test('brief buffering is not treated as a hard stall', () {
     const d = StallDetector();
-    expect(d.isStalled(lastProgressAge: const Duration(seconds: 2), buffering: true, dataArriving: false, playheadMoving: false), isFalse);
-    expect(d.isStalled(lastProgressAge: const Duration(seconds: 6), buffering: true, dataArriving: false, playheadMoving: false), isTrue);
+    expect(
+        d.isStalled(
+            lastProgressAge: const Duration(seconds: 2),
+            buffering: true,
+            dataArriving: false,
+            playheadMoving: false),
+        isFalse);
+    expect(
+        d.isStalled(
+            lastProgressAge: const Duration(seconds: 6),
+            buffering: true,
+            dataArriving: false,
+            playheadMoving: false),
+        isTrue);
   });
 
   test('moving playhead prevents a false stall even while buffering', () {
     const d = StallDetector();
-    expect(d.isStalled(lastProgressAge: const Duration(seconds: 20), buffering: true, dataArriving: false, playheadMoving: true), isFalse);
+    expect(
+        d.isStalled(
+            lastProgressAge: const Duration(seconds: 20),
+            buffering: true,
+            dataArriving: false,
+            playheadMoving: true),
+        isFalse);
   });
 
   test('HTTP auth and not-found errors switch source', () {
@@ -52,20 +70,26 @@ void main() {
       health = breaker.onFailure(health, now);
     }
     expect(health.state, SourceHealthState.cooldown);
-    expect(breaker.canAttempt(health, now.add(const Duration(seconds: 30))), isTrue);
+    expect(breaker.canAttempt(health, now.add(const Duration(seconds: 30))),
+        isTrue);
 
     final probe = breaker.beginProbe(
       health,
       now.add(const Duration(seconds: 30)),
     );
     expect(probe.state, SourceHealthState.halfOpen);
-    expect(breaker.canAttempt(probe, now.add(const Duration(seconds: 30))), isFalse);
+    expect(breaker.canAttempt(probe, now.add(const Duration(seconds: 30))),
+        isFalse);
     final manager = SourceHealthManager();
     manager.recordFailure('s1', now);
     manager.recordFailure('s1', now);
     manager.recordFailure('s1', now);
-    expect(await manager.beginAttempt('s1', now.add(const Duration(seconds: 30))), isTrue);
-    expect(await manager.beginAttempt('s1', now.add(const Duration(seconds: 30))), isFalse);
+    expect(
+        await manager.beginAttempt('s1', now.add(const Duration(seconds: 30))),
+        isTrue);
+    expect(
+        await manager.beginAttempt('s1', now.add(const Duration(seconds: 30))),
+        isFalse);
 
     final recovered = breaker.probeSuccess(
       probe,
@@ -106,7 +130,4 @@ void main() {
       isFalse,
     );
   });
-
 }
-
-

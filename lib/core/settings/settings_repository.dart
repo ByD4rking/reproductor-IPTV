@@ -18,9 +18,9 @@ class SettingsRepository {
   static const _switching = 'settings.autoSourceSwitching';
 
   Future<AppSettings> load() async => AppSettings(
-    autoRecovery: await _preferences.getBool(_recovery) ?? true,
-    autoSourceSwitching: await _preferences.getBool(_switching) ?? true,
-  );
+        autoRecovery: await _preferences.getBool(_recovery) ?? true,
+        autoSourceSwitching: await _preferences.getBool(_switching) ?? true,
+      );
 
   Future<void> save(AppSettings settings) async {
     await _preferences.setBool(_recovery, settings.autoRecovery);

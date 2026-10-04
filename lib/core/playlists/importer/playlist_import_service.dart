@@ -78,9 +78,11 @@ class PlaylistImportService {
         throw const FormatException('La playlist remota está vacía');
       }
 
-      final parsed = parser.parseLines(lines, playlistId: playlistId, name: name);
+      final parsed =
+          parser.parseLines(lines, playlistId: playlistId, name: name);
       final result = _validateAndPromote(parsed, previous);
-      await _stateRepository?.markActive(playlistId, uri, parsed.rawContentHash);
+      await _stateRepository?.markActive(
+          playlistId, uri, parsed.rawContentHash);
       return result;
     } catch (error) {
       await _stateRepository?.markFailed(playlistId, uri, error.toString());

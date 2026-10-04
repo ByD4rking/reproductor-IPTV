@@ -44,7 +44,8 @@ class PlaybackErrorClassifier {
         disposition: ErrorDisposition.switchSource,
       );
     }
-    if (statusCode == 408 || statusCode == 429 ||
+    if (statusCode == 408 ||
+        statusCode == 429 ||
         (statusCode != null && statusCode >= 500)) {
       return const PlaybackError(
         kind: PlaybackErrorKind.network,
@@ -92,15 +93,18 @@ class PlaybackErrorClassifier {
 
   PlaybackError classifyMessage(String message) {
     final value = message.toLowerCase();
-    if (value.contains('401') || value.contains('403') ||
-        value.contains('unauthorized') || value.contains('forbidden')) {
+    if (value.contains('401') ||
+        value.contains('403') ||
+        value.contains('unauthorized') ||
+        value.contains('forbidden')) {
       return const PlaybackError(
         kind: PlaybackErrorKind.unauthorized,
         message: 'Authentication required',
         disposition: ErrorDisposition.switchSource,
       );
     }
-    if (value.contains('404') || value.contains('410') ||
+    if (value.contains('404') ||
+        value.contains('410') ||
         value.contains('not found')) {
       return const PlaybackError(
         kind: PlaybackErrorKind.notFound,
@@ -115,17 +119,19 @@ class PlaybackErrorClassifier {
         disposition: ErrorDisposition.retry,
       );
     }
-    if (value.contains('behind live window') ||
-        value.contains('live window')) {
+    if (value.contains('behind live window') || value.contains('live window')) {
       return const PlaybackError(
         kind: PlaybackErrorKind.stalled,
         message: 'Playback fell behind the live window',
         disposition: ErrorDisposition.retry,
       );
     }
-    if (value.contains('429') || value.contains('500') ||
-        value.contains('502') || value.contains('503') ||
-        value.contains('504') || value.contains('bad gateway') ||
+    if (value.contains('429') ||
+        value.contains('500') ||
+        value.contains('502') ||
+        value.contains('503') ||
+        value.contains('504') ||
+        value.contains('bad gateway') ||
         value.contains('service unavailable') ||
         value.contains('server error') ||
         value.contains('connection reset') ||
@@ -147,8 +153,10 @@ class PlaybackErrorClassifier {
         disposition: ErrorDisposition.switchSource,
       );
     }
-    if (value.contains('format') || value.contains('manifest') ||
-        value.contains('m3u8') || value.contains('mpd')) {
+    if (value.contains('format') ||
+        value.contains('manifest') ||
+        value.contains('m3u8') ||
+        value.contains('mpd')) {
       return const PlaybackError(
         kind: PlaybackErrorKind.malformedStream,
         message: 'Malformed media or manifest',

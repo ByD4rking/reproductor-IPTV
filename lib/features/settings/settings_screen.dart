@@ -44,7 +44,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             value: _settings.autoRecovery,
             title: const Text('Recuperación automática'),
-            subtitle: const Text('Detectar congelamientos y reintentar la reproducción.'),
+            subtitle: const Text(
+                'Detectar congelamientos y reintentar la reproducción.'),
             onChanged: (value) => _save(AppSettings(
               autoRecovery: value,
               autoSourceSwitching: _settings.autoSourceSwitching,
@@ -53,7 +54,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             value: _settings.autoSourceSwitching,
             title: const Text('Cambio automático de fuente'),
-            subtitle: const Text('Cambiar a otra fuente del mismo canal cuando corresponda.'),
+            subtitle: const Text(
+                'Cambiar a otra fuente del mismo canal cuando corresponda.'),
             onChanged: (value) => _save(AppSettings(
               autoRecovery: _settings.autoRecovery,
               autoSourceSwitching: value,
@@ -63,7 +65,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const ListTile(
             leading: Icon(Icons.health_and_safety_outlined),
             title: Text('Diagnóstico'),
-            subtitle: Text('El reproductor registra salud de fuentes, recuperación y fallos localmente.'),
+            subtitle: Text(
+                'El reproductor registra salud de fuentes, recuperación y fallos localmente.'),
           ),
         ],
       ),

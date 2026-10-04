@@ -38,7 +38,8 @@ class SourceHealthManager {
         next.cooldownUntil != current.cooldownUntil) {
       await _repository?.save(_health);
     }
-    return _breaker.canAttempt(next, now) || next.state == SourceHealthState.halfOpen;
+    return _breaker.canAttempt(next, now) ||
+        next.state == SourceHealthState.halfOpen;
   }
 
   Future<void> recordSuccess(

@@ -39,7 +39,9 @@ void main() {
     );
 
     expect(
-      policy.decide(mode: PlaybackMediaMode.live, signals: unstable).targetBuffer,
+      policy
+          .decide(mode: PlaybackMediaMode.live, signals: unstable)
+          .targetBuffer,
       const Duration(seconds: 14),
     );
   });

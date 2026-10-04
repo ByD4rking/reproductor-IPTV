@@ -54,7 +54,8 @@ class _EpgScreenState extends State<EpgScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     return Scaffold(
       appBar: AppBar(title: const Text('EPG')),
       body: ListView(
@@ -76,19 +77,21 @@ class _EpgScreenState extends State<EpgScreen> {
             icon: const Icon(Icons.download),
             label: const Text('Importar XMLTV'),
           ),
-          if (_message != null) Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Text(_message!),
-          ),
+          if (_message != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(_message!),
+            ),
           const SizedBox(height: 20),
           Text(_programmes.isEmpty
               ? 'No hay EPG cargado.'
               : '${_programmes.length} programas almacenados.'),
           ..._programmes.take(30).map((programme) => ListTile(
-            leading: const Icon(Icons.event),
-            title: Text(programme.title),
-            subtitle: Text('${programme.channelId} · ${programme.start.toLocal()}'),
-          )),
+                leading: const Icon(Icons.event),
+                title: Text(programme.title),
+                subtitle: Text(
+                    '${programme.channelId} · ${programme.start.toLocal()}'),
+              )),
         ],
       ),
     );

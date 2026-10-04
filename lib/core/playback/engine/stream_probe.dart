@@ -34,8 +34,8 @@ class StreamProbeResult {
 
   bool get isAvailable =>
       statusCode >= 200 &&
-          statusCode < 400 &&
-          (kind != StreamKind.hls || (hlsValid && hlsDeepValid));
+      statusCode < 400 &&
+      (kind != StreamKind.hls || (hlsValid && hlsDeepValid));
 }
 
 class StreamProbe {
@@ -44,8 +44,8 @@ class StreamProbe {
     this.timeout = const Duration(seconds: 4),
     this.maxBytes = 64 * 1024,
     this.maxHlsRequests = 2,
-  }) : _client = client ?? http.Client(),
-       _ownsClient = client == null;
+  })  : _client = client ?? http.Client(),
+        _ownsClient = client == null;
 
   final http.Client _client;
   final bool _ownsClient;
@@ -102,7 +102,8 @@ class StreamProbe {
           final uris = playlist.uris.take(maxHlsRequests).toList();
           hlsCheckedUriCount = uris.length;
           final checks = await Future.wait(
-            uris.map((uri) => _checkHlsChild(uri, source, headers, budget: budget)),
+            uris.map(
+                (uri) => _checkHlsChild(uri, source, headers, budget: budget)),
           );
           // A master playlist is healthy when at least one rendition works;
           // one dead variant must not invalidate the entire adaptive stream.
@@ -147,10 +148,12 @@ class StreamProbe {
       if (body.isEmpty) return false;
 
       final contentType = response.headers['content-type'];
-      final looksLikePlaylist =
-          uri.path.toLowerCase().endsWith('.m3u8') ||
+      final looksLikePlaylist = uri.path.toLowerCase().endsWith('.m3u8') ||
           (contentType?.toLowerCase().contains('mpegurl') ?? false) ||
-          utf8.decode(body, allowMalformed: true).trimLeft().startsWith('#EXTM3U');
+          utf8
+              .decode(body, allowMalformed: true)
+              .trimLeft()
+              .startsWith('#EXTM3U');
       if (!looksLikePlaylist) return true;
 
       final playlist = const HlsPlaylistParser().parse(

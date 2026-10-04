@@ -12,17 +12,20 @@ class FavoritesScreen extends StatelessWidget {
       body: FutureBuilder(
         future: repository.load(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData)
+            return const Center(child: CircularProgressIndicator());
           final favorites = snapshot.data!;
           if (favorites.isEmpty) {
-            return const Center(child: Text('No hay canales favoritos todavía.'));
+            return const Center(
+                child: Text('No hay canales favoritos todavía.'));
           }
           return ListView.builder(
             itemCount: favorites.length,
             itemBuilder: (_, index) => ListTile(
               leading: const Icon(Icons.star),
               title: Text(favorites[index].channelId),
-              subtitle: Text(favorites[index].preferredSourceId ?? 'Fuente automática'),
+              subtitle: Text(
+                  favorites[index].preferredSourceId ?? 'Fuente automática'),
             ),
           );
         },

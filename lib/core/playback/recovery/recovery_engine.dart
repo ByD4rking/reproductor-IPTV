@@ -4,7 +4,8 @@ import 'recovery_policy.dart';
 typedef RecoveryAction = Future<void> Function(RecoveryLevel level);
 
 class RecoveryEngine {
-  RecoveryEngine({RecoveryPolicy policy = const RecoveryPolicy()}) : _policy = policy;
+  RecoveryEngine({RecoveryPolicy policy = const RecoveryPolicy()})
+      : _policy = policy;
   final RecoveryPolicy _policy;
   int _retryCount = 0;
   int _sourceChanges = 0;
@@ -33,7 +34,8 @@ class RecoveryEngine {
       if (decision.level == RecoveryLevel.stopped) return decision.level;
       if (decision.delay > Duration.zero) {
         await Future<void>.delayed(decision.delay);
-        if (!session.isCurrentOperation(operation)) return RecoveryLevel.stopped;
+        if (!session.isCurrentOperation(operation))
+          return RecoveryLevel.stopped;
       }
       switch (decision.level) {
         case RecoveryLevel.retry:

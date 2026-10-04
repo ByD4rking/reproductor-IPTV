@@ -60,13 +60,12 @@ class EpgMatcher {
     for (final programme in values) {
       if (!programme.end.isAfter(now)) continue;
       if (!programme.start.isAfter(now)) return programme;
-      if (next == null || programme.start.isBefore(next.start)) next = programme;
+      if (next == null || programme.start.isBefore(next.start))
+        next = programme;
     }
     return next;
   }
 
-  String _normalize(String value) => value
-      .trim()
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^a-z0-9]+'), '');
+  String _normalize(String value) =>
+      value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
 }

@@ -28,7 +28,8 @@ Future<void> main(List<String> args) async {
 
     if (platform == 'webos' && manifest.existsSync()) {
       try {
-        final json = jsonDecode(manifest.readAsStringSync()) as Map<String, dynamic>;
+        final json =
+            jsonDecode(manifest.readAsStringSync()) as Map<String, dynamic>;
         checks['webOS manifest type=web'] = json['type'] == 'web';
         checks['webOS main=index.html'] = json['main'] == 'index.html';
       } catch (_) {
@@ -37,7 +38,8 @@ Future<void> main(List<String> args) async {
     }
 
     for (final entry in checks.entries) {
-      stdout.writeln('[${entry.value ? 'OK' : 'FAIL'}] $platform: ${entry.key}');
+      stdout
+          .writeln('[${entry.value ? 'OK' : 'FAIL'}] $platform: ${entry.key}');
       if (!entry.value) failed = true;
     }
   }

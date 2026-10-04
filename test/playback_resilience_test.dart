@@ -32,7 +32,8 @@ void main() {
     expect(transient.degraded, isFalse);
   });
 
-  test('buffer monitor detects sustained starvation while playback still moves', () {
+  test('buffer monitor detects sustained starvation while playback still moves',
+      () {
     final monitor = BufferHealthMonitor();
     final start = DateTime(2026, 1, 1);
     monitor.sample(
@@ -51,7 +52,8 @@ void main() {
     expect(snapshot.severe, isTrue);
   });
 
-  test('buffer monitor detects starvation even when engine is not buffering', () {
+  test('buffer monitor detects starvation even when engine is not buffering',
+      () {
     final monitor = BufferHealthMonitor();
     final start = DateTime(2026, 1, 1);
     monitor.sample(
@@ -232,21 +234,28 @@ void main() {
   test('classifies HTTP auth, missing, transient and timeout failures', () {
     const classifier = PlaybackErrorClassifier();
     expect(classifier.classify(401, null).kind, PlaybackErrorKind.unauthorized);
-    expect(classifier.classify(404, null).disposition, ErrorDisposition.switchSource);
+    expect(classifier.classify(404, null).disposition,
+        ErrorDisposition.switchSource);
     expect(classifier.classify(503, null).disposition, ErrorDisposition.retry);
-    expect(classifier.classify(null, TimeoutException('timeout')).kind, PlaybackErrorKind.timeout);
+    expect(classifier.classify(null, TimeoutException('timeout')).kind,
+        PlaybackErrorKind.timeout);
     expect(classifier.stalled().kind, PlaybackErrorKind.stalled);
   });
 
   test('classifies runtime player messages conservatively', () {
     const classifier = PlaybackErrorClassifier();
-    expect(classifier.classifyMessage('HTTP 404 Not Found').kind, PlaybackErrorKind.notFound);
-    expect(classifier.classifyMessage('network timeout').kind, PlaybackErrorKind.timeout);
-    expect(classifier.classifyMessage('decoder codec failure').kind, PlaybackErrorKind.decoder);
-    expect(classifier.classifyMessage('behind live window').kind, PlaybackErrorKind.stalled);
+    expect(classifier.classifyMessage('HTTP 404 Not Found').kind,
+        PlaybackErrorKind.notFound);
+    expect(classifier.classifyMessage('network timeout').kind,
+        PlaybackErrorKind.timeout);
+    expect(classifier.classifyMessage('decoder codec failure').kind,
+        PlaybackErrorKind.decoder);
+    expect(classifier.classifyMessage('behind live window').kind,
+        PlaybackErrorKind.stalled);
   });
 
-  test('classifies common upstream and unsupported-format runtime failures', () {
+  test('classifies common upstream and unsupported-format runtime failures',
+      () {
     const classifier = PlaybackErrorClassifier();
     expect(
       classifier.classifyMessage('HTTP 503 Service Unavailable').disposition,
@@ -262,7 +271,8 @@ void main() {
     );
   });
 
-  test('recovery coordinator serializes recovery and preserves escalation', () async {
+  test('recovery coordinator serializes recovery and preserves escalation',
+      () async {
     final coordinator = RecoveryCoordinator();
     var reparses = 0;
     var switches = 0;

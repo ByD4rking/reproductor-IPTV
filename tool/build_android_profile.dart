@@ -85,8 +85,7 @@ String? _profile(List<String> args) {
 Future<void> _configureAndroidTv(File manifest) async {
   var xml = await manifest.readAsString();
 
-  const feature =
-      '    <uses-feature android:name="android.software.leanback" '
+  const feature = '    <uses-feature android:name="android.software.leanback" '
       'android:required="false" />\n'
       '    <uses-feature android:name="android.hardware.touchscreen" '
       'android:required="false" />\n';
@@ -100,17 +99,17 @@ Future<void> _configureAndroidTv(File manifest) async {
   }
 
   if (!xml.contains('android.intent.category.LEANBACK_LAUNCHER')) {
-    final launcherIndex =
-        xml.indexOf('<category android:name="android.intent.category.LAUNCHER"');
+    final launcherIndex = xml
+        .indexOf('<category android:name="android.intent.category.LAUNCHER"');
     if (launcherIndex < 0) {
-      throw StateError('No se encontró el launcher principal en AndroidManifest.');
+      throw StateError(
+          'No se encontró el launcher principal en AndroidManifest.');
     }
     final end = xml.indexOf('/>', launcherIndex);
     if (end < 0) {
       throw StateError('No se pudo modificar el intent-filter principal.');
     }
-    const insertion =
-        '\n                <category '
+    const insertion = '\n                <category '
         'android:name="android.intent.category.LEANBACK_LAUNCHER" />';
     xml = xml.replaceRange(end + 2, end + 2, insertion);
   }
