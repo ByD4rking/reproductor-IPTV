@@ -251,9 +251,10 @@ class _ChannelCardState extends State<_ChannelCard> {
 
   Future<void> _loadFavorite() async {
     final values = await _favorites.load();
-    if (mounted)
+    if (mounted) {
       setState(() => _favorite =
           values.any((f) => f.channelId == widget.entry.channel.id));
+    }
   }
 
   Future<void> _toggleFavorite() async {
