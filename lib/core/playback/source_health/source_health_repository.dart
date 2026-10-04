@@ -3,19 +3,24 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/entities/stream_source.dart';
+import '../../storage/atomic_string_list_store.dart';
 
 class SourceHealthRepository {
   SourceHealthRepository({SharedPreferencesAsync? preferences})
-      : _preferences = preferences ?? SharedPreferencesAsync();
+      : _preferences = preferences ?? SharedPreferencesAsync(),
+        _store = AtomicStringListStore(
+          preferences: preferences ?? SharedPreferencesAsync(),
+          key: _key,
+        );
 
   static const _key = 'source-health.v1';
   final SharedPreferencesAsync _preferences;
-  Future<void> _writeQueue = Future<void>.value();
+  final AtomicStringListStore _store;
   bool _disposed = false;
 
   Future<Map<String, SourceHealth>> load() async {
     if (_disposed) return const <String, SourceHealth>{};
-    final raw = await _preferences.getStringList(_key) ?? const <String>[];
+    final raw = await _store.load();
     final result = <String, SourceHealth>{};
     for (final item in raw) {
       try {
@@ -27,27 +32,18 @@ class SourceHealthRepository {
     return Map.unmodifiable(result);
   }
 
-  Future<void> save(Map<String, SourceHealth> health) {
+  Future<void> save(Map<String, SourceHealth> health) async {
+    if (_disposed) return;
     final snapshot = health.entries
-        .map(
-          (entry) => jsonEncode({
-            'sourceId': entry.key,
-            'health': _encode(entry.value),
-          }),
-        )
+        .map((entry) => jsonEncode({
+              'sourceId': entry.key,
+              'health': _encode(entry.value),
+            }))
         .toList(growable: false);
-
-    if (_disposed) return Future<void>.value();
-    _writeQueue = _writeQueue.then((_) async {
-      if (_disposed) return;
-      await _preferences.setStringList(_key, snapshot);
-    });
-    return _writeQueue;
+    await _store.save(snapshot);
   }
 
-  void dispose() {
-    _disposed = true;
-  }
+  void dispose() => _disposed = true;
 
   Map<String, dynamic> _encode(SourceHealth value) => {
         'state': value.state.name,
@@ -73,5 +69,5 @@ class SourceHealthRepository {
       );
 
   DateTime? _date(Object? value) =>
-      value == null ? null : DateTime.tryParse(value as String);
+      value == null ? null : DateTime.tryParse(value.toString());
 }
