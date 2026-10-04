@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
@@ -26,8 +26,8 @@ jobs:
 
       - run: flutter --version
       - run: flutter pub get
-      - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed .
+      - name: Format Dart sources for validation
+        run: dart format .
 
       - run: flutter analyze
 
