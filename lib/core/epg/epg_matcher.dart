@@ -60,8 +60,9 @@ class EpgMatcher {
     for (final programme in values) {
       if (!programme.end.isAfter(now)) continue;
       if (!programme.start.isAfter(now)) return programme;
-      if (next == null || programme.start.isBefore(next.start))
+      if (next == null || programme.start.isBefore(next.start)) {
         next = programme;
+      }
     }
     return next;
   }
