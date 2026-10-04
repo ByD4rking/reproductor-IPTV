@@ -13,10 +13,9 @@ class _WebPlaylistStorage implements PlaylistStorage {
   final SharedPreferencesAsync _preferences;
   static const _indexKey = 'playlist-files.v2.index';
 
-  Future<List<String>> _ids() =>
-      _preferences.getStringList(_indexKey).then(
-            (value) => value ?? const <String>[],
-          );
+  Future<List<String>> _ids() => _preferences.getStringList(_indexKey).then(
+        (value) => value ?? const <String>[],
+      );
 
   @override
   Future<Map<String, String>> load() async {
