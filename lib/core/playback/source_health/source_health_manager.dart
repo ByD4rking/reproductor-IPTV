@@ -29,6 +29,9 @@ class SourceHealthManager {
 
   Future<bool> beginAttempt(String sourceId, DateTime now) async {
     final current = healthOf(sourceId);
+    // A half-open circuit already has its single probe in flight. Do not
+    // allow concurrent attempts to bypass the circuit-breaker gate.
+    if (current.state == SourceHealthState.halfOpen) return false;
     final next = _breaker.beginProbe(current, now);
     _health[sourceId] = next;
     if (next.state != current.state ||
