@@ -11,6 +11,8 @@ on:
         options:
           - mobile
           - tv
+  push:
+    branches: [main]
   pull_request:
     paths:
       - 'lib/**'
