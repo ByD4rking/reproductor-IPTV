@@ -133,9 +133,299 @@ jobs:
           ipk=dist/webos/native/reproductor-IPTV-LG-webOS-native.ipk
           test -s "$ipk"
           file "$ipk"
-          ar t "$ipk" | grep -E '^debian-binary$'
+          ar t "$ipk" | grep -E '^debian-binary
+      - uses: actions/upload-artifact@v4
+        with:
+          name: webos-ipk
+          path: dist/webos/native/*.ipk
+          if-no-files-found: error
+          retention-days: 30
+
+  tizen:
+    name: Samsung Tizen .wgt
+    if: ${{ vars.TIZEN_CLI_ENABLED == 'true' }}
+    runs-on: [self-hosted, linux, tizen]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter create --platforms=web --project-name reproductor_iptv .
+      - run: flutter build web --release
+      - run: dart run tool/build.dart --target=tizen
+      - name: Build and validate .wgt
+        env:
+          TIZEN_CERT_PROFILE: ${{ secrets.TIZEN_CERT_PROFILE }}
+        run: |
+          set -euo pipefail
+          test -n "$TIZEN_CERT_PROFILE"
+          dart run tool/package_tv.dart --target=tizen
+          dart run tool/validate_tv_packages.dart tizen --require-native
+          test "$(find dist/tizen/native -type f -name '*.wgt' | wc -l)" -eq 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tizen-wgt
+          path: dist/tizen/native/*.wgt
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish downloadable release
+    needs: [quality, android, webos, tizen]
+    if: ${{ always() && needs.quality.result == 'success' && needs.android.result == 'success' && (needs.webos.result == 'success' || needs.webos.result == 'skipped') && (needs.tizen.result == 'success' || needs.tizen.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      - name: Collect and name installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          version=$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)
+
+          for file in release-assets/android-mobile/*.apk; do
+            [ -f "$file" ] || continue
+            abi=$(basename "$file" | sed 's/-release\.apk$//')
+            cp "$file" "release/Reproductor-IPTV-${version}-Android-${abi}.apk"
+          done
+          for file in release-assets/android-tv/*.apk; do
+            [ -f "$file" ] || continue
+            abi=$(basename "$file" | sed 's/-release\.apk$//')
+            cp "$file" "release/Reproductor-IPTV-${version}-AndroidTV-GoogleTV-${abi}.apk"
+          done
+          for file in release-assets/android-firetv/*.apk; do
+            [ -f "$file" ] || continue
+            abi=$(basename "$file" | sed 's/-release\.apk$//')
+            cp "$file" "release/Reproductor-IPTV-${version}-FireTV-FireOS-${abi}.apk"
+          done
+          for file in release-assets/webos-ipk/*.ipk; do
+            [ -f "$file" ] || continue
+            cp "$file" "release/Reproductor-IPTV-${version}-LG-webOS.ipk"
+          done
+          for file in release-assets/tizen-wgt/*.wgt; do
+            [ -f "$file" ] || continue
+            cp "$file" "release/Reproductor-IPTV-${version}-Samsung-Tizen.wgt"
+          done
+
+          {
+            echo "reproductor-IPTV ${version} — DESCARGAS OFICIALES"
+            echo
+            echo "ANDROID"
+            echo "- Reproductor-IPTV-${version}-Android-*.apk"
+            echo
+            echo "ANDROID TV / GOOGLE TV / TV BOX"
+            echo "- Reproductor-IPTV-${version}-AndroidTV-GoogleTV-*.apk"
+            echo
+            echo "AMAZON FIRE TV / FIRE OS"
+            echo "- Reproductor-IPTV-${version}-FireTV-FireOS-*.apk"
+            if compgen -G "release/*-LG-webOS.ipk" > /dev/null; then
+              echo
+              echo "LG SMART TV"
+              echo "- Reproductor-IPTV-${version}-LG-webOS.ipk"
+            fi
+            if compgen -G "release/*-Samsung-Tizen.wgt" > /dev/null; then
+              echo
+              echo "SAMSUNG SMART TV"
+              echo "- Reproductor-IPTV-${version}-Samsung-Tizen.wgt"
+            fi
+            echo
+            echo "IMPORTANTE"
+            echo "- Chromecast con Google TV usa la versión Android TV/Google TV."
+            echo "- Chromecast tradicional no instala APK."
+            echo "- Los archivos se acompañan de SHA256SUMS.txt para verificar integridad."
+          } > release/README.txt
+
+          test "$(find release -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) | wc -l)" -ge 4
+          (
+            cd release
+            find . -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          )
+          test -s release/SHA256SUMS.txt
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)
+          tag="v${version}-build.${{ github.run_number }}"
+          notes_file=$(mktemp)
+          cat > "$notes_file" <<EOF
+          # reproductor-IPTV ${version}
+
+          Descargas oficiales por plataforma.
+
+          ## LG webOS
+          IPK Flutter nativo generado con el toolchain oficial de LG.
+          Requiere webOS TV 26 Re:New o posterior.
+
+          La generación del paquete no sustituye la prueba física.
+          EOF
+          if gh release create "$tag" release/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "reproductor-IPTV ${version}" --notes-file "$notes_file"; then
+            echo "Release $tag publicado correctamente."
+          else
+            echo "::warning::No se pudo publicar el Release; los instaladores quedan disponibles como artifacts."
+          fi
+
           ar t "$ipk" | grep -E '^control.tar'
-          ar t "$ipk" | grep -E '^data.tar'
+          data_member="$(ar t "$ipk" | grep -E '^data.tar' | head -n1)"
+          test -n "$data_member"
+          ar p "$ipk" "$data_member" > "$RUNNER_TEMP/webos-data.tar"
+          tar -tf "$RUNNER_TEMP/webos-data.tar" | grep -E '(^|/)flutter_assets(/|$)'
+          tar -tf "$RUNNER_TEMP/webos-data.tar" | grep -E '(^|/)appinfo.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: webos-ipk
+          path: dist/webos/native/*.ipk
+          if-no-files-found: error
+          retention-days: 30
+
+  tizen:
+    name: Samsung Tizen .wgt
+    if: ${{ vars.TIZEN_CLI_ENABLED == 'true' }}
+    runs-on: [self-hosted, linux, tizen]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter create --platforms=web --project-name reproductor_iptv .
+      - run: flutter build web --release
+      - run: dart run tool/build.dart --target=tizen
+      - name: Build and validate .wgt
+        env:
+          TIZEN_CERT_PROFILE: ${{ secrets.TIZEN_CERT_PROFILE }}
+        run: |
+          set -euo pipefail
+          test -n "$TIZEN_CERT_PROFILE"
+          dart run tool/package_tv.dart --target=tizen
+          dart run tool/validate_tv_packages.dart tizen --require-native
+          test "$(find dist/tizen/native -type f -name '*.wgt' | wc -l)" -eq 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tizen-wgt
+          path: dist/tizen/native/*.wgt
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish downloadable release
+    needs: [quality, android, webos, tizen]
+    if: ${{ always() && needs.quality.result == 'success' && needs.android.result == 'success' && (needs.webos.result == 'success' || needs.webos.result == 'skipped') && (needs.tizen.result == 'success' || needs.tizen.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      - name: Collect and name installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          version=$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)
+
+          for file in release-assets/android-mobile/*.apk; do
+            [ -f "$file" ] || continue
+            abi=$(basename "$file" | sed 's/-release\.apk$//')
+            cp "$file" "release/Reproductor-IPTV-${version}-Android-${abi}.apk"
+          done
+          for file in release-assets/android-tv/*.apk; do
+            [ -f "$file" ] || continue
+            abi=$(basename "$file" | sed 's/-release\.apk$//')
+            cp "$file" "release/Reproductor-IPTV-${version}-AndroidTV-GoogleTV-${abi}.apk"
+          done
+          for file in release-assets/android-firetv/*.apk; do
+            [ -f "$file" ] || continue
+            abi=$(basename "$file" | sed 's/-release\.apk$//')
+            cp "$file" "release/Reproductor-IPTV-${version}-FireTV-FireOS-${abi}.apk"
+          done
+          for file in release-assets/webos-ipk/*.ipk; do
+            [ -f "$file" ] || continue
+            cp "$file" "release/Reproductor-IPTV-${version}-LG-webOS.ipk"
+          done
+          for file in release-assets/tizen-wgt/*.wgt; do
+            [ -f "$file" ] || continue
+            cp "$file" "release/Reproductor-IPTV-${version}-Samsung-Tizen.wgt"
+          done
+
+          {
+            echo "reproductor-IPTV ${version} — DESCARGAS OFICIALES"
+            echo
+            echo "ANDROID"
+            echo "- Reproductor-IPTV-${version}-Android-*.apk"
+            echo
+            echo "ANDROID TV / GOOGLE TV / TV BOX"
+            echo "- Reproductor-IPTV-${version}-AndroidTV-GoogleTV-*.apk"
+            echo
+            echo "AMAZON FIRE TV / FIRE OS"
+            echo "- Reproductor-IPTV-${version}-FireTV-FireOS-*.apk"
+            if compgen -G "release/*-LG-webOS.ipk" > /dev/null; then
+              echo
+              echo "LG SMART TV"
+              echo "- Reproductor-IPTV-${version}-LG-webOS.ipk"
+            fi
+            if compgen -G "release/*-Samsung-Tizen.wgt" > /dev/null; then
+              echo
+              echo "SAMSUNG SMART TV"
+              echo "- Reproductor-IPTV-${version}-Samsung-Tizen.wgt"
+            fi
+            echo
+            echo "IMPORTANTE"
+            echo "- Chromecast con Google TV usa la versión Android TV/Google TV."
+            echo "- Chromecast tradicional no instala APK."
+            echo "- Los archivos se acompañan de SHA256SUMS.txt para verificar integridad."
+          } > release/README.txt
+
+          test "$(find release -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) | wc -l)" -ge 4
+          (
+            cd release
+            find . -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          )
+          test -s release/SHA256SUMS.txt
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)
+          tag="v${version}-build.${{ github.run_number }}"
+          notes_file=$(mktemp)
+          cat > "$notes_file" <<EOF
+          # reproductor-IPTV ${version}
+
+          Descargas oficiales por plataforma.
+
+          ## LG webOS
+          IPK Flutter nativo generado con el toolchain oficial de LG.
+          Requiere webOS TV 26 Re:New o posterior.
+
+          La generación del paquete no sustituye la prueba física.
+          EOF
+          if gh release create "$tag" release/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "reproductor-IPTV ${version}" --notes-file "$notes_file"; then
+            echo "Release $tag publicado correctamente."
+          else
+            echo "::warning::No se pudo publicar el Release; los instaladores quedan disponibles como artifacts."
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: webos-ipk
