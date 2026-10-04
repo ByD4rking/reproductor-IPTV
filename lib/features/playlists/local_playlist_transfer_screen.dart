@@ -71,7 +71,7 @@ class _LocalPlaylistTransferScreenState
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          const Icon(Icons.qr_code_2, size: 72),
+          const Icon(Icons.wifi_tethering, size: 72),
           const SizedBox(height: 12),
           Text(
             'Recibir desde PC o teléfono',
