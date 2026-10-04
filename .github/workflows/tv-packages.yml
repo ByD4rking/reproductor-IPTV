@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   FLUTTER_VERSION: 3.47.6
@@ -137,6 +137,8 @@ jobs:
     needs: [quality, android, webos, tizen]
     if: ${{ always() && needs.quality.result == 'success' && needs.android.result == 'success' && needs.webos.result == 'success' && (needs.tizen.result == 'success' || needs.tizen.result == 'skipped') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -183,7 +185,7 @@ jobs:
             echo "- Android teléfonos/tablets: Reproductor-IPTV-${version}-Android-*.apk"
             echo
             echo "ANDROID TV / GOOGLE TV / TV BOX"
-            echo "- Reproductor-IPTV-${version}-AndroidTV-GoogleTV-*.apk"
+            echo "- Reproductor-IPTV-${version}-AndroidTV-GoogleTV-${abi}.apk"
             echo
             echo "AMAZON FIRE TV / FIRE OS"
             echo "- Reproductor-IPTV-${version}-FireTV-FireOS-*.apk"
