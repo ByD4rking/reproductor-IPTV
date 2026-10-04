@@ -92,8 +92,7 @@ void main() {
   });
 
   test('migrates the legacy SharedPreferences playlist payload', () async {
-    final preferences = InMemorySharedPreferencesAsync.empty();
-    SharedPreferencesAsyncPlatform.instance = preferences;
+    final preferences = SharedPreferencesAsync();
     final storage = MemoryPlaylistStorage();
     final legacy = playlist('legacy', 'Lista antigua');
     final raw = jsonEncode({
