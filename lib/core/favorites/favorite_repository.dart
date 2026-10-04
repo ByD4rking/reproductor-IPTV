@@ -34,14 +34,27 @@ class FavoriteRepository {
 
   Future<void> setFavorite(Favorite favorite) async {
     final values = await load();
-    final next = values.where((v) => v.channelId != favorite.channelId).toList()
+    final next = values
+        .where((value) =>
+            !(value.channelId == favorite.channelId &&
+                value.preferredPlaylistId == favorite.preferredPlaylistId))
+        .toList()
       ..add(favorite);
     await _save(next);
   }
 
-  Future<void> remove(String channelId) async {
+  Future<void> remove(
+    String channelId, {
+    String? playlistId,
+  }) async {
     final values = await load();
-    await _save(values.where((v) => v.channelId != channelId).toList());
+    await _save(
+      values
+          .where((value) =>
+              !(value.channelId == channelId &&
+                  value.preferredPlaylistId == playlistId))
+          .toList(),
+    );
   }
 
   Future<void> _save(List<Favorite> values) => _store.save(
