@@ -1,0 +1,12 @@
+{
+  "id": "com.reproductor.iptv",
+  "version": "1.0.0",
+  "vendor": "Reproductor IPTV",
+  "type": "web",
+  "main": "index.html",
+  "title": "Reproductor IPTV",
+  "icon": "icon.png",
+  "largeIcon": "icon.png",
+  "disableBackHistoryAPI": true,
+  "transparent": false
+}
