@@ -75,6 +75,10 @@ Future<void> _buildWeb(String profile) async {
 Future<void> _buildWebAdapter(String platform) async {
   await _run('flutter', ['build', 'web', '--release']);
 
+  if (platform == 'webos') {
+    await _writeWebOsBootstrap(Directory('build/web'));
+  }
+
   final output = Directory('dist/$platform');
   if (await output.exists()) {
     await output.delete(recursive: true);
@@ -98,6 +102,7 @@ Future<void> _buildWebAdapter(String platform) async {
       'profile': platform,
       'platform': platform,
       'runtime': 'flutter-web',
+      'renderer': 'canvaskit-full-cpu',
       'packageReady': true,
       'requiresOfficialSdkPackaging': true,
     },
@@ -106,10 +111,35 @@ Future<void> _buildWebAdapter(String platform) async {
   await File('${output.path}/PLATFORM_ADAPTER.md').writeAsString(
     '# $platform adapter\n\n'
     'Payload Flutter Web generado desde el núcleo único reproductor-IPTV.\n\n'
-    'El directorio package/ es autocontenido y listo para el empaquetado oficial '
+    'El directorio package/ es autocontenido y usa un arranque webOS compatible; el empaquetado oficial '
     'del fabricante. La firma e instalación requieren el SDK y certificado del '
     'dispositivo objetivo.\n',
   );
+}
+
+
+Future<void> _writeWebOsBootstrap(Directory webBuild) async {
+  final bootstrap = File('${webBuild.path}/flutter_bootstrap.js');
+  if (!await bootstrap.exists()) {
+    throw StateError(
+      'Flutter Web no generó flutter_bootstrap.js; no se puede aplicar '
+      'la configuración de compatibilidad webOS.',
+    );
+  }
+
+  // webOS TV browsers can expose limited WebGL capabilities. Keep the
+  // standard JavaScript Flutter build, but force CanvasKit to use the full
+  // compatibility variant and CPU rendering instead of relying on WebGL.
+  await bootstrap.writeAsString('''{{flutter_js}}
+{{flutter_build_config}}
+
+_flutter.loader.load({
+  config: {
+    canvasKitVariant: "full",
+    canvasKitForceCpuOnly: true,
+  },
+});
+''');
 }
 
 Future<void> _writeIconPair(Directory package) async {
