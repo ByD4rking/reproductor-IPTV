@@ -12,6 +12,7 @@ import 'package:reproductor_iptv/core/domain/entities/stream_source.dart';
 import 'package:reproductor_iptv/core/playlists/repository/persistent_playlist_repository.dart';
 import 'package:reproductor_iptv/core/playlists/repository/playlist_storage.dart';
 import 'package:reproductor_iptv/core/playlists/repository/playlist_storage_io.dart';
+import 'package:reproductor_iptv/core/settings/settings_repository.dart';
 
 class MemoryPlaylistStorage implements PlaylistStorage {
   final Map<String, String> values = <String, String>{};
