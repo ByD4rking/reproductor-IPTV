@@ -3,6 +3,8 @@ import 'package:reproductor_iptv/core/storage/atomic_string_list_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('keeps the previous committed snapshot until the new slot is selected',
       () async {
     final preferences = SharedPreferencesAsync();
