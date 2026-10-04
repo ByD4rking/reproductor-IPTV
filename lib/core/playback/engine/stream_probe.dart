@@ -60,7 +60,7 @@ class StreamProbe {
   }) async {
     if (!_urlPolicy.accepts(source.url)) return null;
     try {
-      final budget = _ProbeBudget(maxHlsRequests + 1);
+      final budget = _ProbeBudget(maxHlsRequests + 2);
       final response = await _send(source.url, source, headers);
       final contentType = response.headers['content-type'];
       var kind = const StreamKindDetector().detect(
