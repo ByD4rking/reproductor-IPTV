@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/domain/entities/playlist.dart';
 import '../../core/playlists/m3u/m3u_parser.dart';
+import '../../core/playlists/grouping/playlist_groups.dart';
 import '../../core/search/search_index.dart';
 import '../player/player_screen.dart';
 import '../playlists/playlist_import_screen.dart';
@@ -71,17 +72,13 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  List<String> get _categories {
-    final playlist = _playlist!;
-    final values = playlist.entries
-        .map((e) => e.category)
-        .whereType<String>()
-        .where((v) => v.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
-    return ['Todos', ...values];
-  }
+  List<PlaylistGroup> get _groups =>
+      PlaylistGroups.fromPlaylist(_playlist!);
+
+  List<String> get _categories => [
+        'Todos',
+        ..._groups.map((group) => group.name),
+      ];
 
   List<PlaylistEntry> get _visibleEntries {
     final playlist = _playlist!;
@@ -249,20 +246,76 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               SliverToBoxAdapter(
+                child: _PlaylistSwitcher(
+                  playlists: _repository.playlists,
+                  active: playlist,
+                  onSelected: (selected) async {
+                    await _settings.setActivePlaylistId(selected.id);
+                    if (mounted) {
+                      setState(() {
+                        _playlist = selected;
+                        _category = 'Todos';
+                        _query = '';
+                        _searchIndex = SearchIndex()
+                          ..replace(selected.entries.map((e) => e.channel));
+                      });
+                    }
+                  },
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.folder_copy_outlined),
+                      const SizedBox(width: 8),
+                      Text('Carpetas',
+                          style: Theme.of(context).textTheme.titleMedium),
+                    ],
+                  ),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                sliver: SliverGrid.builder(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 260,
+                    mainAxisExtent: 92,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  itemCount: _groups.length + 1,
+                  itemBuilder: (_, index) {
+                    if (index == 0) {
+                      return _FolderCard(
+                        name: 'Todos',
+                        count: playlist.entries.length,
+                        selected: _category == 'Todos',
+                        onTap: () => setState(() => _category = 'Todos'),
+                      );
+                    }
+                    final group = _groups[index - 1];
+                    return _FolderCard(
+                      name: group.name,
+                      count: group.count,
+                      selected: _category == group.name,
+                      onTap: () => setState(() => _category = group.name),
+                    );
+                  },
+                ),
+              ),
+              SliverToBoxAdapter(
                 child: SizedBox(
-                  height: 54,
+                  height: 0,
                   child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.zero,
                     scrollDirection: Axis.horizontal,
-                    itemCount: _categories.length,
+                    itemCount: 0,
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (_, index) {
                       final category = _categories[index];
-                      return ChoiceChip(
-                        label: Text(category),
-                        selected: category == _category,
-                        onSelected: (_) => setState(() => _category = category),
-                      );
+                      return const SizedBox.shrink();
                     },
                   ),
                 ),
@@ -375,4 +428,104 @@ class _ChannelCardState extends State<_ChannelCard> {
           ),
         ),
       );
+}
+
+
+class _PlaylistSwitcher extends StatelessWidget {
+  const _PlaylistSwitcher({
+    required this.playlists,
+    required this.active,
+    required this.onSelected,
+  });
+
+  final List<Playlist> playlists;
+  final Playlist active;
+  final Future<void> Function(Playlist) onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Card(
+        child: ListTile(
+          leading: const Icon(Icons.playlist_play),
+          title: Text(active.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(active.entries.length.toString() + ' canales · lista activa'),
+          trailing: PopupMenuButton<String>(
+            tooltip: 'Cambiar playlist',
+            onSelected: (id) {
+              final selected = playlists.where((p) => p.id == id);
+              if (selected.isNotEmpty) onSelected(selected.first);
+            },
+            itemBuilder: (_) => playlists
+                .map((playlist) => PopupMenuItem<String>(
+                      value: playlist.id,
+                      child: Row(
+                        children: [
+                          Icon(playlist.id == active.id
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_off),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(playlist.name,
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                        ],
+                      ),
+                    ))
+                .toList(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FolderCard extends StatelessWidget {
+  const _FolderCard({
+    required this.name,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String name;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return TvFocusable(
+      onActivate: onTap,
+      child: Card(
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                Icon(selected ? Icons.folder : Icons.folder_outlined, size: 34),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Text(count.toString() + ' canales'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
