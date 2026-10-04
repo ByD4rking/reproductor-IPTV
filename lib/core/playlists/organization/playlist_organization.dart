@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../domain/entities/playlist.dart';
+
 class PlaylistFolder {
   const PlaylistFolder({required this.id, required this.name, required this.order, this.hidden = false, this.custom = true});
   final String id;
@@ -60,6 +62,11 @@ class PlaylistOrganizationRepository {
       : _preferences = preferences ?? SharedPreferencesAsync();
 
   static const _key = 'playlist.organization.v1';
+
+  static String entryKey(PlaylistEntry entry) =>
+      entry.channel.tvgId?.trim().isNotEmpty == true
+          ? entry.channel.tvgId!.trim()
+          : entry.channel.id;
   final SharedPreferencesAsync _preferences;
 
   Future<PlaylistOrganization> load(String playlistId) async {
