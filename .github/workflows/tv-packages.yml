@@ -185,7 +185,7 @@ jobs:
           test "$(find release -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) | wc -l)" -ge 5
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -216,8 +216,12 @@ jobs:
           Los nombres de los archivos indican claramente la plataforma. No necesitas compilar nada.
           La generación del paquete no sustituye la prueba física en cada modelo de TV.
           EOF
-          gh release create "$tag" release/* \
+          if ! gh release create "$tag" release/* \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --title "reproductor-IPTV ${version}" \
-            --notes-file "$notes_file"
+            --notes-file "$notes_file"; then
+            echo 'ERROR: no fue posible publicar el Release.' >&2
+            echo 'Configura el secret RELEASE_TOKEN con un token que tenga Contents: write, o habilita esa capacidad para GITHUB_TOKEN.' >&2
+            exit 1
+          fi
