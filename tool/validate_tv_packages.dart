@@ -12,13 +12,13 @@ Future<void> main(List<String> args) async {
 
   for (final platform in selected) {
     if (platform != 'tizen' && platform != 'webos') {
-      stderr.writeln('Unsupported platform: ' + platform);
+      stderr.writeln('Unsupported platform: $platform');
       failed = true;
       continue;
     }
-    final root = Directory('dist/' + platform + '/package');
+    final root = Directory('dist/$platform/package');
     final manifestName = platform == 'tizen' ? 'config.xml' : 'appinfo.json';
-    final manifest = File(root.path + '/' + manifestName);
+    final manifest = File('${root.path}/$manifestName');
     final index = File(root.path + '/index.html');
     final icon = File(root.path + '/icon.png');
     final checks = <String, bool>{
@@ -38,7 +38,7 @@ Future<void> main(List<String> args) async {
       }
     }
     if (requireNative) {
-      final native = Directory('dist/' + platform + '/native');
+      final native = Directory('dist/$platform/native');
       final extension = platform == 'tizen' ? '.wgt' : '.ipk';
       final packages = native.existsSync()
           ? native
@@ -47,18 +47,13 @@ Future<void> main(List<String> args) async {
               .where((file) => file.path.toLowerCase().endsWith(extension))
               .toList()
           : <File>[];
-      checks['native ' + extension] = packages.length == 1;
+      checks['native $extension'] = packages.length == 1;
       if (packages.length == 1) {
         checks['native package non-empty'] = packages.single.lengthSync() > 0;
       }
     }
     for (final entry in checks.entries) {
-      stdout.writeln('[' +
-          (entry.value ? 'OK' : 'FAIL') +
-          '] ' +
-          platform +
-          ': ' +
-          entry.key);
+      stdout.writeln('[${entry.value ? 'OK' : 'FAIL'}] $platform: ${entry.key}');
       if (!entry.value) failed = true;
     }
   }
