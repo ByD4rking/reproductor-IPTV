@@ -116,8 +116,8 @@ class _HomeScreenState extends State<HomeScreen> {
           if (_category == 'Favoritos') {
             return _favoriteChannelIds.contains(e.channel.id);
           }
-          final assignedId = _organization.assignments[e.id] ??
-              _organization.assignments[e.channel.tvgId ?? ''];
+          final assignedId = _organization.assignments[
+              PlaylistOrganizationRepository.entryKey(e)];
           final assigned = assignedId == null
               ? null
               : _organization.folders.where((f) => f.id == assignedId);
@@ -442,7 +442,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     if (selected == null) return;
     await _organizationRepository.moveEntry(
-      _playlist!.id, entry.id, selected.isEmpty ? null : selected,
+      _playlist!.id,
+      PlaylistOrganizationRepository.entryKey(entry),
+      selected.isEmpty ? null : selected,
     );
     _organization = await _organizationRepository.load(_playlist!.id);
     if (mounted) setState(() => _category = 'Todos');
