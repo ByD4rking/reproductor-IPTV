@@ -77,7 +77,9 @@ class PlaylistOrganizationRepository {
     final root = <String, dynamic>{};
     final raw = await _preferences.getString(_key);
     if (raw != null && raw.isNotEmpty) {
-      try { root.addAll(Map<String, dynamic>.from(jsonDecode(raw) as Map)); } catch (_) {}
+      try {
+        root.addAll(Map<String, dynamic>.from(jsonDecode(raw) as Map));
+      } catch (_) {}
     }
     root[playlistId] = organization.toJson();
     await _preferences.setString(_key, jsonEncode(root));
@@ -99,7 +101,7 @@ class PlaylistOrganizationRepository {
     final ids = folders.map((folder) => folder.id).toSet();
     for (final rawName in groupNames) {
       final name = rawName.trim().isEmpty ? 'Sin categoría' : rawName.trim();
-      final id = 'group:' + name.toLowerCase();
+      final id = 'group:${name.toLowerCase()}';
       if (ids.add(id)) {
         folders.add(PlaylistFolder(id: id, name: name, order: folders.length, custom: false));
       }
@@ -115,7 +117,9 @@ class PlaylistOrganizationRepository {
 
   Future<PlaylistFolder> createFolder(String playlistId, String name) async {
     final clean = name.trim();
-    if (clean.isEmpty) throw const FormatException('El nombre no puede estar vacío.');
+    if (clean.isEmpty) {
+      throw const FormatException('El nombre no puede estar vacío.');
+    }
     final current = await load(playlistId);
     final folder = PlaylistFolder(
       id: 'custom:' + DateTime.now().microsecondsSinceEpoch.toString(),
@@ -138,7 +142,7 @@ class PlaylistOrganizationRepository {
     final current = await load(playlistId);
     final matches = current.folders.where((item) => item.id == folderId);
     if (matches.isEmpty || !matches.first.custom) {
-      throw const StateError('Las categorías originales de la M3U no se eliminan.');
+      throw StateError('Las categorías originales de la M3U no se eliminan.');
     }
     final folders = current.folders.where((item) => item.id != folderId).toList();
     final assignments = Map<String, String>.from(current.assignments)..removeWhere((_, value) => value == folderId);
@@ -161,7 +165,9 @@ class PlaylistOrganizationRepository {
     final ordered = [...current.folders]..sort((a, b) => a.order.compareTo(b.order));
     final index = ordered.indexWhere((folder) => folder.id == folderId);
     final target = index + delta;
-    if (index < 0 || target < 0 || target >= ordered.length) return;
+    if (index < 0 || target < 0 || target >= ordered.length) {
+      return;
+    }
     final item = ordered.removeAt(index);
     ordered.insert(target, item);
     final folders = [for (var i = 0; i < ordered.length; i++) ordered[i].copyWith(order: i)];
