@@ -41,19 +41,10 @@ class UrlPolicy {
         normalized == 'instance-data.ec2.internal';
   }
 
-  static bool _isBlockedLiteralIp(String host) =>
-      _isBlockedAddress(_parseLiteral(host));
-
-  static InternetAddress _parseLiteral(String host) {
+  static bool _isBlockedLiteralIp(String host) {
     final value = host.replaceAll('[', '').replaceAll(']', '');
-    final ipv4 = value.split('.');
-    if (ipv4.length == 4 && ipv4.every((p) => int.tryParse(p) != null)) {
-      return InternetAddress(value, type: InternetAddressType.IPv4);
-    }
-    if (value.contains(':')) {
-      return InternetAddress(value, type: InternetAddressType.IPv6);
-    }
-    return InternetAddress('255.255.255.255', type: InternetAddressType.IPv4);
+    final address = InternetAddress.tryParse(value);
+    return address != null && _isBlockedAddress(address);
   }
 
   static bool _isBlockedAddress(InternetAddress address) {
