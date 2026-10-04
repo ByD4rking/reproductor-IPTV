@@ -84,7 +84,6 @@ String? _profile(List<String> args) {
   return null;
 }
 
-
 Future<void> _ensureInternetPermission(File manifest) async {
   var xml = await manifest.readAsString();
   const permission =
