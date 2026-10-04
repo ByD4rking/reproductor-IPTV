@@ -1,8 +1,8 @@
-import 'dart:typed_data';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import '../playlists/m3u/m3u_parser.dart';
 
