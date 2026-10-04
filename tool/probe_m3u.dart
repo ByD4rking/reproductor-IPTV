@@ -9,7 +9,13 @@ import '../lib/core/domain/entities/stream_source.dart';
 import '../lib/core/playlists/m3u/m3u_parser.dart';
 
 Future<void> main(List<String> args) async {
-  final url = args.where((arg) => !arg.startsWith('--')).firstOrNull;
+  String? url;
+  for (final arg in args) {
+    if (!arg.startsWith('--')) {
+      url = arg;
+      break;
+    }
+  }
   if (url == null) {
     stderr.writeln('Uso: dart run tool/probe_m3u.dart <url-m3u> [--max=100]');
     exitCode = 64;
