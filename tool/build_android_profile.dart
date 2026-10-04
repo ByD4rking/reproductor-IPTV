@@ -88,7 +88,7 @@ Future<void> _ensureInternetPermission(File manifest) async {
   var xml = await manifest.readAsString();
   const permission =
       '    <uses-permission android:name="android.permission.INTERNET" />\n';
-  final applicationIndex = xml.indexOf('<application');
+  var applicationIndex = xml.indexOf('<application');
   if (applicationIndex < 0) {
     throw StateError('AndroidManifest no contiene <application>.');
   }
