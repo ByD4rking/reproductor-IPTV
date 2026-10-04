@@ -12,8 +12,9 @@ class FavoritesScreen extends StatelessWidget {
       body: FutureBuilder(
         future: repository.load(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
           final favorites = snapshot.data!;
           if (favorites.isEmpty) {
             return const Center(
