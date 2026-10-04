@@ -143,14 +143,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
         continue;
       }
 
-      if (mounted)
+      if (mounted) {
         setState(() => _status = 'Conectando fuente ${_sourceIndex + 1}');
+      }
       final started = DateTime.now();
       _sourceAttemptStarted = started;
       try {
         await _engine.prepare(PlaybackRequest(source: source));
-        if (!_session.isCurrentOperation(operation) || _session.isStopped)
+        if (!_session.isCurrentOperation(operation) || _session.isStopped) {
           return;
+        }
         await _engine.play();
         _lastPosition = _engine.position;
         _lastBufferedAhead = _engine.buffered;
