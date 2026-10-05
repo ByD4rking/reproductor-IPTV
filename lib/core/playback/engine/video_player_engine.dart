@@ -73,6 +73,14 @@ class VideoPlayerEngine implements PlaybackEngine {
     } catch (_) {
       controller.removeListener(_handleControllerValue);
       controller.dispose();
+
+      // A failed reprepare must not leave the previous player without its
+      // listener. Recovery can continue using the existing controller.
+      if (generation == _prepareGeneration &&
+          previous != null &&
+          identical(_controller, previous)) {
+        previous.addListener(_handleControllerValue);
+      }
       rethrow;
     }
   }
