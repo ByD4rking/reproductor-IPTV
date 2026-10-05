@@ -15,6 +15,8 @@ import '../../core/domain/entities/favorite.dart';
 import '../../core/platform/tv_focus.dart';
 import '../../core/settings/settings_repository.dart';
 import '../../core/playlists/organization/playlist_organization.dart';
+import '../../core/playlists/importer/playlist_import_service.dart';
+import '../../core/playlists/repository/remote_playlist_state_repository.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _repository = PersistentPlaylistRepository();
   final _settings = SettingsRepository();
   final _organizationRepository = PlaylistOrganizationRepository();
+  late final PlaylistImportService _playlistImporter;
   Playlist? _playlist;
   SearchIndex? _searchIndex;
   bool _loading = true;
@@ -37,7 +40,36 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _playlistImporter = PlaylistImportService(
+      stateRepository: RemotePlaylistStateRepository(),
+    );
     _loadLibrary();
+  }
+
+  @override
+  void dispose() {
+    _playlistImporter.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refreshRemotePlaylist(Playlist playlist) async {
+    final uri = playlist.sourceUri;
+    if (uri == null) return;
+
+    try {
+      final result = await _playlistImporter.importRemote(
+        uri: uri,
+        playlistId: playlist.id,
+        name: playlist.name,
+        previous: playlist,
+      );
+      if (result.replaced) {
+        await _repository.upsert(result.playlist);
+      }
+    } catch (_) {
+      // Keep the last known-good local copy when the remote source is
+      // temporarily unavailable. Playback must not depend on a refresh.
+    }
   }
 
   Future<void> _loadLibrary() async {
@@ -61,10 +93,18 @@ class _HomeScreenState extends State<HomeScreen> {
         ? const <Playlist>[]
         : playlists.where((playlist) => playlist.id == activeId).toList();
     final selected = matches.isEmpty ? null : matches.first;
-    final playlist = selected ?? (playlists.isEmpty ? null : playlists.first);
+    var playlist = selected ?? (playlists.isEmpty ? null : playlists.first);
 
     if (playlist != null && activeId != playlist.id) {
       await _settings.setActivePlaylistId(playlist.id);
+    }
+
+    // URL playlists are refreshed on app start. The existing local snapshot
+    // remains the fallback if the remote source is unavailable.
+    if (playlist?.sourceUri != null) {
+      await _refreshRemotePlaylist(playlist!);
+      await _repository.load();
+      playlist = _repository.getById(playlist.id) ?? playlist;
     }
 
     final organization = playlist == null
