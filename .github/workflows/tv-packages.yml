@@ -8,6 +8,7 @@ on:
       - 'platform/**'
       - 'tool/**'
       - 'pubspec.yaml'
+      - 'pubspec.lock'
       - 'integration_test/**'
       - '.github/workflows/tv-packages.yml'
   workflow_dispatch:
@@ -60,7 +61,12 @@ jobs:
         run: |
           set -euo pipefail
           test -s dist/android/${{ matrix.profile }}/profile.json
-          test "$(find dist/android/${{ matrix.profile }} -type f -name '*.apk' | wc -l)" -ge 1
+          test "$(find dist/android/${{ matrix.profile }} -type f -name '*.apk' | wc -l)" -eq 1
+          APK="$(find dist/android/${{ matrix.profile }} -type f -name '*.apk' -print -quit)"
+          test -s "$APK"
+          unzip -l "$APK" | grep -F 'lib/armeabi-v7a/libflutter.so'
+          unzip -l "$APK" | grep -F 'lib/arm64-v8a/libflutter.so'
+          unzip -l "$APK" | grep -F 'lib/x86_64/libflutter.so'
       - uses: actions/upload-artifact@v4
         with:
           name: android-${{ matrix.profile }}
@@ -198,18 +204,15 @@ jobs:
 
           for FILE in release-assets/android-mobile/*.apk; do
             [ -f "$FILE" ] || continue
-            ABI=$(basename "$FILE" | sed 's/-release\.apk$//')
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-Android-$ABI.apk"
+            cp "$FILE" "release/Reproductor-IPTV-$VERSION-Android-universal.apk"
           done
           for FILE in release-assets/android-tv/*.apk; do
             [ -f "$FILE" ] || continue
-            ABI=$(basename "$FILE" | sed 's/-release\.apk$//')
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-AndroidTV-GoogleTV-$ABI.apk"
+            cp "$FILE" "release/Reproductor-IPTV-$VERSION-AndroidTV-GoogleTV-universal.apk"
           done
           for FILE in release-assets/android-firetv/*.apk; do
             [ -f "$FILE" ] || continue
-            ABI=$(basename "$FILE" | sed 's/-release\.apk$//')
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-FireTV-FireOS-$ABI.apk"
+            cp "$FILE" "release/Reproductor-IPTV-$VERSION-FireTV-FireOS-universal.apk"
           done
           for FILE in release-assets/webos-ipk/*.ipk; do
             [ -f "$FILE" ] || continue
@@ -224,13 +227,13 @@ jobs:
             echo "reproductor-IPTV $VERSION — DESCARGAS OFICIALES"
             echo
             echo "ANDROID"
-            echo "- Reproductor-IPTV-$VERSION-Android-*.apk"
+            echo "- Reproductor-IPTV-$VERSION-Android-universal.apk"
             echo
             echo "ANDROID TV / GOOGLE TV"
-            echo "- Reproductor-IPTV-$VERSION-AndroidTV-GoogleTV-*.apk"
+            echo "- Reproductor-IPTV-$VERSION-AndroidTV-GoogleTV-universal.apk"
             echo
             echo "AMAZON FIRE TV / FIRE OS"
-            echo "- Reproductor-IPTV-$VERSION-FireTV-FireOS-*.apk"
+            echo "- Reproductor-IPTV-$VERSION-FireTV-FireOS-universal.apk"
             if compgen -G "release/*-LG-webOS.ipk" > /dev/null; then
               echo
               echo "LG SMART TV"
