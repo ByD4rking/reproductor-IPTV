@@ -4,7 +4,8 @@ Future<void> main() async {
   final manifest = File('android/app/src/main/AndroidManifest.xml');
   if (!await manifest.exists()) {
     throw StateError(
-      'No se encontró AndroidManifest.xml. Ejecuta flutter create --platforms=android . antes.',
+      'No se encontró AndroidManifest.xml. '
+      'Ejecuta flutter create --platforms=android . antes.',
     );
   }
 
@@ -22,7 +23,9 @@ Future<void> main() async {
     xml = xml.replaceRange(applicationIndex, applicationIndex, permission);
     applicationIndex = xml.indexOf('<application');
     if (applicationIndex < 0) {
-      throw StateError('AndroidManifest perdió <application> después de insertar INTERNET.');
+      throw StateError(
+        'AndroidManifest perdió <application> después de insertar INTERNET.',
+      );
     }
     changed = true;
   }
@@ -31,7 +34,8 @@ Future<void> main() async {
   if (applicationTagEnd < 0) {
     throw StateError('No se pudo localizar la etiqueta <application>.');
   }
-  final applicationTag = xml.substring(applicationIndex, applicationTagEnd + 1);
+  final applicationTag =
+      xml.substring(applicationIndex, applicationTagEnd + 1);
   if (!applicationTag.contains('android:usesCleartextTraffic=')) {
     xml = xml.replaceRange(
       applicationTagEnd,
@@ -45,6 +49,8 @@ Future<void> main() async {
     await manifest.writeAsString(xml);
     stdout.writeln('Android network permissions/configuration applied.');
   } else {
-    stdout.writeln('Android network permissions/configuration already present.');
+    stdout.writeln(
+      'Android network permissions/configuration already present.',
+    );
   }
 }
