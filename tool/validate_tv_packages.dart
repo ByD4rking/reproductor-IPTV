@@ -35,7 +35,8 @@ Future<void> main(List<String> args) async {
           xml.contains('<access origin="*" subdomains="true"/>') &&
           xml.contains(
             '<tizen:privilege name="http://tizen.org/privilege/internet"/>',
-          );
+          ) &&
+          xml.contains('screen-orientation="landscape"');
     }
 
     if (requireNative) {
