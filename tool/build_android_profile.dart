@@ -25,11 +25,7 @@ Future<void> main(List<String> args) async {
     await _configureAndroidTv(manifest);
   }
 
-  await _run('flutter', const [
-    'build',
-    'apk',
-    '--release',
-  ]);
+  await _run('flutter', const ['build', 'apk', '--release']);
 
   final output = Directory('dist/android/$profile');
   if (await output.exists()) {
@@ -54,7 +50,8 @@ Future<void> main(List<String> args) async {
 
   if (apks.length != 1) {
     throw StateError(
-      'Se esperaba exactamente un APK release universal; se encontraron ${apks.length}.',
+      'Se esperaba exactamente un APK release universal; '
+      'se encontraron ${apks.length}.',
     );
   }
 
@@ -83,8 +80,6 @@ Future<void> main(List<String> args) async {
   stdout.writeln('Perfil $profile generado en ${output.path}');
 }
 
-
-
 Future<void> _verifyUniversalApk(File apk) async {
   final result = await Process.run(
     'unzip',
@@ -101,7 +96,8 @@ Future<void> _verifyUniversalApk(File apk) async {
     'lib/arm64-v8a/libflutter.so',
     'lib/x86_64/libflutter.so',
   ];
-  final missing = requiredAbis.where((path) => !listing.contains(path)).toList();
+  final missing =
+      requiredAbis.where((path) => !listing.contains(path)).toList();
   if (missing.isNotEmpty) {
     throw StateError(
       'El APK no es universal: faltan ABIs ${missing.join(', ')}.',
@@ -135,7 +131,9 @@ Future<void> _ensureInternetPermission(File manifest) async {
     xml = xml.replaceRange(applicationIndex, applicationIndex, permission);
     applicationIndex = xml.indexOf('<application');
     if (applicationIndex < 0) {
-      throw StateError('AndroidManifest perdió <application> después de insertar INTERNET.');
+      throw StateError(
+        'AndroidManifest perdió <application> después de insertar INTERNET.',
+      );
     }
     changed = true;
   }
@@ -144,7 +142,8 @@ Future<void> _ensureInternetPermission(File manifest) async {
   if (applicationTagEnd < 0) {
     throw StateError('No se pudo localizar la etiqueta <application>.');
   }
-  final existingApplicationTag = xml.substring(applicationIndex, applicationTagEnd + 1);
+  final existingApplicationTag =
+      xml.substring(applicationIndex, applicationTagEnd + 1);
   if (!existingApplicationTag.contains('android:usesCleartextTraffic=')) {
     xml = xml.replaceRange(
       applicationTagEnd,
@@ -194,13 +193,15 @@ Future<void> _configureAndroidTv(File manifest) async {
         .indexOf('<category android:name="android.intent.category.LAUNCHER"');
     if (launcherIndex < 0) {
       throw StateError(
-          'No se encontró el launcher principal en AndroidManifest.');
+        'No se encontró el launcher principal en AndroidManifest.',
+      );
     }
     final end = xml.indexOf('/>', launcherIndex);
     if (end < 0) {
       throw StateError('No se pudo modificar el intent-filter principal.');
     }
-    const insertion = '\n                <category '
+    const insertion =
+        '\n                <category '
         'android:name="android.intent.category.LEANBACK_LAUNCHER" />';
     xml = xml.replaceRange(end + 2, end + 2, insertion);
   }
