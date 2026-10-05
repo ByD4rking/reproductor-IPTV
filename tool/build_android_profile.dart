@@ -52,10 +52,17 @@ Future<void> main(List<String> args) async {
     throw StateError('No se encontraron APKs release para el perfil $profile.');
   }
 
-  for (final apk in apks) {
-    final name = apk.uri.pathSegments.last;
-    await apk.copy('${output.path}/$name');
+  if (apks.length != 1) {
+    throw StateError(
+      'Se esperaba exactamente un APK release universal; se encontraron ${apks.length}.',
+    );
   }
+
+  final apk = apks.single;
+  final name = apk.uri.pathSegments.last;
+  final copiedApk = File('${output.path}/$name');
+  await apk.copy(copiedApk.path);
+  await _verifyUniversalApk(copiedApk);
 
   // Se genera un APK universal deliberadamente: el usuario no debe tener que
   // adivinar si su dispositivo necesita arm64, armeabi-v7a o x86_64.
@@ -67,13 +74,41 @@ Future<void> main(List<String> args) async {
     'fireTvCompatible': profile == 'firetv',
     'distribution': 'universal-apk',
     'minimumAndroidApi': 24,
-    'apkFiles': apks.map((file) => file.uri.pathSegments.last).toList(),
+    'distribution': 'universal-apk',
+    'minimumAndroidApi': 24,
+    'apkFiles': [name],
   };
   await File('${output.path}/profile.json').writeAsString(
     const JsonEncoder.withIndent('  ').convert(metadata),
   );
 
   stdout.writeln('Perfil $profile generado en ${output.path}');
+}
+
+
+
+Future<void> _verifyUniversalApk(File apk) async {
+  final result = await Process.run(
+    'unzip',
+    ['-l', apk.path],
+    runInShell: Platform.isWindows,
+  );
+  if (result.exitCode != 0) {
+    throw StateError('No se pudo inspeccionar el APK universal.');
+  }
+
+  final listing = result.stdout.toString();
+  const requiredAbis = [
+    'lib/armeabi-v7a/libflutter.so',
+    'lib/arm64-v8a/libflutter.so',
+    'lib/x86_64/libflutter.so',
+  ];
+  final missing = requiredAbis.where((path) => !listing.contains(path)).toList();
+  if (missing.isNotEmpty) {
+    throw StateError(
+      'El APK no es universal: faltan ABIs ${missing.join(', ')}.',
+    );
+  }
 }
 
 String? _profile(List<String> args) {
