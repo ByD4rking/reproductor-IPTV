@@ -109,9 +109,9 @@ Future<void> _buildWebAdapter(String platform) async {
   await File('${output.path}/PLATFORM_ADAPTER.md').writeAsString(
     '# $platform adapter\n\n'
     'Payload Flutter Web generado desde el núcleo único reproductor-IPTV.\n\n'
-    'El directorio package/ es autocontenido y usa un arranque webOS compatible; el empaquetado oficial '
-    'del fabricante. La firma e instalación requieren el SDK y certificado del '
-    'dispositivo objetivo.\n',
+    'Para Tizen, este payload se empaqueta y firma con el SDK/CLI oficial de Samsung. '
+    'webOS no usa este adaptador: su pipeline compila el proyecto directamente '
+    'con flutter-webos y genera el IPK nativo.\n',
   );
 }
 
