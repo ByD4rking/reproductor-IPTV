@@ -16,18 +16,22 @@ dependencies:
   file_picker: ^13.1.0
   path_provider: ^2.1.5
 
-  # Implementaciones oficiales de LG Flutter webOS.
+  # Official LG Flutter webOS plugins, pinned to a known upstream commit
+  # so CI does not silently change dependencies between builds.
   video_player_webos:
     git:
       url: https://github.com/lg-flutter-webos/plugins.git
+      ref: 3a742bb86b04e261044f0864f9b1f71acf0bbad3
       path: packages/video_player
   shared_preferences_webos:
     git:
       url: https://github.com/lg-flutter-webos/plugins.git
+      ref: 3a742bb86b04e261044f0864f9b1f71acf0bbad3
       path: packages/shared_preferences
   path_provider_webos:
     git:
       url: https://github.com/lg-flutter-webos/plugins.git
+      ref: 3a742bb86b04e261044f0864f9b1f71acf0bbad3
       path: packages/path_provider
 
 dev_dependencies:
