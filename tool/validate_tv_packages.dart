@@ -18,9 +18,9 @@ Future<void> main(List<String> args) async {
 
     final root = Directory('dist/$platform/package');
     final manifestName = platform == 'tizen' ? 'config.xml' : 'appinfo.json';
-    final manifest = File('\${root.path}/$manifestName');
-    final index = File('\${root.path}/index.html');
-    final icon = File('\${root.path}/icon.png');
+    final manifest = File('${root.path}/$manifestName');
+    final index = File('${root.path}/index.html');
+    final icon = File('${root.path}/icon.png');
 
     final checks = <String, bool>{
       'package directory': root.existsSync(),
@@ -65,8 +65,9 @@ Future<void> main(List<String> args) async {
     }
 
     for (final entry in checks.entries) {
-      stdout
-          .writeln('[\${entry.value ? 'OK' : 'FAIL'}] $platform: \${entry.key}');
+      stdout.writeln(
+        '[${entry.value ? 'OK' : 'FAIL'}] $platform: ${entry.key}',
+      );
       if (!entry.value) failed = true;
     }
   }
