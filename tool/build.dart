@@ -100,7 +100,7 @@ Future<void> _buildWebAdapter(String platform) async {
       'profile': platform,
       'platform': platform,
       'runtime': 'flutter-web',
-      'renderer': 'canvaskit-full-cpu',
+      'renderer': 'flutter-web',
       'packageReady': true,
       'requiresOfficialSdkPackaging': true,
     },
