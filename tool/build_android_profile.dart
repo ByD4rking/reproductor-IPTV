@@ -65,6 +65,8 @@ Future<void> main(List<String> args) async {
     'platform': 'android',
     'tvOptimized': profile != 'mobile',
     'fireTvCompatible': profile == 'firetv',
+    'distribution': 'universal-apk',
+    'minimumAndroidApi': 24,
     'apkFiles': apks.map((file) => file.uri.pathSegments.last).toList(),
   };
   await File('${output.path}/profile.json').writeAsString(
