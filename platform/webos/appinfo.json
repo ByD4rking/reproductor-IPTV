@@ -8,5 +8,5 @@
   "icon": "icon.png",
   "largeIcon": "largeicon.png",
   "disableBackHistoryAPI": true,
-  "transparent": false
+  "transparent": true
 }
