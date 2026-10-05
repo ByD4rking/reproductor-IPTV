@@ -72,14 +72,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () async {
-              await Navigator.of(context).push(
+              final selected = await Navigator.of(context).push<String>(
                 MaterialPageRoute(
                   builder: (_) => PlaylistImportScreen(repository: _playlists),
                 ),
               );
+
+              // "Usar esta lista" returns the selected playlist id. This
+              // screen previously discarded that result, so the playlist was
+              // saved but never became the active playlist when the manager
+              // was opened from Ajustes.
+              if (selected != null && selected.isNotEmpty) {
+                await _repository.setActivePlaylistId(selected);
+              }
+
               await _playlists.load();
+              final settings = await _repository.load();
               if (mounted) {
-                setState(() => _playlistCount = _playlists.playlists.length);
+                setState(() {
+                  _playlistCount = _playlists.playlists.length;
+                  _settings = settings;
+                });
               }
             },
           ),
