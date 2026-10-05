@@ -37,6 +37,7 @@ Future<void> main(List<String> args) async {
             '<tizen:privilege name="http://tizen.org/privilege/internet"/>',
           ) &&
           xml.contains('screen-orientation="landscape"');
+    }
 
     if (requireNative) {
       final native = Directory('dist/$platform/native');
