@@ -77,6 +77,20 @@ void main() {
     expect(updated.demoSeeded, isTrue);
   });
 
+  test('persists the selected active playlist across repository instances', () async {
+    final first = SettingsRepository();
+    await first.setActivePlaylistId('playlist-two');
+
+    final second = SettingsRepository();
+    final settings = await second.load();
+
+    expect(settings.activePlaylistId, 'playlist-two');
+
+    await second.setActivePlaylistId(null);
+    final third = SettingsRepository();
+    expect((await third.load()).activePlaylistId, isNull);
+  });
+
   test('keeps multiple playlists independently in app storage', () async {
     final storage = MemoryPlaylistStorage();
     final repository = PersistentPlaylistRepository(storage: storage);
