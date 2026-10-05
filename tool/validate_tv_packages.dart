@@ -29,6 +29,15 @@ Future<void> main(List<String> args) async {
       'icon': icon.existsSync() && icon.lengthSync() > 0,
     };
 
+    if (platform == 'tizen' && manifest.existsSync()) {
+      final xml = manifest.readAsStringSync();
+      checks['Tizen internet access policy'] =
+          xml.contains('<access origin="*" subdomains="true"/>') &&
+          xml.contains(
+            '<tizen:privilege name="http://tizen.org/privilege/internet"/>',
+          );
+    }
+
     if (requireNative) {
       final native = Directory('dist/$platform/native');
       final extension = platform == 'tizen' ? '.wgt' : '.ipk';
