@@ -29,7 +29,6 @@ Future<void> main(List<String> args) async {
     'build',
     'apk',
     '--release',
-    '--split-per-abi',
   ]);
 
   final output = Directory('dist/android/$profile');
@@ -58,6 +57,9 @@ Future<void> main(List<String> args) async {
     await apk.copy('${output.path}/$name');
   }
 
+  // Se genera un APK universal deliberadamente: el usuario no debe tener que
+  // adivinar si su dispositivo necesita arm64, armeabi-v7a o x86_64.
+  // Flutter soporta Android API 24+ en esta línea de SDK.
   final metadata = <String, Object>{
     'profile': profile,
     'platform': 'android',
