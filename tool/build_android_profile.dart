@@ -74,8 +74,6 @@ Future<void> main(List<String> args) async {
     'fireTvCompatible': profile == 'firetv',
     'distribution': 'universal-apk',
     'minimumAndroidApi': 24,
-    'distribution': 'universal-apk',
-    'minimumAndroidApi': 24,
     'apkFiles': [name],
   };
   await File('${output.path}/profile.json').writeAsString(
