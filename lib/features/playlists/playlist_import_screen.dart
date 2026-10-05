@@ -10,10 +10,12 @@ import '../../core/playlists/repository/playlist_repository.dart';
 import '../../core/playlists/repository/remote_playlist_state_repository.dart';
 import '../../core/playlists/xtream/xtream_import_service.dart';
 import 'local_playlist_transfer_screen.dart';
+import '../../core/settings/settings_repository.dart';
 
 class PlaylistImportScreen extends StatefulWidget {
-  const PlaylistImportScreen({required this.repository, super.key});
+  const PlaylistImportScreen({required this.repository, this.onPlaylistSelected, super.key});
   final PlaylistRepository repository;
+  final Future<void> Function(String playlistId)? onPlaylistSelected;
 
   @override
   State<PlaylistImportScreen> createState() => _PlaylistImportScreenState();
@@ -234,6 +236,18 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     });
   }
 
+  Future<void> _usePlaylist(Playlist playlist) async {
+    // The playlist manager owns activation so every caller uses the same
+    // behavior and cannot discard the selection result.
+    if (widget.onPlaylistSelected != null) {
+      await widget.onPlaylistSelected!(playlist.id);
+    } else {
+      await SettingsRepository().setActivePlaylistId(playlist.id);
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop(playlist.id);
+  }
+
   Future<void> _rename(Playlist playlist) async {
     final controller = TextEditingController(text: playlist.name);
     final name = await showDialog<String>(
@@ -295,6 +309,10 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     if (confirmed != true) return;
 
     await widget.repository.remove(playlist.id);
+    final settings = await SettingsRepository().load();
+    if (settings.activePlaylistId == playlist.id) {
+      await SettingsRepository().setActivePlaylistId(null);
+    }
     if (mounted) {
       setState(() => _message = 'Lista eliminada manualmente.');
     }
@@ -507,27 +525,35 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
                     '${playlist.entries.length} canales'
                     '${playlist.sourceUri == null ? ' · archivo/contenido local' : ' · URL guardada'}',
                   ),
-                  onTap: () => Navigator.pop(context, playlist.id),
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (action) async {
-                      switch (action) {
-                        case 'use':
-                          if (mounted) Navigator.pop(context, playlist.id);
-                        case 'refresh':
-                          await _refresh(playlist);
-                        case 'rename':
-                          await _rename(playlist);
-                        case 'delete':
-                          await _delete(playlist);
-                      }
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                          value: 'use', child: Text('Usar esta lista')),
-                      PopupMenuItem(
-                          value: 'refresh', child: Text('Actualizar')),
-                      PopupMenuItem(value: 'rename', child: Text('Renombrar')),
-                      PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                  onTap: () => _usePlaylist(playlist),
+                  trailing: Wrap(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FilledButton.tonalIcon(
+                        onPressed: _busy ? null : () => _usePlaylist(playlist),
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: const Text('Usar'),
+                      ),
+                      PopupMenuButton<String>(
+                        onSelected: (action) async {
+                          switch (action) {
+                            case 'refresh':
+                              await _refresh(playlist);
+                            case 'rename':
+                              await _rename(playlist);
+                            case 'delete':
+                              await _delete(playlist);
+                          }
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                              value: 'refresh', child: Text('Actualizar')),
+                          PopupMenuItem(
+                              value: 'rename', child: Text('Renombrar')),
+                          PopupMenuItem(
+                              value: 'delete', child: Text('Eliminar')),
+                        ],
+                      ),
                     ],
                   ),
                 ),
