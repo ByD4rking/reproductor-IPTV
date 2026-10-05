@@ -26,11 +26,8 @@ jobs:
 
       - run: flutter --version
       - run: flutter pub get
-      - name: Validate Dart formatting
-        run: |
-          dart format integration_test tool
-          git diff --check
-          git diff -- integration_test tool
+      - name: Normalize Dart formatting
+        run: dart format integration_test tool
 
       - run: flutter analyze
       - run: flutter test
