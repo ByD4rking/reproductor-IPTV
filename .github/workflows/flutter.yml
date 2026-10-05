@@ -27,12 +27,9 @@ jobs:
       - run: flutter --version
       - run: flutter pub get
       - name: Validate Dart formatting
-        run: dart format --output=none --set-exit-if-changed integration_test
+        run: dart format --output=none --set-exit-if-changed integration_test tool
 
       - run: flutter analyze
-
-      - name: Validate build tools
-        run: dart format --output=none --set-exit-if-changed tool/build.dart tool/probe_m3u.dart
       - run: flutter test
 
       # Generate native hosts needed by CI from the pinned Flutter toolchain.
@@ -42,17 +39,20 @@ jobs:
 
       - name: Configure Android network permission
         run: dart run tool/ensure_android_network_permission.dart
-      - name: Build Android APKs
-        run: flutter build apk --release --split-per-abi
 
-      - name: Verify APK artifacts
+      - name: Build universal Android APK
+        run: flutter build apk --release
+
+      - name: Verify universal APK artifact
         shell: bash
         run: |
           set -euo pipefail
-          test -s build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
-          test -s build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-          test -s build/app/outputs/flutter-apk/app-x86_64-release.apk
-          ls -lh build/app/outputs/flutter-apk/*.apk
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          test -s "$APK"
+          unzip -l "$APK" | grep -F 'lib/armeabi-v7a/libflutter.so'
+          unzip -l "$APK" | grep -F 'lib/arm64-v8a/libflutter.so'
+          unzip -l "$APK" | grep -F 'lib/x86_64/libflutter.so'
+          ls -lh "$APK"
 
       - name: Build Web
         run: flutter build web --release
@@ -65,11 +65,11 @@ jobs:
           test -s build/web/flutter.js
           ls -lh build/web/index.html
 
-      - name: Upload APK artifacts
+      - name: Upload universal APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: reproductor-iptv-android-apks
-          path: build/app/outputs/flutter-apk/*-release.apk
+          name: reproductor-iptv-android-universal
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
 
