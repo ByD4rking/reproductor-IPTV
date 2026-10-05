@@ -46,7 +46,21 @@ class VideoPlayerEngine implements PlaybackEngine {
     _activeSourceId = request.source.id;
     _lastErrorDescription = null;
 
-    final formatHint = await _formatHint(request);
+    VideoFormat? formatHint;
+    try {
+      formatHint = await _formatHint(request);
+    } catch (_) {
+      // Probing is part of preparation. If it fails before a replacement
+      // controller exists, restore the previous listener so recovery can keep
+      // observing the existing player. A newer prepare owns the generation and
+      // must not have its listener touched here.
+      if (generation == _prepareGeneration &&
+          previous != null &&
+          identical(_controller, previous)) {
+        previous.addListener(_handleControllerValue);
+      }
+      rethrow;
+    }
     if (generation != _prepareGeneration) return;
 
     final controller = VideoPlayerController.networkUrl(
