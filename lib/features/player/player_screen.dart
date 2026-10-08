@@ -319,7 +319,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
         degradedThreshold: Duration(
           milliseconds: (bufferPolicy.targetBuffer.inMilliseconds / 4)
               .round()
-              .clamp(1000, 4000),
+              .clamp(1000, 4000)
+              .toInt(),
         ),
         degradedAfter: bufferPolicy.stallGrace,
       );
