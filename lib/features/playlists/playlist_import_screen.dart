@@ -225,7 +225,7 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
 
   Future<void> _importText() async {
     await _run(() async {
-      final result = _service.importText(
+      final result = await _service.importText(
         text: _text.text,
         playlistId: _newId(),
         name: _playlistName,
