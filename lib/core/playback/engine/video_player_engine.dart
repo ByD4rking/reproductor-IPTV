@@ -61,24 +61,30 @@ class VideoPlayerEngine implements PlaybackEngine {
       httpHeaders: request.effectiveHeaders,
       videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
     );
-    controller.addListener(_handleControllerValue);
+
+    // Bind the listener to this exact controller + generation. During
+    // initialize() _controller still points to the previous session, so a
+    // generic listener can otherwise attribute stale errors to the wrong
+    // source and trigger recovery for a superseded generation.
+    void listener() => _handleControllerValue(controller, generation);
+    controller.addListener(listener);
 
     try {
       await controller.initialize();
       if (generation != _prepareGeneration) {
-        controller.removeListener(_handleControllerValue);
-        controller.dispose();
+        controller.removeListener(listener);
+        await controller.dispose();
         return;
       }
 
       if (previous != null && identical(_controller, previous)) {
         previous.removeListener(_handleControllerValue);
-        previous.dispose();
+        await previous.dispose();
       }
       _controller = controller;
     } catch (_) {
-      controller.removeListener(_handleControllerValue);
-      controller.dispose();
+      controller.removeListener(listener);
+      await controller.dispose();
 
       // A failed reprepare must not leave the previous player without its
       // listener. Recovery can continue using the existing controller.
@@ -91,9 +97,15 @@ class VideoPlayerEngine implements PlaybackEngine {
     }
   }
 
-  void _handleControllerValue() {
-    final controller = _controller;
-    if (controller == null) return;
+  void _handleControllerValue(
+    VideoPlayerController controller,
+    int generation,
+  ) {
+    // Ignore callbacks from an older controller after a source switch/stop.
+    if (generation != _prepareGeneration ||
+        !identical(controller, _controller)) {
+      return;
+    }
     if (controller.value.isCompleted) {
       _emitState(PlaybackEngineState.completed, _prepareGeneration);
     } else if (controller.value.isBuffering) {
