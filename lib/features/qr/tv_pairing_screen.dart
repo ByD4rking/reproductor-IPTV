@@ -3,6 +3,8 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/transfer/qr_transfer_payload.dart';
 import '../../core/transfer/local_playlist_transfer_server.dart';
+import '../../core/playlists/m3u/m3u_parser.dart';
+import '../../core/playlists/repository/persistent_playlist_repository.dart';
 
 class TvPairingScreen extends StatefulWidget {
   const TvPairingScreen({super.key, this.onPlaylistUploaded});
@@ -15,6 +17,7 @@ class TvPairingScreen extends StatefulWidget {
 
 class _TvPairingScreenState extends State<TvPairingScreen> {
   late final LocalPlaylistTransferServer _server;
+  final _repository = PersistentPlaylistRepository();
   LocalTransferSession? _session;
   String? _message;
 
@@ -34,7 +37,14 @@ class _TvPairingScreenState extends State<TvPairingScreen> {
   Future<void> _start() async {
     try {
       final session = await _server.start(
-        onPlaylistUploaded: widget.onPlaylistUploaded ?? (_) async {},
+        onPlaylistUploaded: widget.onPlaylistUploaded ?? (content) async {
+          final playlist = const M3uParser().parse(
+            content,
+            playlistId: 'qr-${DateTime.now().microsecondsSinceEpoch}',
+            name: 'Playlist recibida por QR',
+          );
+          await _repository.upsert(playlist);
+        },
       );
       if (mounted) setState(() => _session = session);
     } catch (error) {
