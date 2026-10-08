@@ -49,7 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  @override
   void dispose() {
     _searchDebounce?.cancel();
     _playlistImporter.dispose();
@@ -281,8 +280,9 @@ class _HomeScreenState extends State<HomeScreen> {
             const SettingsScreen(),
           ];
           if (index < pages.length && index > 0) {
-            Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => pages[index]));
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => pages[index]),
+            );
           }
         },
         children: const [
