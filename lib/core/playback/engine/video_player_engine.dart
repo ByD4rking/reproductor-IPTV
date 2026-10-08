@@ -8,12 +8,9 @@ import 'playback_engine_state.dart';
 import 'playback_request.dart';
 import 'playback_tracks.dart';
 import 'stream_kind.dart';
-import 'stream_probe.dart';
 
 class VideoPlayerEngine implements PlaybackEngine {
-  VideoPlayerEngine({StreamProbe? probe}) : _probe = probe ?? StreamProbe();
-
-  final StreamProbe _probe;
+  VideoPlayerEngine();
   final StreamController<PlaybackEngineError> _errors =
       StreamController<PlaybackEngineError>.broadcast();
   final StreamController<PlaybackEngineStateEvent> _states =
@@ -217,23 +214,13 @@ class VideoPlayerEngine implements PlaybackEngine {
   }
 
   Future<VideoFormat?> _formatHint(PlaybackRequest request) async {
+    // Let the native media stack sniff query-based IPTV URLs from their
+    // response headers. Probing here adds a second network transaction and
+    // breaks providers that authorize playback differently from probes.
     final path = request.source.url.path.toLowerCase();
     if (path.endsWith('.m3u8')) return VideoFormat.hls;
     if (path.endsWith('.mpd')) return VideoFormat.dash;
-    final result = await _probe.probe(
-      request.source,
-      headers: request.effectiveHeaders,
-    );
-    switch (result?.kind) {
-      case StreamKind.hls:
-        return VideoFormat.hls;
-      case StreamKind.dash:
-        return VideoFormat.dash;
-      case StreamKind.progressive:
-      case StreamKind.unknown:
-      case null:
-        return null;
-    }
+    return null;
   }
 
   String _videoLabel(VideoTrack track) {
@@ -288,7 +275,6 @@ class VideoPlayerEngine implements PlaybackEngine {
     _controller = null;
     controller?.removeListener(_handleControllerValue);
     controller?.dispose();
-    _probe.dispose();
     await _errors.close();
     await _states.close();
   }
