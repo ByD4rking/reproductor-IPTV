@@ -161,10 +161,9 @@ Future<void> _ensureInternetPermission(File manifest) async {
   }
   final applicationStart = verified.indexOf('<application');
   final applicationEnd = verified.indexOf('>', applicationStart);
-  final applicationTag =
-      applicationStart >= 0 && applicationEnd >= 0
-          ? verified.substring(applicationStart, applicationEnd + 1)
-          : '';
+  final applicationTag = applicationStart >= 0 && applicationEnd >= 0
+      ? verified.substring(applicationStart, applicationEnd + 1)
+      : '';
   if (!applicationTag.contains('android:usesCleartextTraffic="true"')) {
     throw StateError(
       'La APK release no quedó configurada para los streams IPTV HTTP.',
