@@ -32,14 +32,17 @@ class PlaylistImportService {
   final http.Client _client;
   final Duration timeout;
 
-  PlaylistImportResult importText({
+  Future<PlaylistImportResult> importText({
     required String text,
     required String playlistId,
     required String name,
     Playlist? previous,
   }) {
-    final parsed = parser.parse(text, playlistId: playlistId, name: name);
-    return _validateAndPromote(parsed, previous);
+    return parser.parseAsync(
+      text,
+      playlistId: playlistId,
+      name: name,
+    ).then((parsed) => _validateAndPromote(parsed, previous));
   }
 
   Future<PlaylistImportResult> importRemote({
