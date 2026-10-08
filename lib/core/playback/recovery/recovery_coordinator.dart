@@ -1,10 +1,16 @@
+import 'dart:math' as math;
+
 import 'recovery_policy.dart';
 
 class RecoveryCoordinator {
-  RecoveryCoordinator({RecoveryPolicy policy = const RecoveryPolicy()})
-      : _policy = policy;
+  RecoveryCoordinator({
+    RecoveryPolicy policy = const RecoveryPolicy(),
+    math.Random? random,
+  })  : _policy = policy,
+        _random = random ?? math.Random();
 
   final RecoveryPolicy _policy;
+  final math.Random _random;
   int _retryCount = 0;
   int _sourceChanges = 0;
   bool _running = false;
@@ -45,6 +51,7 @@ class RecoveryCoordinator {
         retryable: retryable,
         retryCount: _retryCount,
         sourceChanges: _sourceChanges,
+        randomValue: _random.nextDouble(),
       );
 
       if (decision.level == RecoveryLevel.switchSource && !allowSourceSwitch) {
