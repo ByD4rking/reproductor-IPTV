@@ -35,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _query = '';
   String _category = 'Todos';
   Set<String> _favoriteChannelIds = <String>{};
+  final Map<String, PlaylistEntry> _entryByChannelId = <String, PlaylistEntry>{};
   PlaylistOrganization _organization = const PlaylistOrganization();
 
   @override
@@ -106,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 : (entry.category?.trim() ?? 'Sin categoría')),
           );
 
+    _rebuildEntryIndex(startupPlaylist);
     if (!mounted) return;
     setState(() {
       _playlist = startupPlaylist;
@@ -138,6 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
               : (entry.category?.trim() ?? 'Sin categoría')),
         );
         if (!mounted || _playlist?.id != refreshed.id) return;
+        _rebuildEntryIndex(refreshed);
         setState(() {
           _playlist = refreshed;
           _organization = refreshedOrganization;
@@ -146,6 +149,15 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }));
     }
+  }
+
+  void _rebuildEntryIndex(Playlist? playlist) {
+    _entryByChannelId
+      ..clear()
+      ..addEntries(
+        (playlist?.entries ?? const <PlaylistEntry>[])
+            .map((entry) => MapEntry(entry.channel.id, entry)),
+      );
   }
 
   List<PlaylistGroup> get _groups => PlaylistGroups.fromPlaylist(
@@ -159,12 +171,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final index = _searchIndex!;
     final candidates = _query.trim().isEmpty
         ? playlist.entries
-        : index.search(_query).expand((channel) {
-            for (final entry in playlist.entries) {
-              if (entry.channel.id == channel.id) return [entry];
-            }
-            return const <PlaylistEntry>[];
-          });
+        : index.search(_query)
+            .map((channel) => _entryByChannelId[channel.id])
+            .whereType<PlaylistEntry>();
     return candidates
         .where((e) {
           if (_category == 'Todos') return true;
@@ -345,6 +354,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (mounted) {
                       setState(() {
                         _playlist = selected;
+                        _rebuildEntryIndex(selected);
                         _category = 'Todos';
                         _organization = const PlaylistOrganization();
                         _favoriteChannelIds = <String>{};
@@ -432,7 +442,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   itemCount: entries.length,
                   itemBuilder: (_, index) => _ChannelCard(
-                      entry: entries[index], playlistId: playlist.id, autofocus: index == 0, onMoveToFolder: _moveEntryToFolder, onFavoriteChanged: (isFavorite) {
+                      entry: entries[index],
+                      playlistId: playlist.id,
+                      favorite: _favoriteChannelIds.contains(entries[index].channel.id),
+                      autofocus: index == 0,
+                      onMoveToFolder: _moveEntryToFolder,
+                      onFavoriteChanged: (isFavorite) {
                         setState(() {
                           final next = <String>{..._favoriteChannelIds};
                           if (isFavorite) {
@@ -599,9 +614,17 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _ChannelCard extends StatefulWidget {
-  const _ChannelCard({required this.entry, required this.playlistId, required this.onFavoriteChanged, required this.onMoveToFolder, this.autofocus = false});
+  const _ChannelCard({
+    required this.entry,
+    required this.playlistId,
+    required this.favorite,
+    required this.onFavoriteChanged,
+    required this.onMoveToFolder,
+    this.autofocus = false,
+  });
   final PlaylistEntry entry;
   final String playlistId;
+  final bool favorite;
   final ValueChanged<bool> onFavoriteChanged;
   final ValueChanged<PlaylistEntry> onMoveToFolder;
   final bool autofocus;
@@ -613,23 +636,7 @@ class _ChannelCard extends StatefulWidget {
 class _ChannelCardState extends State<_ChannelCard> {
   final _favorites = FavoriteRepository();
   String get _playlistId => widget.playlistId;
-  bool _favorite = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFavorite();
-  }
-
-  Future<void> _loadFavorite() async {
-    final values = await _favorites.load();
-    if (mounted) {
-      setState(() => _favorite =
-          values.any((f) =>
-          f.channelId == widget.entry.channel.id &&
-          (f.preferredPlaylistId == null || f.preferredPlaylistId == _playlistId)));
-    }
-  }
+  bool get _favorite => widget.favorite;
 
   Future<void> _toggleFavorite() async {
     if (_favorite) {
@@ -644,7 +651,6 @@ class _ChannelCardState extends State<_ChannelCard> {
     }
     if (mounted) {
       final next = !_favorite;
-      setState(() => _favorite = next);
       widget.onFavoriteChanged(next);
     }
   }
