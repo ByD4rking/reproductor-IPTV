@@ -225,20 +225,77 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         body: Center(
-          child: FilledButton.icon(
-            onPressed: () async {
-              final selected = await Navigator.of(context).push<String>(
-                MaterialPageRoute(
-                  builder: (_) => PlaylistImportScreen(repository: _repository),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 84,
+                        height: 84,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(26),
+                        ),
+                        child: Icon(
+                          Icons.live_tv_rounded,
+                          size: 44,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      Text(
+                        'Tu TV, en un solo lugar',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Agrega una playlist M3U/M3U8 desde una URL o archivo para empezar. '
+                        'Tus listas quedarán guardadas en este dispositivo.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              height: 1.45,
+                            ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () async {
+                            final selected = await Navigator.of(context).push<String>(
+                              MaterialPageRoute(
+                                builder: (_) => PlaylistImportScreen(repository: _repository),
+                              ),
+                            );
+                            if (selected != null) {
+                              await _settings.setActivePlaylistId(selected);
+                            }
+                            await _loadLibrary();
+                          },
+                          icon: const Icon(Icons.playlist_add_rounded),
+                          label: const Text('Agregar primera playlist'),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextButton.icon(
+                        onPressed: _openSettings,
+                        icon: const Icon(Icons.settings_outlined),
+                        label: const Text('Configurar aplicación'),
+                      ),
+                    ],
+                  ),
                 ),
-              );
-              if (selected != null) {
-                await _settings.setActivePlaylistId(selected);
-              }
-              await _loadLibrary();
-            },
-            icon: const Icon(Icons.playlist_add),
-            label: const Text('Agregar playlist'),
+              ),
+            ),
           ),
         ),
       );
@@ -447,35 +504,85 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                sliver: SliverGrid.builder(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.45,
+              if (entries.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 48),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(28),
+                        child: Column(
+                          children: [
+                            Icon(
+                              _query.isNotEmpty ? Icons.search_off_rounded : Icons.tv_off_rounded,
+                              size: 42,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _query.isNotEmpty
+                                  ? 'No encontramos canales'
+                                  : 'Esta carpeta está vacía',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _query.isNotEmpty
+                                  ? 'Prueba con otro nombre o limpia la búsqueda.'
+                                  : 'Elige otra carpeta o agrega canales a esta categoría.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                            if (_query.isNotEmpty || _category != 'Todos') ...[
+                              const SizedBox(height: 16),
+                              OutlinedButton.icon(
+                                onPressed: () => setState(() {
+                                  _query = '';
+                                  _category = 'Todos';
+                                }),
+                                icon: const Icon(Icons.filter_alt_off_outlined),
+                                label: const Text('Limpiar filtros'),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  itemCount: entries.length,
-                  itemBuilder: (_, index) => _ChannelCard(
-                      entry: entries[index],
-                      playlistId: playlist.id,
-                      favorite: _favoriteChannelIds.contains(entries[index].channel.id),
-                      autofocus: index == 0,
-                      onMoveToFolder: _moveEntryToFolder,
-                      onFavoriteChanged: (isFavorite) {
-                        setState(() {
-                          final next = <String>{..._favoriteChannelIds};
-                          if (isFavorite) {
-                            next.add(entries[index].channel.id);
-                          } else {
-                            next.remove(entries[index].channel.id);
-                          }
-                          _favoriteChannelIds = next;
-                        });
-                      }),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  sliver: SliverGrid.builder(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1.45,
+                    ),
+                    itemCount: entries.length,
+                    itemBuilder: (_, index) => _ChannelCard(
+                        entry: entries[index],
+                        playlistId: playlist.id,
+                        favorite: _favoriteChannelIds.contains(entries[index].channel.id),
+                        autofocus: index == 0,
+                        onMoveToFolder: _moveEntryToFolder,
+                        onFavoriteChanged: (isFavorite) {
+                          setState(() {
+                            final next = <String>{..._favoriteChannelIds};
+                            if (isFavorite) {
+                              next.add(entries[index].channel.id);
+                            } else {
+                              next.remove(entries[index].channel.id);
+                            }
+                            _favoriteChannelIds = next;
+                          });
+                        }),
+                  ),
                 ),
-              ),
             ],
           );
         },
