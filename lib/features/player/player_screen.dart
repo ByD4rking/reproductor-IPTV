@@ -58,6 +58,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _autoSourceSwitching = true;
   DateTime? _sourceAttemptStarted;
   bool _healthCheckRunning = false;
+  bool _userPaused = false;
+  bool _fullscreen = false;
 
   @override
   void initState() {
@@ -154,6 +156,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           return;
         }
         await _engine.play();
+        _userPaused = false;
         _lastPosition = _engine.position;
         _lastBufferedAhead = _engine.buffered;
         _lastProgress = DateTime.now();
@@ -242,7 +245,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_session.isStopped || _recovering || _healthCheckRunning) return;
     final controller = _engine.controller;
     if (controller == null || !controller.value.isInitialized) return;
-    if (!controller.value.isPlaying) return;
+
+    // The native player can stop without emitting a useful error. Treat an
+    // unexpected pause as a recoverable failure, but never fight an explicit
+    // user pause.
+    if (!controller.value.isPlaying) {
+      if (!_userPaused &&
+          _autoRecovery &&
+          DateTime.now().difference(_lastProgress) >=
+              const Duration(seconds: 5)) {
+        await _recover(markFailure: true);
+      }
+      return;
+    }
 
     _healthCheckRunning = true;
     try {
@@ -322,10 +337,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final controller = _engine.controller;
     if (controller == null) return;
     if (controller.value.isPlaying) {
+      _userPaused = true;
       await _engine.pause();
     } else {
+      _userPaused = false;
+      _lastProgress = DateTime.now();
       await _engine.play();
     }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _toggleFullscreen() async {
+    _fullscreen = !_fullscreen;
+    await SystemChrome.setEnabledSystemUIMode(
+      _fullscreen ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+    );
     if (mounted) setState(() {});
   }
 
@@ -406,6 +432,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _healthTimer?.cancel();
     _health.dispose();
     _engine.dispose();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
@@ -430,77 +457,213 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ),
         backgroundColor: Colors.black,
         body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.tv_off, size: 64),
-              const SizedBox(height: 12),
-              Text(_error ?? _status),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _recovering ? null : _recover,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Recuperar'),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(_recovering ? Icons.sync : Icons.tv_off, size: 72),
+                  const SizedBox(height: 16),
+                  Text(
+                    _error ?? _status,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: _recovering ? null : _recover,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Reintentar'),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       );
     }
 
     final activeController = controller;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.entry.channel.displayName),
-        actions: [
-          IconButton(
-            tooltip: 'Recuperar',
-            onPressed: _recovering ? null : _recover,
-            icon: const Icon(Icons.refresh),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Center(child: Text(_status)),
-          ),
-        ],
-      ),
-      backgroundColor: Colors.black,
-      body: Focus(
-        autofocus: true,
-        onKeyEvent: (_, event) {
-          if (event is KeyDownEvent &&
-              (event.logicalKey == LogicalKeyboardKey.enter ||
-                  event.logicalKey == LogicalKeyboardKey.numpadEnter ||
-                  event.logicalKey == LogicalKeyboardKey.select ||
-                  event.logicalKey == LogicalKeyboardKey.space)) {
-            unawaited(_togglePlayback());
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
-        },
-        child: Center(
-          child: AspectRatio(
-            aspectRatio: activeController.value.aspectRatio,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                VideoPlayer(activeController),
-                if (activeController.value.isBuffering)
-                  const Center(child: CircularProgressIndicator()),
-              ],
+    final isLive = activeController.value.duration <= Duration.zero;
+    final playing = activeController.value.isPlaying;
+    final aspectRatio = activeController.value.aspectRatio > 0
+        ? activeController.value.aspectRatio
+        : 16 / 9;
+
+    final video = Focus(
+      autofocus: true,
+      onKeyEvent: (_, event) {
+        if (event is KeyDownEvent &&
+            (event.logicalKey == LogicalKeyboardKey.enter ||
+                event.logicalKey == LogicalKeyboardKey.numpadEnter ||
+                event.logicalKey == LogicalKeyboardKey.select ||
+                event.logicalKey == LogicalKeyboardKey.space)) {
+          unawaited(_togglePlayback());
+          return KeyEventResult.handled;
+        }
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.f11) {
+          unawaited(_toggleFullscreen());
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Center(
+              child: AspectRatio(
+                aspectRatio: aspectRatio,
+                child: VideoPlayer(activeController),
+              ),
             ),
-          ),
-        ),
-      ),
-      floatingActionButton: TvFocusable(
-        onActivate: () => unawaited(_togglePlayback()),
-        child: FloatingActionButton(
-          onPressed: null,
-          child: Icon(
-            activeController.value.isPlaying ? Icons.pause : Icons.play_arrow,
-          ),
+            if (activeController.value.isBuffering || _recovering)
+              Center(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 10),
+                        Text(_recovering ? 'Recuperando conexión…' : 'Buffering…'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            Positioned(
+              top: 12,
+              left: 12,
+              right: 12,
+              child: SafeArea(
+                child: Row(
+                  children: [
+                    if (!_fullscreen)
+                      IconButton(
+                        tooltip: 'Volver',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(Icons.arrow_back),
+                      ),
+                    Expanded(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.circle, size: 9),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  widget.entry.channel.displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                isLive ? 'EN VIVO' : _status,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: SafeArea(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.78),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                    child: Row(
+                      children: [
+                        TvFocusable(
+                          onActivate: () => unawaited(_togglePlayback()),
+                          child: IconButton(
+                            tooltip: playing ? 'Pausar' : 'Reproducir',
+                            onPressed: () => unawaited(_togglePlayback()),
+                            iconSize: 30,
+                            icon: Icon(playing ? Icons.pause : Icons.play_arrow),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Recuperar',
+                          onPressed: _recovering ? null : _recover,
+                          icon: const Icon(Icons.refresh),
+                        ),
+                        Expanded(
+                          child: Text(
+                            _error ?? _status,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text('Fuente ' + (_sourceIndex + 1).toString() + '/' + widget.entry.sources.length.toString(), style: const TextStyle(fontSize: 12)),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          tooltip: _fullscreen ? 'Salir de pantalla completa' : 'Pantalla completa',
+                          onPressed: _toggleFullscreen,
+                          icon: Icon(
+                            _fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
+
+    return PopScope(
+      canPop: !_fullscreen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _fullscreen) {
+          unawaited(_toggleFullscreen());
+        }
+      },
+      child: Scaffold(
+        appBar: _fullscreen
+            ? null
+            : AppBar(
+                title: Text(widget.entry.channel.displayName),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Center(child: Text(_status)),
+                  ),
+                ],
+              ),
+        backgroundColor: Colors.black,
+        body: Center(child: video),
+      ),
+    );
   }
-}
