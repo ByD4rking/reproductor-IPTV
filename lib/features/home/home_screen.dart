@@ -9,6 +9,8 @@ import '../../core/playlists/repository/persistent_playlist_repository.dart';
 import '../favorites/favorites_screen.dart';
 import '../history/history_screen.dart';
 import '../epg/epg_screen.dart';
+import '../video/video_library_screen.dart';
+import '../qr/tv_pairing_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../core/favorites/favorite_repository.dart';
 import '../../core/domain/entities/favorite.dart';
@@ -278,6 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const HistoryScreen(),
             const EpgScreen(),
             const SettingsScreen(),
+            const VideoLibraryScreen(),
           ];
           if (index < pages.length && index > 0) {
             Navigator.of(context).pushReplacement(
@@ -301,6 +304,8 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icon(Icons.event_note), label: Text('EPG')),
           NavigationDrawerDestination(
               icon: Icon(Icons.settings_outlined), label: Text('Ajustes')),
+          NavigationDrawerDestination(
+              icon: Icon(Icons.video_library_outlined), label: Text('Vídeos')),
         ],
       ),
       body: LayoutBuilder(
