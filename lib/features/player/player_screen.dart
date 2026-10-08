@@ -65,6 +65,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _healthCheckRunning = false;
   bool _userPaused = false;
   bool _fullscreen = false;
+  bool _controlsVisible = true;
+  Timer? _controlsTimer;
 
   @override
   void initState() {
@@ -397,6 +399,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (mounted) setState(() {});
   }
 
+  void _scheduleControlsHide() {
+    _controlsTimer?.cancel();
+    if (_recovering) return;
+    _controlsTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted && _engine.controller?.value.isPlaying == true) {
+        setState(() => _controlsVisible = false);
+      }
+    });
+  }
+
+  void _showControls({bool scheduleHide = true}) {
+    if (mounted && !_controlsVisible) {
+      setState(() => _controlsVisible = true);
+    }
+    if (scheduleHide) _scheduleControlsHide();
+  }
+
+  void _toggleControls() {
+    if (_controlsVisible) {
+      _controlsTimer?.cancel();
+      setState(() => _controlsVisible = false);
+    } else {
+      _showControls();
+    }
+  }
+
   Future<void> _toggleFullscreen() async {
     _fullscreen = !_fullscreen;
     await SystemChrome.setEnabledSystemUIMode(
@@ -464,6 +492,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
+    _controlsTimer?.cancel();
     final duration = DateTime.now().difference(_startedAt);
     if (duration > const Duration(seconds: 2)) {
       _history.add(WatchHistoryEntry(
@@ -542,6 +571,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ? activeController.value.aspectRatio
         : 16 / 9;
 
+    _scheduleControlsHide();
     final video = Focus(
       autofocus: true,
       onKeyEvent: (_, event) {
@@ -550,6 +580,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 event.logicalKey == LogicalKeyboardKey.numpadEnter ||
                 event.logicalKey == LogicalKeyboardKey.select ||
                 event.logicalKey == LogicalKeyboardKey.space)) {
+          _showControls();
           unawaited(_togglePlayback());
           return KeyEventResult.handled;
         }
@@ -562,6 +593,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
+        onTap: _toggleControls,
+        onDoubleTap: _toggleFullscreen,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -591,11 +624,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                 ),
               ),
-            Positioned(
-              top: 12,
-              left: 12,
-              right: 12,
-              child: SafeArea(
+            if (_controlsVisible)
+              Positioned(
+                top: 12,
+                left: 12,
+                right: 12,
+                child: SafeArea(
                 child: Row(
                   children: [
                     if (!_fullscreen)
@@ -638,11 +672,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
               ),
             ),
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 12,
-              child: SafeArea(
+            if (_controlsVisible)
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 12,
+                child: SafeArea(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.78),
