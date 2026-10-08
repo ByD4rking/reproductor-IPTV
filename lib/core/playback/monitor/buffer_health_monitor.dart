@@ -33,9 +33,13 @@ class BufferHealthMonitor {
     required bool playheadMoving,
     required bool buffering,
     required DateTime now,
+    Duration? degradedThreshold,
+    Duration? degradedAfter,
   }) {
     final previous = _previousAhead;
-    final low = bufferedAhead <= degradedThreshold;
+    final effectiveThreshold = degradedThreshold ?? this.degradedThreshold;
+    final effectiveAfter = degradedAfter ?? this.degradedAfter;
+    final low = bufferedAhead <= effectiveThreshold;
 
     if (!low) {
       _lowSince = null;
@@ -48,10 +52,10 @@ class BufferHealthMonitor {
     // Do not depend on the engine's buffering flag. Some HLS/network stalls
     // keep `isBuffering` false while the playhead is still moving briefly.
     // Sustained low buffer is itself a stronger starvation signal.
-    final degraded = playheadMoving && lowDuration >= degradedAfter;
+    final degraded = playheadMoving && lowDuration >= effectiveAfter;
     final severe = playheadMoving &&
         bufferedAhead <= severeThreshold &&
-        lowDuration >= degradedAfter;
+        lowDuration >= effectiveAfter;
 
     _previousAhead = bufferedAhead;
     return BufferHealthSnapshot(
