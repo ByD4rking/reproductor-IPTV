@@ -138,6 +138,7 @@ class LocalPlaylistTransferServer {
             ..statusCode = HttpStatus.requestEntityTooLarge
             ..write('La playlist supera el límite permitido');
           await request.response.close();
+          _uploading = false;
           return;
         }
         bytes.add(chunk);
