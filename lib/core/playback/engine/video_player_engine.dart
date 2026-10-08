@@ -46,20 +46,16 @@ class VideoPlayerEngine implements PlaybackEngine {
     _activeSourceId = request.source.id;
     _lastErrorDescription = null;
 
+    // Probing is an optimization, never a prerequisite for playback.
+    // IPTV URLs frequently use expiring tokens, redirects, query-only HLS
+    // endpoints, or servers that reject HEAD/GET probes while the native
+    // player can still open the stream. A failed probe must therefore fall
+    // back to autodetection instead of blocking the source.
     VideoFormat? formatHint;
     try {
       formatHint = await _formatHint(request);
     } catch (_) {
-      // Probing is part of preparation. If it fails before a replacement
-      // controller exists, restore the previous listener so recovery can keep
-      // observing the existing player. A newer prepare owns the generation and
-      // must not have its listener touched here.
-      if (generation == _prepareGeneration &&
-          previous != null &&
-          identical(_controller, previous)) {
-        previous.addListener(_handleControllerValue);
-      }
-      rethrow;
+      formatHint = null;
     }
     if (generation != _prepareGeneration) return;
 
