@@ -10,6 +10,7 @@ import '../../core/playlists/repository/playlist_repository.dart';
 import '../../core/playlists/repository/remote_playlist_state_repository.dart';
 import '../../core/playlists/xtream/xtream_import_service.dart';
 import 'local_playlist_transfer_screen.dart';
+import '../qr/qr_scan_screen.dart';
 import '../../core/settings/settings_repository.dart';
 
 class PlaylistImportScreen extends StatefulWidget {
@@ -384,6 +385,13 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     );
   }
 
+  Future<void> _scanTvQr() async {
+    final payload = await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const QrScanScreen()),
+    );
+    if (!mounted || payload == null) return;
+    setState(() => _message = 'TV vinculada. Sesión temporal detectada.');
+  }
   Future<void> _run(Future<void> Function() action) async {
     setState(() {
       _busy = true;
@@ -461,6 +469,12 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
             onPressed: _busy ? null : _openLocalTransfer,
             icon: const Icon(Icons.wifi),
             label: const Text('Recibir playlist desde PC/teléfono'),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _scanTvQr,
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Vincular TV / TV Box por QR'),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
