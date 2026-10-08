@@ -33,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   SearchIndex? _searchIndex;
   bool _loading = true;
   String _query = '';
+  Timer? _searchDebounce;
   String _category = 'Todos';
   Set<String> _favoriteChannelIds = <String>{};
   final Map<String, PlaylistEntry> _entryByChannelId = <String, PlaylistEntry>{};
@@ -48,7 +49,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  @override
   void dispose() {
+    _searchDebounce?.cancel();
     _playlistImporter.dispose();
     super.dispose();
   }
@@ -328,8 +331,16 @@ class _HomeScreenState extends State<HomeScreen> {
                               '${playlist.entries.length} canales · ${_groups.length} categorías'),
                           const SizedBox(height: 16),
                           TextField(
-                            onChanged: (value) =>
-                                setState(() => _query = value),
+                            onChanged: (value) {
+                              _searchDebounce?.cancel();
+                              _searchDebounce = Timer(
+                                const Duration(milliseconds: 120),
+                                () {
+                                  if (!mounted) return;
+                                  setState(() => _query = value.trim());
+                                },
+                              );
+                            },
                             decoration: InputDecoration(
                               prefixIcon: const Icon(Icons.search),
                               hintText: 'Buscar canal, TVG-ID o nombre...',
