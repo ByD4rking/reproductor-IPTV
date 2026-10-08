@@ -32,6 +32,7 @@ class LocalPlaylistTransferServer {
   Timer? _expiryTimer;
   String? _token;
   bool _used = false;
+  bool _uploading = false;
 
   Future<LocalTransferSession> start({
     required Future<void> Function(String content) onPlaylistUploaded,
@@ -40,6 +41,7 @@ class LocalPlaylistTransferServer {
 
     _token = _randomToken();
     _used = false;
+    _uploading = false;
     final token = _token!;
     final expiresAt = DateTime.now().add(ttl);
     final server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
@@ -102,16 +104,22 @@ class LocalPlaylistTransferServer {
         return;
       }
 
-      if (request.method != 'POST' ||
-          request.uri.path != '/upload' ||
-          _used) {
+      if (request.method != 'POST' || request.uri.path != '/upload') {
         request.response
-          ..statusCode = _used ? HttpStatus.conflict : HttpStatus.notFound
-          ..write(_used ? 'La sesión ya fue utilizada' : 'Ruta no encontrada');
+          ..statusCode = HttpStatus.notFound
+          ..write('Ruta no encontrada');
+        await request.response.close();
+        return;
+      }
+      if (_used || _uploading) {
+        request.response
+          ..statusCode = HttpStatus.conflict
+          ..write(_used ? 'La sesión ya fue utilizada' : 'La sesión está procesando otra transferencia');
         await request.response.close();
         return;
       }
 
+      _uploading = true;
       final contentLength = request.contentLength;
       if (contentLength > maxUploadBytes) {
         request.response
@@ -141,8 +149,8 @@ class LocalPlaylistTransferServer {
         playlistId: 'transfer',
         name: 'Playlist transferida',
       );
-      _used = true;
       await onPlaylistUploaded(content);
+      _used = true;
 
       request.response
         ..headers.contentType = ContentType.html
@@ -152,8 +160,10 @@ class LocalPlaylistTransferServer {
           '<p>Ya puedes cerrar esta ventana.</p></body></html>',
         );
       await request.response.close();
+      _uploading = false;
       await stop();
     } catch (error) {
+      _uploading = false;
       request.response
         ..statusCode = HttpStatus.badRequest
         ..headers.contentType = ContentType.text
