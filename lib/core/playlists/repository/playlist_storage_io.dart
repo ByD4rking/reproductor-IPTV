@@ -63,9 +63,10 @@ class FilePlaylistStorage implements PlaylistStorage {
     try {
       final directory = await _root;
       final target = File('${directory.path}/${_fileName(id)}');
-      final temporary = File('${target.path}.tmp');
+      final temporary = File('${target.path}.${DateTime.now().microsecondsSinceEpoch}.tmp');
       await temporary.writeAsString(value, flush: true);
-      if (await target.exists()) await target.delete();
+      // Rename replaces the destination atomically on supported filesystems;
+      // never delete the last known-good playlist before the new file exists.
       await temporary.rename(target.path);
     } catch (_) {
       await _saveFallback(id, value);
