@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/domain/entities/playlist.dart';
+import '../../core/domain/entities/stream_source.dart';
 import '../../core/playback/engine/playback_engine_error.dart';
 import '../../core/playback/engine/playback_request.dart';
 import '../../core/playback/engine/playback_engine_state.dart';
