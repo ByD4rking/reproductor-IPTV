@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/history/history_repository.dart';
+import '../../core/domain/entities/watch_history.dart';
 import '../../core/domain/entities/playlist.dart';
 import '../../core/playlists/repository/persistent_playlist_repository.dart';
 
