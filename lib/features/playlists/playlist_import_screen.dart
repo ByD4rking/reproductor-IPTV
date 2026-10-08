@@ -114,7 +114,7 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
       }
 
       final text = utf8.decode(bytes, allowMalformed: true);
-      final result = _service.importText(
+      final result = await _service.importText(
         text: text,
         playlistId: _newId(),
         name: _name.text.trim().isEmpty
