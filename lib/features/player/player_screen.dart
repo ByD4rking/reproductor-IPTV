@@ -571,7 +571,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ? activeController.value.aspectRatio
         : 16 / 9;
 
-    _scheduleControlsHide();
+    if (_controlsVisible && playing) _scheduleControlsHide();
     final video = Focus(
       autofocus: true,
       onKeyEvent: (_, event) {
