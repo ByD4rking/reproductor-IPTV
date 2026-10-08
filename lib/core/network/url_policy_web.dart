@@ -17,7 +17,9 @@ class UrlPolicy {
       {bool allowPrivateNetwork = false}) async {
     if (!accepts(uri)) return false;
     if (allowPrivateNetwork) return true;
-    return true;
+    // Web cannot perform a trustworthy DNS resolution from Dart, so reject
+    // literal/private destinations before the browser request is made.
+    return !_isBlockedLiteralIp(uri.host);
   }
 
   bool acceptsRedirectCount(int count) => count >= 0 && count <= maxRedirects;
