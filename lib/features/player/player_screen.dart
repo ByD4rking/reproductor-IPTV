@@ -309,6 +309,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
         signals: PlaybackHealthSignals(
           lastProgressAge: progressAt.difference(_lastProgress),
           bufferedAhead: bufferedAhead,
+          playheadMoving: playheadMoving,
+          dataArriving: dataArriving,
+          networkActivity: dataArriving || buffering,
         ),
       );
       final buffer = _bufferHealthMonitor.sample(
