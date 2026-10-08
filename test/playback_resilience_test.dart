@@ -301,6 +301,26 @@ void main() {
     expect(switches, 1);
   });
 
+  test('non-retryable failure switches source before exhausting source budget',
+      () async {
+    const policy = RecoveryPolicy(maxRetries: 2, maxSourceChanges: 2);
+    final first = policy.decide(
+      userStopped: false,
+      retryable: false,
+      retryCount: 0,
+      sourceChanges: 0,
+    );
+    expect(first.level, RecoveryLevel.switchSource);
+
+    final exhausted = policy.decide(
+      userStopped: false,
+      retryable: false,
+      retryCount: 2,
+      sourceChanges: 2,
+    );
+    expect(exhausted.level, RecoveryLevel.failed);
+  });
+
   test('cancel invalidates a delayed recovery', () async {
     final coordinator = RecoveryCoordinator();
     var called = false;
