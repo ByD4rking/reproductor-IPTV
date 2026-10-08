@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../core/domain/entities/playlist.dart';
-import '../../core/playlists/m3u/m3u_parser.dart';
 import '../../core/playlists/grouping/playlist_groups.dart';
 import '../../core/search/search_index.dart';
 import '../player/player_screen.dart';
@@ -657,46 +656,99 @@ class _ChannelCardState extends State<_ChannelCard> {
   }
 
   @override
-  Widget build(BuildContext context) => TvFocusable(
-        autofocus: widget.autofocus,
-        onActivate: _openPlayer,
-        child: Card(
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: _openPlayer,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Expanded(
-                  child: ColoredBox(
-                    color: Color(0xFF151B24),
-                    child: Center(child: Icon(Icons.live_tv, size: 48)),
-                  ),
-                ),
-                ListTile(
-                  dense: true,
-                  title: Text(widget.entry.channel.displayName,
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                  trailing: Wrap(
+  Widget build(BuildContext context) {
+    final logo = widget.entry.logoUrl;
+    return TvFocusable(
+      autofocus: widget.autofocus,
+      onActivate: _openPlayer,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: _openPlayer,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: ColoredBox(
+                  color: const Color(0xFF151B24),
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      IconButton(
-                        tooltip: 'Mover a carpeta',
-                        onPressed: () => widget.onMoveToFolder(widget.entry),
-                        icon: const Icon(Icons.drive_file_move_outlined),
+                      if (logo != null)
+                        Image.network(
+                          logo.toString(),
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.medium,
+                          errorBuilder: (_, __, ___) => const Center(
+                            child: Icon(Icons.live_tv, size: 46),
+                          ),
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            );
+                          },
+                        )
+                      else
+                        const Center(child: Icon(Icons.live_tv, size: 46)),
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.72),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                            child: Text(
+                              'EN VIVO',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
                       ),
-                      IconButton(
-                    tooltip: _favorite ? 'Quitar favorito' : 'Agregar favorito',
-                    onPressed: _toggleFavorite,
-                    icon: Icon(_favorite ? Icons.star : Icons.star_outline),
-                  ),
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 6, 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.entry.channel.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: _favorite ? 'Quitar favorito' : 'Agregar favorito',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _toggleFavorite,
+                      icon: Icon(_favorite ? Icons.star : Icons.star_outline),
+                    ),
+                    IconButton(
+                      tooltip: 'Mover a carpeta',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => widget.onMoveToFolder(widget.entry),
+                      icon: const Icon(Icons.drive_file_move_outlined),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 
