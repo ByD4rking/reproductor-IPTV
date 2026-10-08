@@ -11,6 +11,7 @@ import '../../core/playlists/repository/remote_playlist_state_repository.dart';
 import '../../core/playlists/xtream/xtream_import_service.dart';
 import 'local_playlist_transfer_screen.dart';
 import '../qr/qr_scan_screen.dart';
+import '../../core/transfer/qr_transfer_client.dart';
 import '../../core/settings/settings_repository.dart';
 
 class PlaylistImportScreen extends StatefulWidget {
@@ -390,7 +391,41 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
       MaterialPageRoute(builder: (_) => const QrScanScreen()),
     );
     if (!mounted || payload == null) return;
-    setState(() => _message = 'TV vinculada. Sesión temporal detectada.');
+    await widget.repository.load();
+    final playlists = widget.repository.playlists;
+    if (playlists.isEmpty) {
+      setState(() => _message = 'Primero agrega una playlist para enviarla a la TV.');
+      return;
+    }
+    final selected = await showDialog<Playlist>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Enviar playlist a la TV'),
+        children: playlists.map((playlist) => SimpleDialogOption(
+          onPressed: () => Navigator.pop(context, playlist),
+          child: Text(playlist.name),
+        )).toList(),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    final lines = <String>['#EXTM3U'];
+    for (final entry in selected.entries) {
+      for (final source in entry.sources) {
+        final attrs = <String>[];
+        if (entry.channel.tvgId?.isNotEmpty == true) attrs.add('tvg-id="' + entry.channel.tvgId! + '"');
+        if (entry.logoUrl != null) attrs.add('tvg-logo="' + entry.logoUrl.toString() + '"');
+        if (entry.category?.isNotEmpty == true) attrs.add('group-title="' + entry.category! + '"');
+        if (source.userAgent != null) attrs.add('http-user-agent="' + source.userAgent! + '"');
+        lines.add('#EXTINF:-1' + (attrs.isEmpty ? '' : ' ' + attrs.join(' ')) + ',' + entry.channel.displayName);
+        lines.add(source.url.toString());
+      }
+    }
+    try {
+      await QrTransferClient.sendPlaylist(sessionUrl: payload.url, content: lines.join('\n'));
+      if (mounted) setState(() => _message = 'Playlist enviada correctamente a la TV.');
+    } catch (error) {
+      if (mounted) setState(() => _message = 'No se pudo enviar la playlist: ' + error.toString());
+    }
   }
   Future<void> _run(Future<void> Function() action) async {
     setState(() {
