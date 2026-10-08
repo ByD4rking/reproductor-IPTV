@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/channel.dart';
 import '../../domain/entities/playlist.dart';
@@ -24,6 +25,27 @@ class M3uParser {
   final int maxContentCharacters;
   final int maxLineLength;
   final UrlPolicy urlPolicy;
+
+  Future<Playlist> parseAsync(
+    String content, {
+    String playlistId = 'imported',
+    String name = 'Imported playlist',
+  }) {
+    if (content.length > maxContentCharacters) {
+      throw const M3uParseException('Playlist content limit exceeded');
+    }
+    return compute(
+      _parseM3uPayload,
+      <String, Object>{
+        'content': content,
+        'playlistId': playlistId,
+        'name': name,
+        'maxChannels': maxChannels,
+        'maxContentCharacters': maxContentCharacters,
+        'maxLineLength': maxLineLength,
+      },
+    );
+  }
 
   Playlist parse(
     String content, {
@@ -247,4 +269,18 @@ class _DigestSink implements Sink<Digest> {
 
   @override
   void close() {}
+}
+
+
+Playlist _parseM3uPayload(Map<String, Object> payload) {
+  final parser = M3uParser(
+    maxChannels: payload['maxChannels']! as int,
+    maxContentCharacters: payload['maxContentCharacters']! as int,
+    maxLineLength: payload['maxLineLength']! as int,
+  );
+  return parser.parse(
+    payload['content']! as String,
+    playlistId: payload['playlistId']! as String,
+    name: payload['name']! as String,
+  );
 }
