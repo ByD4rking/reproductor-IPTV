@@ -21,6 +21,7 @@ import '../../core/history/history_repository.dart';
 import '../../core/domain/entities/watch_history.dart';
 import '../../core/settings/settings_repository.dart';
 import '../../core/platform/tv_focus.dart';
+import '../../core/sources/source_ranker.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({required this.entry, super.key});
@@ -41,6 +42,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final _history = HistoryRepository();
   final _settingsRepository = SettingsRepository();
   final _errorClassifier = const PlaybackErrorClassifier();
+  final _sourceRanker = const SourceRanker();
   late final DateTime _startedAt;
 
   Timer? _healthTimer;
@@ -121,6 +123,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_session.isStopped) return;
     _autoRecovery = settings.autoRecovery;
     _autoSourceSwitching = settings.autoSourceSwitching;
+    _sourceIndex = _bestSourceIndex();
     await _openSource(automatic: false);
   }
 
@@ -230,9 +233,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  int _bestSourceIndex({int? excluding}) {
+    if (widget.entry.sources.isEmpty) return 0;
+    final health = _health.snapshot();
+    var bestIndex = excluding == null ? 0 : (excluding + 1) % widget.entry.sources.length;
+    var bestScore = excluding == null
+        ? double.negativeInfinity
+        : _sourceRanker.score(
+            health[widget.entry.sources[bestIndex].id] ?? SourceHealth.initial(),
+          );
+
+    for (var i = 0; i < widget.entry.sources.length; i++) {
+      if (excluding != null && i == excluding) continue;
+      final score = _sourceRanker.score(
+        health[widget.entry.sources[i].id] ?? SourceHealth.initial(),
+      );
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = i;
+      }
+    }
+    return bestIndex;
+  }
+
   void _advanceSource() {
     if (widget.entry.sources.isEmpty) return;
-    _sourceIndex = (_sourceIndex + 1) % widget.entry.sources.length;
+    _sourceIndex = _bestSourceIndex(excluding: _sourceIndex);
     _lastPosition = Duration.zero;
     _lastBufferedAhead = Duration.zero;
     _lastProgress = DateTime.now();
