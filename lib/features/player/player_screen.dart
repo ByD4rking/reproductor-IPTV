@@ -519,6 +519,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   @override
+  String _formatPlaybackTime(Duration duration) {
+    final totalSeconds = duration.inSeconds < 0 ? 0 : duration.inSeconds;
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+    final mm = minutes.toString().padLeft(2, '0');
+    final ss = seconds.toString().padLeft(2, '0');
+    return hours > 0 ? '${hours}:$mm:$ss' : '$mm:$ss';
+  }
+
   Widget build(BuildContext context) {
     final controller = _engine.controller;
     if (controller == null || !controller.value.isInitialized) {
@@ -573,6 +583,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final aspectRatio = activeController.value.aspectRatio > 0
         ? activeController.value.aspectRatio
         : 16 / 9;
+    final bufferedPosition = activeController.value.buffered.fold<Duration>(
+      Duration.zero,
+      (latest, range) => range.end > latest ? range.end : latest,
+    );
+    final position = activeController.value.position;
+    final duration = activeController.value.duration;
+    final canSeek = duration > Duration.zero && !isLive;
+    final progress = canSeek
+        ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+    final bufferedProgress = canSeek
+        ? (bufferedPosition.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
 
     if (_controlsVisible && playing) _scheduleControlsHide();
     final video = Focus(
@@ -681,51 +704,124 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 right: 12,
                 bottom: 12,
                 child: SafeArea(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.78),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-                    child: Row(
-                      children: [
-                        TvFocusable(
-                          onActivate: () => unawaited(_togglePlayback()),
-                          child: IconButton(
-                            tooltip: playing ? 'Pausar' : 'Reproducir',
-                            onPressed: () => unawaited(_togglePlayback()),
-                            iconSize: 30,
-                            icon: Icon(playing ? Icons.pause : Icons.play_arrow),
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Recuperar',
-                          onPressed: _recovering ? null : _recover,
-                          icon: const Icon(Icons.refresh),
-                        ),
-                        Expanded(
-                          child: Text(
-                            _error ?? _status,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Text('Fuente ' + (_sourceIndex + 1).toString() + '/' + widget.entry.sources.length.toString(), style: const TextStyle(fontSize: 12)),
-                        const SizedBox(width: 6),
-                        IconButton(
-                          tooltip: _fullscreen ? 'Salir de pantalla completa' : 'Pantalla completa',
-                          onPressed: _toggleFullscreen,
-                          icon: Icon(
-                            _fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                          ),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xE6101722),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
                         ),
                       ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 10, 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                _recovering
+                                    ? Icons.sync_rounded
+                                    : activeController.value.isBuffering
+                                        ? Icons.downloading_rounded
+                                        : Icons.circle,
+                                size: 11,
+                                color: _recovering || activeController.value.isBuffering
+                                    ? Colors.amberAccent
+                                    : const Color(0xFF36D6C5),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _error ?? (_recovering
+                                      ? 'Reconectando automáticamente…'
+                                      : activeController.value.isBuffering
+                                          ? 'Cargando señal…'
+                                          : isLive ? 'Señal en directo' : 'Reproducción'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              Text(
+                                'FUENTE ${_sourceIndex + 1}/${widget.entry.sources.length}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  letterSpacing: 0.6,
+                                  color: Colors.white.withValues(alpha: 0.72),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (canSeek) ...[
+                            const SizedBox(height: 8),
+                            Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: LinearProgressIndicator(
+                                    value: bufferedProgress,
+                                    minHeight: 4,
+                                    backgroundColor: Colors.white.withValues(alpha: 0.12),
+                                    color: Colors.white.withValues(alpha: 0.28),
+                                  ),
+                                ),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: LinearProgressIndicator(
+                                    value: progress,
+                                    minHeight: 4,
+                                    backgroundColor: Colors.transparent,
+                                    color: const Color(0xFF36D6C5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 5),
+                            Row(
+                              children: [
+                                Text(_formatPlaybackTime(position), style: const TextStyle(fontSize: 11)),
+                                const Spacer(),
+                                Text(_formatPlaybackTime(duration), style: const TextStyle(fontSize: 11)),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              TvFocusable(
+                                onActivate: () => unawaited(_togglePlayback()),
+                                child: IconButton(
+                                  tooltip: playing ? 'Pausar' : 'Reproducir',
+                                  onPressed: () => unawaited(_togglePlayback()),
+                                  iconSize: 30,
+                                  icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Recuperar señal',
+                                onPressed: _recovering ? null : _recover,
+                                icon: const Icon(Icons.refresh_rounded),
+                              ),
+                              const Spacer(),
+                              IconButton(
+                                tooltip: _fullscreen ? 'Salir de pantalla completa' : 'Pantalla completa',
+                                onPressed: _toggleFullscreen,
+                                icon: Icon(_fullscreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),
