@@ -46,9 +46,7 @@ Future<void> main(List<String> args) async {
           ? native
               .listSync(recursive: true)
               .whereType<File>()
-              .where(
-                (file) => file.path.toLowerCase().endsWith(extension),
-              )
+              .where((file) => file.path.toLowerCase().endsWith(extension))
               .toList()
           : <File>[];
 
