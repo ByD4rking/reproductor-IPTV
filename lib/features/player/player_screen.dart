@@ -185,9 +185,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           retryable: classified.disposition == ErrorDisposition.retry,
           reprepare: () async {
             if (_session.isCurrentOperation(operation)) {
-              await _engine.stop();
-              await _engine.prepare(PlaybackRequest(source: source));
-              await _engine.play();
+              await _openSource(
+                automatic: true,
+                operationId: operation,
+                allowNestedRecovery: false,
+              );
             }
           },
           allowSourceSwitch:
