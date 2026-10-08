@@ -146,7 +146,7 @@ class LocalPlaylistTransferServer {
       }
 
       final content = utf8.decode(bytes.takeBytes(), allowMalformed: true);
-      final playlist = const M3uParser().parse(
+      final playlist = await const M3uParser().parseAsync(
         content,
         playlistId: 'transfer',
         name: 'Playlist transferida',
