@@ -35,6 +35,27 @@ void main() {
     expect(result.replaced, isTrue);
   });
 
+
+  test('imports text asynchronously and promotes the parsed playlist', () async {
+    final service = PlaylistImportService();
+    addTearDown(service.dispose);
+
+    final result = await service.importText(
+      text: '#EXTM3U\n'
+          '#EXTINF:-1 tvg-id="demo" group-title="Noticias",Demo\n'
+          'https://example.com/demo.m3u8\n',
+      playlistId: 'text',
+      name: 'Texto',
+    );
+
+    expect(result.playlist.id, 'text');
+    expect(result.playlist.name, 'Texto');
+    expect(result.playlist.entries, hasLength(1));
+    expect(result.playlist.entries.single.channel.displayName, 'Demo');
+    expect(result.playlist.entries.single.category, 'Noticias');
+    expect(result.replaced, isTrue);
+  });
+
   test('rejects redirect from playlist URL to private network', () async {
     final client = MockClient((request) async {
       return http.Response(
