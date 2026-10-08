@@ -13,6 +13,7 @@ import '../../core/playback/diagnostics/playback_error.dart';
 import '../../core/playback/engine/video_player_engine.dart';
 import '../../core/playback/monitor/stall_detector.dart';
 import '../../core/playback/monitor/buffer_health_monitor.dart';
+import '../../core/playback/monitor/adaptive_buffer_policy.dart';
 import '../../core/playback/recovery/recovery_coordinator.dart';
 import '../../core/playback/recovery/recovery_policy.dart';
 import '../../core/playback/session/playback_session.dart';
@@ -36,6 +37,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final _session = PlaybackSession('player-session');
   final _stallDetector = const StallDetector();
   final _bufferHealthMonitor = BufferHealthMonitor();
+  final _adaptiveBufferPolicy = const AdaptiveBufferPolicy();
   final _recoveryCoordinator = RecoveryCoordinator();
   final _health = SourceHealthManager(
     repository: SourceHealthRepository(),
@@ -300,11 +302,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final buffering = controller.value.isBuffering;
       final ended = controller.value.isCompleted;
 
+      final bufferPolicy = _adaptiveBufferPolicy.decide(
+        mode: Duration.zero == controller.value.duration
+            ? PlaybackMediaMode.live
+            : PlaybackMediaMode.vod,
+        signals: PlaybackHealthSignals(
+          lastProgressAge: progressAt.difference(_lastProgress),
+          bufferedAhead: bufferedAhead,
+        ),
+      );
       final buffer = _bufferHealthMonitor.sample(
         bufferedAhead: bufferedAhead,
         playheadMoving: playheadMoving,
         buffering: buffering,
         now: progressAt,
+        degradedThreshold: Duration(
+          milliseconds: (bufferPolicy.targetBuffer.inMilliseconds / 4)
+              .round()
+              .clamp(1000, 4000),
+        ),
+        degradedAfter: bufferPolicy.stallGrace,
       );
 
       if (playheadMoving) {
