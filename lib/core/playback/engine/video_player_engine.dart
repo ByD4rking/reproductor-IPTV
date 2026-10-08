@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
 
 import 'playback_engine.dart';
@@ -16,6 +17,7 @@ class VideoPlayerEngine implements PlaybackEngine {
       StreamController<PlaybackEngineStateEvent>.broadcast();
 
   VideoPlayerController? _controller;
+  VoidCallback? _controllerListener;
   int _prepareGeneration = 0;
   String? _activeSourceId;
   String? _lastErrorDescription;
@@ -34,7 +36,11 @@ class VideoPlayerEngine implements PlaybackEngine {
   @override
   Future<void> prepare(PlaybackRequest request) async {
     final previous = _controller;
-    previous?.removeListener(_handleControllerValue);
+    final previousListener = _controllerListener;
+    if (previous != null && previousListener != null) {
+      previous.removeListener(previousListener);
+    }
+    _controllerListener = null;
 
     final generation = ++_prepareGeneration;
     _lastState = null;
@@ -67,23 +73,25 @@ class VideoPlayerEngine implements PlaybackEngine {
     // generic listener can otherwise attribute stale errors to the wrong
     // source and trigger recovery for a superseded generation.
     void listener() => _handleControllerValue(controller, generation);
+    _controllerListener = listener;
     controller.addListener(listener);
 
     try {
       await controller.initialize();
       if (generation != _prepareGeneration) {
         controller.removeListener(listener);
+        if (identical(_controllerListener, listener)) _controllerListener = null;
         await controller.dispose();
         return;
       }
 
       if (previous != null && identical(_controller, previous)) {
-        previous.removeListener(_handleControllerValue);
         await previous.dispose();
       }
       _controller = controller;
     } catch (_) {
       controller.removeListener(listener);
+      if (identical(_controllerListener, listener)) _controllerListener = null;
       await controller.dispose();
 
       // A failed reprepare must not leave the previous player without its
@@ -91,7 +99,13 @@ class VideoPlayerEngine implements PlaybackEngine {
       if (generation == _prepareGeneration &&
           previous != null &&
           identical(_controller, previous)) {
-        previous.addListener(_handleControllerValue);
+        // The previous controller remains owned by this engine only if the
+        // failed preparation did not replace it. Restore its listener.
+        final restoredGeneration = _prepareGeneration;
+        void restoredListener() =>
+            _handleControllerValue(previous, restoredGeneration);
+        _controllerListener = restoredListener;
+        previous.addListener(restoredListener);
       }
       rethrow;
     }
@@ -274,6 +288,9 @@ class VideoPlayerEngine implements PlaybackEngine {
     _lastErrorDescription = null;
     final controller = _controller;
     if (controller != null) {
+      final listener = _controllerListener;
+      if (listener != null) controller.removeListener(listener);
+      _controllerListener = null;
       await controller.pause();
     }
     _emitState(PlaybackEngineState.idle, _prepareGeneration);
@@ -284,8 +301,12 @@ class VideoPlayerEngine implements PlaybackEngine {
     _prepareGeneration++;
     final controller = _controller;
     _controller = null;
-    controller?.removeListener(_handleControllerValue);
-    controller?.dispose();
+    final listener = _controllerListener;
+    if (controller != null && listener != null) {
+      controller.removeListener(listener);
+    }
+    _controllerListener = null;
+    await controller?.dispose();
     await _errors.close();
     await _states.close();
   }
