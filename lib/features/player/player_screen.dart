@@ -436,6 +436,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _recover(
       {bool retryable = true, bool markFailure = false}) async {
     if (_recovering || _session.isStopped) return;
+
+    // Claim recovery before any await. Otherwise an engine error and the
+    // periodic health monitor can both enter recovery in the same event turn.
+    _recovering = true;
+
     final source = widget.entry.sources.isEmpty
         ? null
         : widget.entry.sources[_sourceIndex];
@@ -443,8 +448,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await _health.recordFailure(source.id, DateTime.now());
       _sourceAttemptStarted = null;
     }
-
-    _recovering = true;
     _stablePlaybackSince = null;
     final operation = _session.beginOperation();
     if (operation < 0) {
