@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../../core/domain/entities/playlist.dart';
 import '../../core/playlists/m3u/m3u_parser.dart';
 import '../../core/playlists/grouping/playlist_groups.dart';
@@ -80,12 +81,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (playlists.isNotEmpty && !settings.demoSeeded) {
       await _settings.markDemoSeeded();
-    } else if (playlists.isEmpty && !settings.demoSeeded) {
-      final demo = const M3uParser()
-          .parse(_demoM3u(), playlistId: 'demo', name: 'Demo IPTV');
-      await _repository.upsert(demo);
-      await _settings.markDemoSeeded();
-      playlists = _repository.playlists;
     }
 
     final activeId = settings.activePlaylistId;
@@ -99,14 +94,10 @@ class _HomeScreenState extends State<HomeScreen> {
       await _settings.setActivePlaylistId(playlist.id);
     }
 
-    // URL playlists are refreshed on app start. The existing local snapshot
-    // remains the fallback if the remote source is unavailable.
-    if (playlist?.sourceUri != null) {
-      await _refreshRemotePlaylist(playlist!);
-      await _repository.load();
-      playlist = _repository.getById(playlist.id) ?? playlist;
-    }
-
+    // Never block the first paint on a remote playlist refresh. The persisted
+    // last-known-good snapshot is immediately usable; refresh continues in the
+    // background and atomically replaces it only when a valid new playlist arrives.
+    final startupPlaylist = playlist;
     final organization = playlist == null
         ? const PlaylistOrganization()
         : await _organizationRepository.syncWithGroups(
@@ -118,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!mounted) return;
     setState(() {
-      _playlist = playlist;
+      _playlist = startupPlaylist;
       _organization = organization;
       _favoriteChannelIds = favorites
           .where((favorite) =>
@@ -131,6 +122,31 @@ class _HomeScreenState extends State<HomeScreen> {
           : (SearchIndex()..replace(playlist.entries.map((e) => e.channel)));
       _loading = false;
     });
+
+    final remote = startupPlaylist;
+    if (remote?.sourceUri != null) {
+      // Fire-and-forget: local playback and navigation stay responsive.
+      unawaited(_refreshRemotePlaylist(remote).then((_) async {
+        await _repository.load();
+        final refreshed = _repository.getById(remote.id);
+        if (!mounted || refreshed == null || refreshed.rawContentHash == remote.rawContentHash) {
+          return;
+        }
+        final refreshedOrganization = await _organizationRepository.syncWithGroups(
+          refreshed.id,
+          refreshed.entries.map((entry) => entry.category?.trim().isEmpty ?? true
+              ? 'Sin categoría'
+              : (entry.category?.trim() ?? 'Sin categoría')),
+        );
+        if (!mounted || _playlist?.id != refreshed.id) return;
+        setState(() {
+          _playlist = refreshed;
+          _organization = refreshedOrganization;
+          _searchIndex = SearchIndex()
+            ..replace(refreshed.entries.map((entry) => entry.channel));
+        });
+      }));
+    }
   }
 
   List<PlaylistGroup> get _groups => PlaylistGroups.fromPlaylist(
@@ -581,13 +597,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() {});
   }
 
-  static String _demoM3u() => '#EXTM3U\n'
-      '#EXTINF:-1 tvg-id="demo-news" group-title="Noticias",Demo News\n'
-      'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8\n'
-      '#EXTINF:-1 tvg-id="demo-sports" group-title="Deportes",Demo Sports\n'
-      'https://test-streams.mux.dev/test_001/stream.m3u8\n'
-      '#EXTINF:-1 tvg-id="demo-movie" group-title="Películas",Demo Cinema\n'
-      'https://storage.googleapis.com/coverr-main/mp4/Mt_Baker.mp4\n';
 }
 
 class _ChannelCard extends StatefulWidget {
