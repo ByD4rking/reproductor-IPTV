@@ -30,6 +30,7 @@ class M3uParser {
     String content, {
     String playlistId = 'imported',
     String name = 'Imported playlist',
+    Uri? baseUri,
   }) {
     if (content.length > maxContentCharacters) {
       throw const M3uParseException('Playlist content limit exceeded');
@@ -43,6 +44,7 @@ class M3uParser {
         'maxChannels': maxChannels,
         'maxContentCharacters': maxContentCharacters,
         'maxLineLength': maxLineLength,
+        'baseUri': baseUri?.toString() ?? '',
       },
     );
   }
@@ -51,6 +53,7 @@ class M3uParser {
     String content, {
     String playlistId = 'imported',
     String name = 'Imported playlist',
+    Uri? baseUri,
   }) {
     if (content.length > maxContentCharacters) {
       throw const M3uParseException('Playlist content limit exceeded');
@@ -60,6 +63,7 @@ class M3uParser {
       playlistId: playlistId,
       name: name,
       rawContentHash: sha256.convert(utf8.encode(content)).toString(),
+      baseUri: baseUri,
     );
   }
 
@@ -68,6 +72,7 @@ class M3uParser {
     String playlistId = 'imported',
     String name = 'Imported playlist',
     required String rawContentHash,
+    Uri? baseUri,
   }) {
     final entries = <PlaylistEntry>[];
     final byTvgId = <String, int>{};
@@ -106,8 +111,7 @@ class M3uParser {
           : '${Channel.normalizeIdentity(displayName)}:${entries.length}';
 
       final logoText = attrs['tvg-logo']?.trim();
-      final logoUrl =
-          logoText == null || logoText.isEmpty ? null : Uri.tryParse(logoText);
+      final logoUrl = _resolveLogoUri(logoText, baseUri);
 
       final headers = <String, String>{};
       final userAgent = attrs['http-user-agent']?.trim();
@@ -189,6 +193,7 @@ class M3uParser {
     Iterable<String> lines, {
     String playlistId = 'imported',
     String name = 'Imported playlist',
+    Uri? baseUri,
   }) {
     final digestSink = _DigestSink();
     final hashSink = sha256.startChunkedConversion(digestSink);
@@ -216,6 +221,7 @@ class M3uParser {
       playlistId: playlistId,
       name: name,
       rawContentHash: '',
+      baseUri: baseUri,
     );
     hashSink.close();
     final digest = digestSink.value;
@@ -244,6 +250,20 @@ class M3uParser {
           match.group(2) ?? match.group(3) ?? match.group(4) ?? '';
     }
     return out;
+  }
+
+  Uri? _resolveLogoUri(String? value, Uri? baseUri) {
+    if (value == null || value.isEmpty) return null;
+    final parsed = Uri.tryParse(value);
+    if (parsed == null) return null;
+    final resolved = parsed.hasScheme ? parsed : baseUri?.resolveUri(parsed);
+    if (resolved == null ||
+        (resolved.scheme != 'http' && resolved.scheme != 'https') ||
+        resolved.host.isEmpty ||
+        resolved.userInfo.isNotEmpty) {
+      return null;
+    }
+    return resolved;
   }
 
   String? _category(Map<String, String> attrs) {
@@ -282,5 +302,8 @@ Playlist _parseM3uPayload(Map<String, Object> payload) {
     payload['content']! as String,
     playlistId: payload['playlistId']! as String,
     name: payload['name']! as String,
+    baseUri: (payload['baseUri']! as String).isEmpty
+        ? null
+        : Uri.tryParse(payload['baseUri']! as String),
   );
 }
