@@ -576,7 +576,6 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
                   ),
                   onTap: () => _usePlaylist(playlist),
                   trailing: Wrap(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       FilledButton.tonalIcon(
                         onPressed: _busy ? null : () => _usePlaylist(playlist),
