@@ -10,7 +10,6 @@ on:
       - 'pubspec.yaml'
       - 'pubspec.lock'
       - 'integration_test/**'
-      - 'test/**'
       - '.github/workflows/tv-packages.yml'
   workflow_dispatch:
 

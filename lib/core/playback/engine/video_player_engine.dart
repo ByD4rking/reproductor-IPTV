@@ -168,9 +168,18 @@ class VideoPlayerEngine implements PlaybackEngine {
     if (controller == null || !controller.value.isInitialized) {
       return const PlaybackTracks();
     }
-    final video = controller.isVideoTrackSupportAvailable()
-        ? await controller.getVideoTracks()
-        : const <VideoTrack>[];
+    // Video track selection was added after the Dart version currently
+    // supported by LG's webOS Flutter SDK. Keep the newer API optional so the
+    // older webOS video_player can still play streams and expose audio tracks.
+    final dynamic trackController = controller;
+    List<dynamic> video = const [];
+    try {
+      if (trackController.isVideoTrackSupportAvailable()) {
+        video = await trackController.getVideoTracks();
+      }
+    } on NoSuchMethodError {
+      // Older platform implementations do not expose selectable video tracks.
+    }
     final audio = controller.isAudioTrackSupportAvailable()
         ? await controller.getAudioTracks()
         : const <VideoAudioTrack>[];
@@ -209,21 +218,23 @@ class VideoPlayerEngine implements PlaybackEngine {
   @override
   Future<void> selectVideoTrack(String? trackId) async {
     final controller = _controller;
-    if (controller == null ||
-        !controller.value.isInitialized ||
-        !controller.isVideoTrackSupportAvailable()) {
-      return;
-    }
-    if (trackId == null) {
-      await controller.selectVideoTrack(null);
-      return;
-    }
-    final tracks = await controller.getVideoTracks();
-    for (final track in tracks) {
-      if (track.id == trackId) {
-        await controller.selectVideoTrack(track);
+    if (controller == null || !controller.value.isInitialized) return;
+    final dynamic trackController = controller;
+    try {
+      if (!trackController.isVideoTrackSupportAvailable()) return;
+      if (trackId == null) {
+        await trackController.selectVideoTrack(null);
         return;
       }
+      final tracks = await trackController.getVideoTracks();
+      for (final dynamic track in tracks) {
+        if (track.id == trackId) {
+          await trackController.selectVideoTrack(track);
+          return;
+        }
+      }
+    } on NoSuchMethodError {
+      // Video track selection is unavailable on older platform implementations.
     }
   }
 
@@ -248,7 +259,7 @@ class VideoPlayerEngine implements PlaybackEngine {
     return null;
   }
 
-  String _videoLabel(VideoTrack track) {
+  String _videoLabel(dynamic track) {
     if (track.label != null && track.label!.trim().isNotEmpty) {
       return track.label!;
     }
