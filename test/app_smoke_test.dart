@@ -14,7 +14,7 @@ void main() {
     await tester.pumpWidget(const ReproductorIptvApp());
     await tester.pumpAndSettle();
     expect(find.text('Reproductor IPTV'), findsWidgets);
-    expect(find.text('Agregar playlist'), findsOneWidget);
+    expect(find.text('Agregar primera playlist'), findsOneWidget);
     expect(find.text('Demo News'), findsNothing);
     expect(find.byTooltip('Ajustes'), findsOneWidget);
   });
