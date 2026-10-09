@@ -10,7 +10,6 @@ import '../favorites/favorites_screen.dart';
 import '../history/history_screen.dart';
 import '../epg/epg_screen.dart';
 import '../video/video_library_screen.dart';
-import '../qr/tv_pairing_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../core/favorites/favorite_repository.dart';
 import '../../core/domain/entities/favorite.dart';
@@ -150,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     final remote = startupPlaylist;
-    if (remote?.sourceUri != null) {
+    if (remote != null && remote.sourceUri != null) {
       // Fire-and-forget: local playback and navigation stay responsive.
       unawaited(_refreshRemotePlaylist(remote).then((_) async {
         await _repository.load();
