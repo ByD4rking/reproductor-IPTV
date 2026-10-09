@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Playlist? _playlist;
   SearchIndex? _searchIndex;
   bool _loading = true;
+  String? _loadError;
   String _query = '';
   Timer? _searchDebounce;
   String _category = 'Todos';
@@ -78,6 +79,24 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadLibrary() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _loadError = null;
+      });
+    }
+    try {
+      await _loadLibraryImpl();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadError = 'No se pudo abrir la biblioteca local. Reintenta. ($error)';
+      });
+    }
+  }
+
+  Future<void> _loadLibraryImpl() async {
     await _repository.load();
     var playlists = _repository.playlists;
     final settings = await _settings.load();
@@ -211,6 +230,38 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_loadError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Reproductor IPTV')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.storage_outlined, size: 52,
+                      color: Theme.of(context).colorScheme.error),
+                  const SizedBox(height: 16),
+                  Text('No se pudo abrir la biblioteca',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  Text(_loadError!, textAlign: TextAlign.center),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: _loadLibrary,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
     }
     if (_playlist == null) {
       return Scaffold(
