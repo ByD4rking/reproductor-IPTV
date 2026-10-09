@@ -15,6 +15,11 @@ Future<void> main(List<String> args) async {
       failed = true;
       continue;
     }
+    if (platform == 'webos' && !requireNative) {
+      stderr.writeln('webOS validation requires --require-native.');
+      failed = true;
+      continue;
+    }
 
     final root = Directory('dist/$platform/package');
     final manifestName = platform == 'tizen' ? 'config.xml' : 'appinfo.json';
@@ -22,12 +27,18 @@ Future<void> main(List<String> args) async {
     final index = File('${root.path}/index.html');
     final icon = File('${root.path}/icon.png');
 
-    final checks = <String, bool>{
-      'package directory': root.existsSync(),
-      'index.html': index.existsSync() && index.lengthSync() > 0,
-      'manifest': manifest.existsSync() && manifest.lengthSync() > 0,
-      'icon': icon.existsSync() && icon.lengthSync() > 0,
-    };
+    // Tizen packages a Flutter Web payload plus its native .wgt. LG webOS
+    // uses the official Flutter webOS SDK to build a native .ipk, so it has no
+    // dist/webos/package directory to validate.
+    final checks = <String, bool>{};
+    if (platform == 'tizen') {
+      checks.addAll({
+        'package directory': root.existsSync(),
+        'index.html': index.existsSync() && index.lengthSync() > 0,
+        'manifest': manifest.existsSync() && manifest.lengthSync() > 0,
+        'icon': icon.existsSync() && icon.lengthSync() > 0,
+      });
+    }
 
     if (platform == 'tizen' && manifest.existsSync()) {
       final xml = manifest.readAsStringSync();
