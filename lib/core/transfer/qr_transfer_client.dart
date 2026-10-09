@@ -33,16 +33,19 @@ class QrTransferClient {
       ..headers['Content-Type'] = 'text/plain; charset=UTF-8'
       ..bodyBytes = body;
 
-    final streamed = await http.Client()
-        .send(request)
-        .timeout(requestTimeout);
-    final response = await http.Response.fromStream(streamed)
-        .timeout(requestTimeout);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw StateError(
-        'La TV rechazó la transferencia (${response.statusCode}).',
-      );
+    final client = http.Client();
+    try {
+      final streamed = await client.send(request).timeout(requestTimeout);
+      final response = await http.Response.fromStream(streamed)
+          .timeout(requestTimeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw StateError(
+          'La TV rechazó la transferencia (${response.statusCode}).',
+        );
+      }
+      return response.statusCode;
+    } finally {
+      client.close();
     }
-    return response.statusCode;
   }
 }
