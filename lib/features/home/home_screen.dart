@@ -424,29 +424,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   active: playlist,
                   onSelected: (selected) async {
                     await _settings.setActivePlaylistId(selected.id);
-                    if (mounted) {
-                      setState(() {
-                        _playlist = selected;
-                        _rebuildEntryIndex(selected);
-                        _category = 'Todos';
-                        _organization = const PlaylistOrganization();
-                        _favoriteChannelIds = <String>{};
-                        _query = '';
-                        _searchIndex = SearchIndex()
-                          ..replace(selected.entries.map((e) => e.channel));
-                        FavoriteRepository().load().then((values) {
-                          if (!mounted || _playlist?.id != selected.id) return;
-                          setState(() {
-                            _favoriteChannelIds = values
-                                .where((favorite) =>
-                                    favorite.preferredPlaylistId == null ||
-                                    favorite.preferredPlaylistId == selected.id)
-                                .map((favorite) => favorite.channelId)
-                                .toSet();
-                          });
-                        });
-                      });
-                    }
+                    final organization =
+                        await _organizationRepository.syncWithGroups(
+                      selected.id,
+                      selected.entries.map((entry) =>
+                          entry.category?.trim().isEmpty ?? true
+                              ? 'Sin categoría'
+                              : (entry.category?.trim() ?? 'Sin categoría')),
+                    );
+                    final favorites = await FavoriteRepository().load();
+                    if (!mounted) return;
+                    setState(() {
+                      _playlist = selected;
+                      _rebuildEntryIndex(selected);
+                      _category = 'Todos';
+                      _organization = organization;
+                      _favoriteChannelIds = favorites
+                          .where((favorite) =>
+                              favorite.preferredPlaylistId == null ||
+                              favorite.preferredPlaylistId == selected.id)
+                          .map((favorite) => favorite.channelId)
+                          .toSet();
+                      _query = '';
+                      _searchIndex = SearchIndex()
+                        ..replace(selected.entries.map((entry) => entry.channel));
+                    });
                   },
                 ),
               ),
