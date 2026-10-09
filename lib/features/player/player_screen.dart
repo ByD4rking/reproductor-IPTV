@@ -851,3 +851,4 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ),
     );
   }
+}
