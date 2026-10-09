@@ -84,8 +84,13 @@ class PlaylistImportService {
         throw const FormatException('La playlist remota está vacía');
       }
 
-      final parsed =
-          parser.parseLines(lines, playlistId: playlistId, name: name);
+      // Resolve relative tvg-logo paths against the remote playlist URL.
+      final parsed = parser.parseLines(
+        lines,
+        playlistId: playlistId,
+        name: name,
+        baseUri: response.request?.url ?? uri,
+      );
       final result = _validateAndPromote(parsed, previous, sourceUri: uri);
       await _stateRepository?.markActive(
           playlistId, uri, parsed.rawContentHash);
