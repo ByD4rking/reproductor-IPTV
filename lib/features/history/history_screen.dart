@@ -57,21 +57,102 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return '${seconds}s';
   }
 
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    Widget body;
+
+    if (_loading) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_error != null) {
+      body = Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 42),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (_items.isEmpty) {
+      body = Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.history_rounded, size: 56, color: theme.colorScheme.primary),
+                const SizedBox(height: 16),
+                Text('Aún no hay reproducciones', textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
+                const SizedBox(height: 8),
+                Text(
+                  'Los canales que reproduzcas aparecerán aquí con la fecha y la duración de la sesión.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } else {
+      body = ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: _items.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final item = _items[index];
+          final entry = _entries['${item.playlistId}::${item.channelId}'] ?? _entries[item.channelId];
+          final localTime = item.startedAt.toLocal();
+          final date = '${localTime.day.toString().padLeft(2, '0')}/${localTime.month.toString().padLeft(2, '0')}/${localTime.year} ${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
+          return Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+              leading: CircleAvatar(
+                backgroundColor: theme.colorScheme.secondaryContainer,
+                foregroundColor: theme.colorScheme.onSecondaryContainer,
+                child: const Icon(Icons.play_arrow_rounded),
+              ),
+              title: Text(entry?.channel.displayName ?? item.channelId, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text('$date · ${_duration(item.duration)}', maxLines: 2, overflow: TextOverflow.ellipsis),
+              trailing: const Icon(Icons.chevron_right_rounded),
+            ),
+          );
+        },
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Historial'), actions: [IconButton(tooltip: 'Actualizar', onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh)), if (_items.isNotEmpty) IconButton(tooltip: 'Borrar historial', onPressed: _loading ? null : _clear, icon: const Icon(Icons.delete_sweep_outlined))]),
-      body: _loading ? const Center(child: CircularProgressIndicator())
-          : _error != null ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.error_outline, size: 42), const SizedBox(height: 12), Text(_error!, textAlign: TextAlign.center), const SizedBox(height: 16), FilledButton.icon(onPressed: _load, icon: const Icon(Icons.refresh), label: const Text('Reintentar'))])) )
-          : _items.isEmpty ? Center(child: Padding(padding: const EdgeInsets.all(28), child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.history_rounded, size: 56, color: theme.colorScheme.primary), const SizedBox(height: 16), Text('Aún no hay reproducciones', textAlign: TextAlign.center, style: theme.textTheme.titleLarge), const SizedBox(height: 8), Text('Los canales que reproduzcas aparecerán aquí con la fecha y la duración de la sesión.', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant))])))
-          : ListView.separated(padding: const EdgeInsets.all(16), itemCount: _items.length, separatorBuilder: (_, __) => const SizedBox(height: 8), itemBuilder: (context, index) {
-              final item = _items[index];
-              final entry = _entries['${item.playlistId}::${item.channelId}'] ?? _entries[item.channelId];
-              final localTime = item.startedAt.toLocal();
-              final date = '${localTime.day.toString().padLeft(2, '0')}/${localTime.month.toString().padLeft(2, '0')}/${localTime.year} ${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
-              return Card(child: ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5), leading: CircleAvatar(backgroundColor: theme.colorScheme.secondaryContainer, foregroundColor: theme.colorScheme.onSecondaryContainer, child: const Icon(Icons.play_arrow_rounded)), title: Text(entry?.channel.displayName ?? item.channelId, maxLines: 1, overflow: TextOverflow.ellipsis), subtitle: Text('$date · ${_duration(item.duration)}', maxLines: 2, overflow: TextOverflow.ellipsis), trailing: const Icon(Icons.chevron_right_rounded)));
-            }),
+      appBar: AppBar(
+        title: const Text('Historial'),
+        actions: [
+          IconButton(
+            tooltip: 'Actualizar',
+            onPressed: _loading ? null : _load,
+            icon: const Icon(Icons.refresh),
+          ),
+          if (_items.isNotEmpty)
+            IconButton(
+              tooltip: 'Borrar historial',
+              onPressed: _loading ? null : _clear,
+              icon: const Icon(Icons.delete_sweep_outlined),
+            ),
+        ],
+      ),
+      body: body,
     );
   }
 }
