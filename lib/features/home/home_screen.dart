@@ -38,6 +38,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String _query = '';
   Timer? _searchDebounce;
   String _category = 'Todos';
+  bool _showingChannels = false;
+  int _playlistSwitchGeneration = 0;
   Set<String> _favoriteChannelIds = <String>{};
   final Map<String, PlaylistEntry> _entryByChannelId = <String, PlaylistEntry>{};
   PlaylistOrganization _organization = const PlaylistOrganization();
@@ -425,217 +427,338 @@ class _HomeScreenState extends State<HomeScreen> {
                   : constraints.maxWidth >= 700
                       ? 3
                       : 2;
-          return CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(22),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          final wide = constraints.maxWidth >= 900;
+
+          void selectFolder(String name) {
+            setState(() {
+              _category = name;
+              _query = '';
+              _showingChannels = true;
+            });
+          }
+
+          Widget playlistSelector() => _PlaylistSwitcher(
+                playlists: _repository.playlists,
+                active: playlist,
+                onSelected: (selected) async {
+                  final generation = ++_playlistSwitchGeneration;
+                  final organization = await _organizationRepository.syncWithGroups(
+                    selected.id,
+                    selected.entries.map((entry) =>
+                        entry.category?.trim().isEmpty ?? true
+                            ? 'Sin categoría'
+                            : (entry.category?.trim() ?? 'Sin categoría')),
+                  );
+                  final favorites = await FavoriteRepository().load();
+                  if (!mounted || generation != _playlistSwitchGeneration) return;
+                  await _settings.setActivePlaylistId(selected.id);
+                  if (!mounted || generation != _playlistSwitchGeneration) return;
+                  _rebuildEntryIndex(selected);
+                  setState(() {
+                    _playlist = selected;
+                    _category = 'Todos';
+                    _showingChannels = false;
+                    _organization = organization;
+                    _favoriteChannelIds = favorites
+                        .where((favorite) =>
+                            favorite.preferredPlaylistId == null ||
+                            favorite.preferredPlaylistId == selected.id)
+                        .map((favorite) => favorite.channelId)
+                        .toSet();
+                    _query = '';
+                    _searchIndex = SearchIndex()
+                      ..replace(selected.entries.map((entry) => entry.channel));
+                  });
+                },
+              );
+
+          Widget searchField() => TextField(
+                key: ValueKey('search-${playlist.id}'),
+                onChanged: (value) {
+                  _searchDebounce?.cancel();
+                  _searchDebounce = Timer(
+                    const Duration(milliseconds: 120),
+                    () {
+                      if (!mounted) return;
+                      setState(() {
+                        _query = value.trim();
+                        if (_query.isNotEmpty) _showingChannels = true;
+                      });
+                    },
+                  );
+                },
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  hintText: 'Buscar canal...',
+                  filled: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              );
+
+          Widget folderRow(String name, int count, {bool management = false}) =>
+              ListTile(
+                key: ValueKey('folder-${playlist.id}-$name'),
+                selected: _category == name && _showingChannels,
+                leading: Icon(name == 'Todos'
+                    ? Icons.grid_view_rounded
+                    : name == 'Favoritos'
+                        ? Icons.star_rounded
+                        : Icons.folder_rounded),
+                title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                trailing: management
+                    ? null
+                    : Text('$count', style: Theme.of(context).textTheme.labelMedium),
+                onTap: () => selectFolder(name),
+              );
+
+          Widget folderSidebar() => Container(
+                width: wide ? 270 : double.infinity,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  border: wide
+                      ? Border(
+                          right: BorderSide(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                          ),
+                        )
+                      : null,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 18, 12, 8),
+                      child: Row(
                         children: [
-                          const Text('TV en directo',
-                              style: TextStyle(
-                                  fontSize: 28, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 6),
-                          Text(
-                              '${playlist.entries.length} canales · ${_groups.length} categorías'),
-                          const SizedBox(height: 16),
-                          TextField(
-                            onChanged: (value) {
-                              _searchDebounce?.cancel();
-                              _searchDebounce = Timer(
-                                const Duration(milliseconds: 120),
-                                () {
-                                  if (!mounted) return;
-                                  setState(() => _query = value.trim());
-                                },
-                              );
-                            },
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.search),
-                              hintText: 'Buscar canal, TVG-ID o nombre...',
-                              filled: true,
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide.none),
+                          const Icon(Icons.folder_copy_rounded),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'CARPETAS',
+                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    letterSpacing: 1.1,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                             ),
+                          ),
+                          IconButton(
+                            tooltip: 'Crear carpeta',
+                            onPressed: _createFolder,
+                            icon: const Icon(Icons.create_new_folder_outlined),
+                          ),
+                          IconButton(
+                            tooltip: 'Administrar carpetas',
+                            onPressed: _manageFolders,
+                            icon: const Icon(Icons.tune_rounded),
                           ),
                         ],
                       ),
                     ),
-                  ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        children: [
+                          folderRow('Todos', playlist.entries.length),
+                          ..._groups.map((group) =>
+                              folderRow(group.name, group.count)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        '${playlist.entries.length} canales en esta lista',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: _PlaylistSwitcher(
-                  playlists: _repository.playlists,
-                  active: playlist,
-                  onSelected: (selected) async {
-                    await _settings.setActivePlaylistId(selected.id);
-                    final organization =
-                        await _organizationRepository.syncWithGroups(
-                      selected.id,
-                      selected.entries.map((entry) =>
-                          entry.category?.trim().isEmpty ?? true
-                              ? 'Sin categoría'
-                              : (entry.category?.trim() ?? 'Sin categoría')),
-                    );
-                    final favorites = await FavoriteRepository().load();
-                    if (!mounted) return;
-                    setState(() {
-                      _playlist = selected;
-                      _rebuildEntryIndex(selected);
-                      _category = 'Todos';
-                      _organization = organization;
-                      _favoriteChannelIds = favorites
-                          .where((favorite) =>
-                              favorite.preferredPlaylistId == null ||
-                              favorite.preferredPlaylistId == selected.id)
-                          .map((favorite) => favorite.channelId)
-                          .toSet();
-                      _query = '';
-                      _searchIndex = SearchIndex()
-                        ..replace(selected.entries.map((entry) => entry.channel));
-                    });
-                  },
-                ),
-              ),
-              SliverToBoxAdapter(
+              );
+
+          Widget channelGrid() {
+            if (entries.isEmpty) {
+              return Center(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                  child: Row(
+                  padding: const EdgeInsets.all(28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.folder_copy_outlined),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text('Carpetas',
-                            style: Theme.of(context).textTheme.titleMedium),
+                      Icon(
+                        _query.isNotEmpty
+                            ? Icons.search_off_rounded
+                            : Icons.tv_off_rounded,
+                        size: 46,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
-                      IconButton(
-                        tooltip: 'Crear carpeta',
-                        onPressed: _createFolder,
-                        icon: const Icon(Icons.create_new_folder_outlined),
+                      const SizedBox(height: 12),
+                      Text(
+                        _query.isNotEmpty
+                            ? 'No encontramos canales'
+                            : 'Esta carpeta está vacía',
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      IconButton(
-                        tooltip: 'Administrar carpetas',
-                        onPressed: _manageFolders,
-                        icon: const Icon(Icons.tune),
+                      const SizedBox(height: 8),
+                      Text(
+                        _query.isNotEmpty
+                            ? 'Prueba con otro nombre.'
+                            : 'Selecciona otra carpeta para ver sus canales.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: () => setState(() {
+                          _query = '';
+                          _category = 'Todos';
+                          _showingChannels = wide;
+                        }),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        label: const Text('Volver a carpetas'),
                       ),
                     ],
                   ),
                 ),
+              );
+            }
+
+            return GridView.builder(
+              key: ValueKey('channels-${playlist.id}-$_category'),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: constraints.maxWidth >= 1400
+                    ? 5
+                    : constraints.maxWidth >= 1000
+                        ? 4
+                        : constraints.maxWidth >= 650
+                            ? 3
+                            : 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.45,
               ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                sliver: SliverGrid.builder(
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 260,
-                    mainAxisExtent: 92,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                  ),
-                  itemCount: _groups.length + 1,
-                  itemBuilder: (_, index) {
-                    if (index == 0) {
-                      return _FolderCard(
-                        name: 'Todos',
-                        count: playlist.entries.length,
-                        selected: _category == 'Todos',
-                        onTap: () => setState(() => _category = 'Todos'),
-                      );
+              itemCount: entries.length,
+              itemBuilder: (_, index) => _ChannelCard(
+                key: ValueKey('${playlist.id}:${entries[index].id}'),
+                entry: entries[index],
+                playlistId: playlist.id,
+                favorite: _favoriteChannelIds.contains(entries[index].channel.id),
+                autofocus: index == 0,
+                onMoveToFolder: _moveEntryToFolder,
+                onFavoriteChanged: (isFavorite) {
+                  setState(() {
+                    final next = <String>{..._favoriteChannelIds};
+                    if (isFavorite) {
+                      next.add(entries[index].channel.id);
+                    } else {
+                      next.remove(entries[index].channel.id);
                     }
-                    final group = _groups[index - 1];
-                    return _FolderCard(
-                      name: group.name,
-                      count: group.count,
-                      selected: _category == group.name,
-                      onTap: () => setState(() => _category = group.name),
-                    );
-                  },
-                ),
+                    _favoriteChannelIds = next;
+                  });
+                },
               ),
-              if (entries.isEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 48),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(28),
-                        child: Column(
-                          children: [
-                            Icon(
-                              _query.isNotEmpty ? Icons.search_off_rounded : Icons.tv_off_rounded,
-                              size: 42,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _query.isNotEmpty
-                                  ? 'No encontramos canales'
-                                  : 'Esta carpeta está vacía',
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _query.isNotEmpty
-                                  ? 'Prueba con otro nombre o limpia la búsqueda.'
-                                  : 'Elige otra carpeta o agrega canales a esta categoría.',
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                            if (_query.isNotEmpty || _category != 'Todos') ...[
-                              const SizedBox(height: 16),
-                              OutlinedButton.icon(
-                                onPressed: () => setState(() {
-                                  _query = '';
-                                  _category = 'Todos';
-                                }),
-                                icon: const Icon(Icons.filter_alt_off_outlined),
-                                label: const Text('Limpiar filtros'),
-                              ),
-                            ],
-                          ],
-                        ),
+            );
+          }
+
+          final header = Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'TV en directo',
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${playlist.name} · ${playlist.entries.length} canales',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                  sliver: SliverGrid.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 1.45,
-                    ),
-                    itemCount: entries.length,
-                    itemBuilder: (_, index) => _ChannelCard(
-                        entry: entries[index],
-                        playlistId: playlist.id,
-                        favorite: _favoriteChannelIds.contains(entries[index].channel.id),
-                        autofocus: index == 0,
-                        onMoveToFolder: _moveEntryToFolder,
-                        onFavoriteChanged: (isFavorite) {
-                          setState(() {
-                            final next = <String>{..._favoriteChannelIds};
-                            if (isFavorite) {
-                              next.add(entries[index].channel.id);
-                            } else {
-                              next.remove(entries[index].channel.id);
-                            }
-                            _favoriteChannelIds = next;
-                          });
+                    if (!wide && _showingChannels)
+                      IconButton.filledTonal(
+                        tooltip: 'Volver a carpetas',
+                        onPressed: () => setState(() {
+                          _showingChannels = false;
+                          _category = 'Todos';
+                          _query = '';
                         }),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                playlistSelector(),
+                const SizedBox(height: 8),
+                searchField(),
+              ],
+            ),
+          );
+
+          if (wide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(width: 270, child: folderSidebar()),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      header,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
+                        child: Text(
+                          _query.isNotEmpty ? 'Resultados de búsqueda' : _category,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                      Expanded(child: channelGrid()),
+                    ],
                   ),
                 ),
+              ],
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              Expanded(
+                child: _showingChannels
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
+                            child: Text(
+                              _query.isNotEmpty ? 'Resultados de búsqueda' : _category,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                          Expanded(child: channelGrid()),
+                        ],
+                      )
+                    : folderSidebar(),
+              ),
             ],
           );
         },
@@ -858,6 +981,7 @@ class _ChannelCardState extends State<_ChannelCard> {
                     children: [
                       if (logo != null)
                         Image.network(
+                          key: ValueKey('${widget.playlistId}:${widget.entry.id}:${logo.toString()}'),
                           logo.toString(),
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.medium,
