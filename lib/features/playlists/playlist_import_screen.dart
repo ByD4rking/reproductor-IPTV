@@ -392,6 +392,7 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     );
     if (!mounted || payload == null) return;
     await widget.repository.load();
+    if (!mounted) return;
     final playlists = widget.repository.playlists;
     if (playlists.isEmpty) {
       setState(() => _message = 'Primero agrega una playlist para enviarla a la TV.');
