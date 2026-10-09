@@ -38,7 +38,7 @@ class _TvPairingScreenState extends State<TvPairingScreen> {
     try {
       final session = await _server.start(
         onPlaylistUploaded: widget.onPlaylistUploaded ?? (content) async {
-          final playlist = const M3uParser().parse(
+          final playlist = await const M3uParser().parseAsync(
             content,
             playlistId: 'qr-${DateTime.now().microsecondsSinceEpoch}',
             name: 'Playlist recibida por QR',
