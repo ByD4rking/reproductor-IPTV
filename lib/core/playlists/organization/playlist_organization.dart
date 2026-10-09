@@ -104,9 +104,11 @@ class PlaylistOrganizationRepository {
     await _preferences.setString(_key, jsonEncode(root));
   }
 
-  Future<void> _enqueue(Future<void> Function() operation) {
+  Future<T> _enqueue<T>(Future<T> Function() operation) {
     final next = _writeQueue.then((_) => operation());
-    _writeQueue = next.catchError((Object _) {});
+    // Keep the queue alive after a failed write without erasing the original
+    // operation's error for its caller.
+    _writeQueue = next.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     return next;
   }
 
