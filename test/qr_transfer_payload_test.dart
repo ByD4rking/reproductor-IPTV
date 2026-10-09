@@ -13,6 +13,28 @@ void main() {
     expect(QrTransferPayload.tryParse(payload.encode()), isNotNull);
   });
 
+  test('accepts RFC1918 address ranges and rejects adjacent public ranges', () {
+    for (final host in ['10.1.2.3', '192.168.1.20', '172.16.0.1', '172.31.255.254']) {
+      expect(
+        QrTransferPayload.isValidSessionUri(
+          Uri.parse('http://$host:43210/?token=$token'),
+        ),
+        isTrue,
+        reason: host,
+      );
+    }
+
+    for (final host in ['172.15.0.1', '172.32.0.1', '100.64.0.1', '169.254.1.2', '127.0.0.1', '8.8.8.8']) {
+      expect(
+        QrTransferPayload.isValidSessionUri(
+          Uri.parse('http://$host:43210/?token=$token'),
+        ),
+        isFalse,
+        reason: host,
+      );
+    }
+  });
+
   test('rejects public hosts to prevent playlist exfiltration', () {
     final payload = QrTransferPayload(
       url: Uri.parse('https://example.com:443/?token=$token'),
@@ -31,6 +53,21 @@ void main() {
 
     expect(QrTransferPayload.tryParse(missingToken.encode()), isNull);
     expect(QrTransferPayload.tryParse(credentials.encode()), isNull);
+  });
+
+  test('rejects extra query parameters and non-root paths', () {
+    for (final url in [
+      'http://192.168.1.20:43210/?token=$token&redirect=https://example.com',
+      'http://192.168.1.20:43210/other?token=$token',
+      'http://192.168.1.20:43210/?token=short',
+      'http://192.168.1.20:43210/?token=$token#fragment',
+    ]) {
+      expect(
+        QrTransferPayload.isValidSessionUri(Uri.parse(url)),
+        isFalse,
+        reason: url,
+      );
+    }
   });
 
   test('rejects expired transfer sessions', () {
