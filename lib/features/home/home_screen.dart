@@ -419,13 +419,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 1400
-              ? 5
-              : constraints.maxWidth >= 1000
-                  ? 4
-                  : constraints.maxWidth >= 700
-                      ? 3
-                      : 2;
           final wide = constraints.maxWidth >= 900;
 
           void selectFolder(String name) {
@@ -913,6 +906,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _ChannelCard extends StatefulWidget {
   const _ChannelCard({
+    super.key,
     required this.entry,
     required this.playlistId,
     required this.favorite,
@@ -1107,51 +1101,4 @@ class _PlaylistSwitcher extends StatelessWidget {
   }
 }
 
-class _FolderCard extends StatelessWidget {
-  const _FolderCard({
-    required this.name,
-    required this.count,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String name;
-  final int count;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return TvFocusable(
-      onActivate: onTap,
-      child: Card(
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              children: [
-                Icon(selected ? Icons.folder : Icons.folder_outlined, size: 34),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 4),
-                      Text('$count canales'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+/*
