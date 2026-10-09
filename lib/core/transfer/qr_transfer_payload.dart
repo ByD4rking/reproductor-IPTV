@@ -46,19 +46,7 @@ class QrTransferPayload {
       // A transfer QR must point to the temporary TV server on the local
       // network. Do not let a crafted QR trick the app into POSTing playlist
       // contents (which may contain private URLs) to an arbitrary public host.
-      if (url.userInfo.isNotEmpty ||
-          url.host.isEmpty ||
-          url.port < 1 ||
-          url.port > 65535 ||
-          url.path != '/' ||
-          !_isPrivateIpv4(url.host) ||
-          url.queryParameters.length != 1 ||
-          url.queryParameters['token'] == null ||
-          url.queryParameters['token']!.length < 24 ||
-          url.queryParameters['token']!.length > 128 ||
-          url.fragment.isNotEmpty) {
-        return null;
-      }
+      if (!isValidSessionUri(url)) return null;
 
       final exp = json['exp'];
       if (exp != null && exp is! int) return null;
@@ -72,6 +60,24 @@ class QrTransferPayload {
     } catch (_) {
       return null;
     }
+  }
+
+  static bool isValidSessionUri(Uri url) {
+    if ((url.scheme != 'http' && url.scheme != 'https') ||
+        url.userInfo.isNotEmpty ||
+        url.host.isEmpty ||
+        url.port < 1 ||
+        url.port > 65535 ||
+        url.path != '/' ||
+        !_isPrivateIpv4(url.host) ||
+        url.queryParameters.length != 1 ||
+        url.queryParameters['token'] == null ||
+        url.queryParameters['token']!.length < 24 ||
+        url.queryParameters['token']!.length > 128 ||
+        url.fragment.isNotEmpty) {
+      return false;
+    }
+    return true;
   }
 
   static bool _isPrivateIpv4(String host) {
