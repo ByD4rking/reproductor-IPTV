@@ -104,6 +104,33 @@ void main() {
         fromText.entries.single.sources.single.url);
   });
 
+  test('resolves relative channel logos against the playlist URL', () {
+    const parser = M3uParser();
+    final playlist = parser.parseLines(
+      [
+        '#EXTM3U',
+        '#EXTINF:-1 tvg-logo="/logos/news.png",Noticias',
+        'https://streams.example/live.m3u8',
+      ],
+      baseUri: Uri.parse('https://cdn.example/lists/chile/index.m3u'),
+    );
+
+    expect(
+      playlist.entries.single.logoUrl,
+      Uri.parse('https://cdn.example/logos/news.png'),
+    );
+  });
+
+  test('rejects unsafe schemes for channel logos', () {
+    const parser = M3uParser();
+    final playlist = parser.parse(
+      '#EXTM3U\\n#EXTINF:-1 tvg-logo="javascript:alert(1)",Canal\\n'
+      'https://streams.example/live.m3u8',
+    );
+
+    expect(playlist.entries.single.logoUrl, isNull);
+  });
+
   test('M3U accepts single-quoted attributes', () {
     const text =
         "#EXTM3U\n#EXTINF:-1 tvg-id='abc' group-title='Kids',Kids\nhttps://example.com/live";
