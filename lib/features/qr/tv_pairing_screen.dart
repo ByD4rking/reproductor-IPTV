@@ -70,7 +70,7 @@ class _TvPairingScreenState extends State<TvPairingScreen> {
           );
     final payload = url == null
         ? null
-        : QrTransferPayload(url: url, expiresAt: session.expiresAt).encode();
+        : QrTransferPayload(url: url, expiresAt: session?.expiresAt).encode();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Vincular TV / TV Box')),
