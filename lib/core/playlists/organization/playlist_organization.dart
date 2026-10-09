@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -62,6 +63,7 @@ class PlaylistOrganizationRepository {
       : _preferences = preferences ?? SharedPreferencesAsync();
 
   static const _key = 'playlist.organization.v1';
+  static Future<void> _writeQueue = Future<void>.value();
 
   static String entryKey(PlaylistEntry entry) =>
       entry.channel.tvgId?.trim().isNotEmpty == true
@@ -84,7 +86,13 @@ class PlaylistOrganizationRepository {
     return const PlaylistOrganization();
   }
 
-  Future<void> save(String playlistId, PlaylistOrganization organization) async {
+  Future<void> save(String playlistId, PlaylistOrganization organization) =>
+      _enqueue(() => _saveNow(playlistId, organization));
+
+  Future<void> _saveNow(
+    String playlistId,
+    PlaylistOrganization organization,
+  ) async {
     final root = <String, dynamic>{};
     final raw = await _preferences.getString(_key);
     if (raw != null && raw.isNotEmpty) {
@@ -96,17 +104,26 @@ class PlaylistOrganizationRepository {
     await _preferences.setString(_key, jsonEncode(root));
   }
 
-  Future<void> removePlaylist(String playlistId) async {
-    final raw = await _preferences.getString(_key);
-    if (raw == null || raw.isEmpty) return;
-    try {
-      final root = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-      root.remove(playlistId);
-      await _preferences.setString(_key, jsonEncode(root));
-    } catch (_) {}
+  Future<void> _enqueue(Future<void> Function() operation) {
+    final next = _writeQueue.then((_) => operation());
+    _writeQueue = next.catchError((Object _) {});
+    return next;
   }
 
-  Future<PlaylistOrganization> syncWithGroups(String playlistId, Iterable<String> groupNames) async {
+  Future<void> removePlaylist(String playlistId) =>
+      _enqueue(() async {
+        final raw = await _preferences.getString(_key);
+        if (raw == null || raw.isEmpty) return;
+        try {
+          final root = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+          root.remove(playlistId);
+          await _preferences.setString(_key, jsonEncode(root));
+        } catch (_) {}
+      });
+
+  Future<PlaylistOrganization> syncWithGroups(String playlistId, Iterable<String> groupNames) {
+    final names = groupNames.toList(growable: false);
+    return _enqueue(() async {
     final current = await load(playlistId);
     final folders = [...current.folders];
     final ids = folders.map((folder) => folder.id).toSet();
@@ -122,12 +139,14 @@ class PlaylistOrganizationRepository {
       for (final entry in current.assignments.entries) if (validIds.contains(entry.value)) entry.key: entry.value,
     };
     final next = current.copyWith(folders: folders, assignments: assignments);
-    await save(playlistId, next);
+    await _saveNow(playlistId, next);
     return next;
+    });
   }
 
-  Future<PlaylistFolder> createFolder(String playlistId, String name) async {
+  Future<PlaylistFolder> createFolder(String playlistId, String name) {
     final clean = name.trim();
+    return _enqueue(() async {
     if (clean.isEmpty) {
       throw const FormatException('El nombre no puede estar vacío.');
     }
@@ -136,22 +155,26 @@ class PlaylistOrganizationRepository {
       id: 'custom:${DateTime.now().microsecondsSinceEpoch}',
       name: clean, order: current.folders.length, custom: true,
     );
-    await save(playlistId, current.copyWith(folders: [...current.folders, folder]));
+    await _saveNow(playlistId, current.copyWith(folders: [...current.folders, folder]));
     return folder;
+    });
   }
 
-  Future<void> renameFolder(String playlistId, String folderId, String name) async {
+  Future<void> renameFolder(String playlistId, String folderId, String name) {
     final clean = name.trim();
+    return _enqueue(() async {
     if (clean.isEmpty) {
       throw const FormatException('El nombre no puede estar vacío.');
     }
     final current = await load(playlistId);
     final folders = current.folders.map((folder) =>
       folder.id == folderId ? folder.copyWith(name: clean) : folder).toList();
-    await save(playlistId, current.copyWith(folders: folders));
+    await _saveNow(playlistId, current.copyWith(folders: folders));
+    });
   }
 
-  Future<void> deleteFolder(String playlistId, String folderId) async {
+  Future<void> deleteFolder(String playlistId, String folderId) =>
+      _enqueue(() async {
     final current = await load(playlistId);
     final matches = current.folders.where((item) => item.id == folderId);
     if (matches.isEmpty || !matches.first.custom) {
@@ -159,10 +182,11 @@ class PlaylistOrganizationRepository {
     }
     final folders = current.folders.where((item) => item.id != folderId).toList();
     final assignments = Map<String, String>.from(current.assignments)..removeWhere((_, value) => value == folderId);
-    await save(playlistId, current.copyWith(folders: folders, assignments: assignments));
-  }
+    await _saveNow(playlistId, current.copyWith(folders: folders, assignments: assignments));
+      });
 
-  Future<void> moveEntry(String playlistId, String entryId, String? folderId) async {
+  Future<void> moveEntry(String playlistId, String entryId, String? folderId) =>
+      _enqueue(() async {
     final current = await load(playlistId);
     final assignments = Map<String, String>.from(current.assignments);
     if (folderId == null) {
@@ -170,10 +194,11 @@ class PlaylistOrganizationRepository {
     } else {
       assignments[entryId] = folderId;
     }
-    await save(playlistId, current.copyWith(assignments: assignments));
-  }
+    await _saveNow(playlistId, current.copyWith(assignments: assignments));
+      });
 
-  Future<void> reorder(String playlistId, String folderId, int delta) async {
+  Future<void> reorder(String playlistId, String folderId, int delta) =>
+      _enqueue(() async {
     final current = await load(playlistId);
     final ordered = [...current.folders]..sort((a, b) => a.order.compareTo(b.order));
     final index = ordered.indexWhere((folder) => folder.id == folderId);
@@ -184,6 +209,6 @@ class PlaylistOrganizationRepository {
     final item = ordered.removeAt(index);
     ordered.insert(target, item);
     final folders = [for (var i = 0; i < ordered.length; i++) ordered[i].copyWith(order: i)];
-    await save(playlistId, current.copyWith(folders: folders));
-  }
+    await _saveNow(playlistId, current.copyWith(folders: folders));
+      });
 }
