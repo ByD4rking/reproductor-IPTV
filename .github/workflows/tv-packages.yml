@@ -137,9 +137,7 @@ jobs:
           test "$(find build/webos -type f -name '*.ipk' | wc -l)" -eq 1
           cp "$(find build/webos -type f -name '*.ipk' | head -n1)" dist/webos/native/reproductor-IPTV-LG-webOS-native.ipk
       - name: Validate native webOS package
-        run: |
-          set -euo pipefail
-          "$RUNNER_TEMP/flutter-webos/bin/cache/dart-sdk/bin/dart" run tool/validate_tv_packages.dart webos --require-native
+        run: flutter-webos pub run tool/validate_tv_packages.dart webos --require-native
       - name: Validate IPK archive contents
         run: |
           set -euo pipefail
