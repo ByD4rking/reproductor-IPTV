@@ -111,7 +111,19 @@ class PlaylistImportService {
       throw FormatException(validation.reason);
     }
     if (previous != null && previous.rawContentHash == parsed.rawContentHash) {
-      return PlaylistImportResult(playlist: previous, replaced: false);
+      final sameVisibleData = previous.entries.length == parsed.entries.length &&
+          List.generate(previous.entries.length, (index) {
+            final oldEntry = previous.entries[index];
+            final newEntry = parsed.entries[index];
+            return oldEntry.channel.displayName == newEntry.channel.displayName &&
+                oldEntry.category == newEntry.category &&
+                oldEntry.logoUrl == newEntry.logoUrl;
+          }).every((same) => same);
+      if (sameVisibleData) {
+        return PlaylistImportResult(playlist: previous, replaced: false);
+      }
+      // The M3U text may be unchanged while resolving relative logos fixes
+      // the previously stored presentation data; persist that normalization.
     }
     return PlaylistImportResult(
       playlist: Playlist(
