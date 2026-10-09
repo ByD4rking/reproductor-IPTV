@@ -51,6 +51,21 @@ void main() {
     expect(restored.assignments, isEmpty);
   });
 
+  test('concurrent folder creation retains every folder', () async {
+    final repository = PlaylistOrganizationRepository();
+    await Future.wait([
+      repository.createFolder('one', 'Noticias propias'),
+      repository.createFolder('one', 'Deportes propios'),
+      repository.createFolder('one', 'Películas propias'),
+    ]);
+
+    final restored = await PlaylistOrganizationRepository().load('one');
+    expect(
+      restored.folders.map((folder) => folder.name).toSet(),
+      {'Noticias propias', 'Deportes propios', 'Películas propias'},
+    );
+  });
+
   test('original M3U groups cannot be deleted', () async {
     final repository = PlaylistOrganizationRepository();
     final synced = await repository.syncWithGroups('one', ['Noticias']);
