@@ -6,6 +6,24 @@ import 'dart:typed_data';
 
 import '../playlists/m3u/m3u_parser.dart';
 
+bool _isPrivateIpv4(String host) {
+  final parts = host.split('.');
+  if (parts.length != 4) return false;
+  final octets = <int>[];
+  for (final part in parts) {
+    final value = int.tryParse(part);
+    if (value == null || value < 0 || value > 255 || part != value.toString()) {
+      return false;
+    }
+    octets.add(value);
+  }
+  final a = octets[0];
+  final b = octets[1];
+  return a == 10 ||
+      (a == 192 && b == 168) ||
+      (a == 172 && b >= 16 && b <= 31);
+}
+
 class LocalTransferSession {
   const LocalTransferSession({
     required this.serverPort,
@@ -62,7 +80,9 @@ class LocalPlaylistTransferServer {
       includeLinkLocal: false,
     )) {
       for (final address in interface.addresses) {
-        if (!address.isLoopback) addresses.add(address.address);
+        if (!address.isLoopback && _isPrivateIpv4(address.address)) {
+          addresses.add(address.address);
+        }
       }
     }
 
