@@ -8,10 +8,10 @@ void main() {
   testWidgets('Android device smoke test boots the IPTV home', (tester) async {
     app.main();
 
-    await tester.pumpAndSettle(const Duration(seconds: 5));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
 
-    expect(find.text('TV en directo'), findsOneWidget);
-    expect(find.textContaining('Demo IPTV'), findsOneWidget);
-    expect(find.text('Demo News'), findsOneWidget);
+    expect(find.text('Reproductor IPTV'), findsOneWidget);
+    expect(find.text('Agregar primera playlist'), findsOneWidget);
+    expect(find.text('Demo News'), findsNothing);
   });
 }

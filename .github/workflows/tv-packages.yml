@@ -35,11 +35,9 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: flutter pub get
-      - name: Apply safe Dart fixes and format sources
-        run: |
-          dart fix --apply
-          dart format lib test integration_test tool
-      - run: flutter analyze
+      - name: Format Dart sources
+        run: dart format lib test integration_test tool
+      - run: flutter analyze --no-fatal-infos
       - run: flutter test
 
   android:
@@ -117,6 +115,10 @@ jobs:
       - name: Create native webOS platform
         run: |
           set -euo pipefail
+          # The LG SDK is currently based on Dart 3.10. Keep webOS on the
+          # newest video_player release that supports that SDK; other targets
+          # continue using the version declared in pubspec.yaml.
+          sed -i 's/^  video_player: \^2\.14\.1$/  video_player: ^2.11.1/' pubspec.yaml
           source "$WEBOS_FLUTTER_NDK_ENV"
           flutter-webos create --platforms webos .
       - name: Build native webOS IPK

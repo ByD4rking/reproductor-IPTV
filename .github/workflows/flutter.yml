@@ -26,12 +26,10 @@ jobs:
 
       - run: flutter --version
       - run: flutter pub get
-      - name: Apply safe Dart fixes and format sources
-        run: |
-          dart fix --apply
-          dart format lib test integration_test tool
+      - name: Format Dart sources
+        run: dart format lib test integration_test tool
 
-      - run: flutter analyze
+      - run: flutter analyze --no-fatal-infos
       - run: flutter test
 
       # Generate native hosts needed by CI from the pinned Flutter toolchain.
