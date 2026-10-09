@@ -119,6 +119,18 @@ class LocalPlaylistTransferServer {
         return;
       }
 
+      final contentType = request.headers.contentType;
+      if (contentType == null ||
+          contentType.mimeType.toLowerCase() != 'text/plain' ||
+          (contentType.charset != null &&
+              contentType.charset!.toLowerCase() != 'utf-8')) {
+        request.response
+          ..statusCode = HttpStatus.unsupportedMediaType
+          ..write('Se requiere text/plain con codificación UTF-8');
+        await request.response.close();
+        return;
+      }
+
       _uploading = true;
       final contentLength = request.contentLength;
       if (contentLength > maxUploadBytes) {
@@ -145,7 +157,7 @@ class LocalPlaylistTransferServer {
         bytes.add(chunk);
       }
 
-      final content = utf8.decode(bytes.takeBytes(), allowMalformed: true);
+      final content = utf8.decode(bytes.takeBytes(), allowMalformed: false);
       final playlist = await const M3uParser().parseAsync(
         content,
         playlistId: 'transfer',
@@ -169,7 +181,7 @@ class LocalPlaylistTransferServer {
       request.response
         ..statusCode = HttpStatus.badRequest
         ..headers.contentType = ContentType.text
-        ..write('No se pudo importar la playlist: $error');
+        ..write('No se pudo importar la playlist. Comprueba que el archivo sea M3U/M3U8 válido.');
       await request.response.close();
     }
   }
