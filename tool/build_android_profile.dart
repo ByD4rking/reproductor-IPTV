@@ -25,7 +25,12 @@ Future<void> main(List<String> args) async {
     await _configureAndroidTv(manifest);
   }
 
-  await _run('flutter', const ['build', 'apk', '--release']);
+  final buildArgs = <String>['build', 'apk', '--release'];
+  final buildNumber = Platform.environment['GITHUB_RUN_NUMBER']?.trim();
+  if (buildNumber != null && buildNumber.isNotEmpty) {
+    buildArgs.addAll(['--build-number', buildNumber]);
+  }
+  await _run('flutter', buildArgs);
 
   final output = Directory('dist/android/$profile');
   if (await output.exists()) {

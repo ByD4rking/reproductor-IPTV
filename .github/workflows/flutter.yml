@@ -41,7 +41,7 @@ jobs:
         run: dart run tool/ensure_android_network_permission.dart
 
       - name: Build universal Android APK
-        run: flutter build apk --release
+        run: flutter build apk --release --build-number=${{ github.run_number }}
 
       - name: Verify universal APK artifact
         shell: bash
@@ -49,6 +49,10 @@ jobs:
           set -euo pipefail
           APK=build/app/outputs/flutter-apk/app-release.apk
           test -s "$APK"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          AAPT="$(find "$SDK_ROOT/build-tools" -type f -name aapt | sort -V | tail -n1)"
+          test -n "$AAPT"
+          "$AAPT" dump badging "$APK" | grep -F "versionCode='${{ github.run_number }}'"
           unzip -l "$APK" | grep -F 'lib/armeabi-v7a/libflutter.so'
           unzip -l "$APK" | grep -F 'lib/arm64-v8a/libflutter.so'
           unzip -l "$APK" | grep -F 'lib/x86_64/libflutter.so'
