@@ -127,7 +127,7 @@ class PlaylistOrganizationRepository {
     final current = await load(playlistId);
     final folders = [...current.folders];
     final ids = folders.map((folder) => folder.id).toSet();
-    for (final rawName in groupNames) {
+    for (final rawName in names) {
       final name = rawName.trim().isEmpty ? 'Sin categoría' : rawName.trim();
       final id = 'group:${name.toLowerCase()}';
       if (ids.add(id)) {
