@@ -14,6 +14,7 @@ import '../../core/playback/engine/video_player_engine.dart';
 import '../../core/playback/monitor/stall_detector.dart';
 import '../../core/playback/monitor/buffer_health_monitor.dart';
 import '../../core/playback/monitor/adaptive_buffer_policy.dart';
+import '../../core/playback/monitor/playback_health_signals.dart';
 import '../../core/playback/recovery/recovery_coordinator.dart';
 import '../../core/playback/recovery/recovery_policy.dart';
 import '../../core/playback/session/playback_session.dart';
@@ -518,7 +519,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.dispose();
   }
 
-  @override
   String _formatPlaybackTime(Duration duration) {
     final totalSeconds = duration.inSeconds < 0 ? 0 : duration.inSeconds;
     final hours = totalSeconds ~/ 3600;
