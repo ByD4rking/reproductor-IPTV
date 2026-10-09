@@ -124,7 +124,7 @@ void main() {
   test('rejects unsafe schemes for channel logos', () {
     const parser = M3uParser();
     final playlist = parser.parse(
-      '#EXTM3U\\n#EXTINF:-1 tvg-logo="javascript:alert(1)",Canal\\n'
+      '#EXTM3U\n#EXTINF:-1 tvg-logo="javascript:alert(1)",Canal\n'
       'https://streams.example/live.m3u8',
     );
 
