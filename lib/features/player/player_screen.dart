@@ -447,11 +447,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _toggleFullscreen() async {
-    _fullscreen = !_fullscreen;
-    await SystemChrome.setEnabledSystemUIMode(
-      _fullscreen ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
-    );
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final enteringFullscreen = !_fullscreen;
+    // Update the state before awaiting platform calls so rapid taps and the
+    // Android back gesture cannot queue contradictory orientation changes.
+    setState(() => _fullscreen = enteringFullscreen);
+
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await SystemChrome.setPreferredOrientations(
+          enteringFullscreen
+              ? const <DeviceOrientation>[
+                  DeviceOrientation.landscapeLeft,
+                  DeviceOrientation.landscapeRight,
+                ]
+              : const <DeviceOrientation>[
+                  DeviceOrientation.portraitUp,
+                  DeviceOrientation.portraitDown,
+                  DeviceOrientation.landscapeLeft,
+                  DeviceOrientation.landscapeRight,
+                ],
+        );
+      }
+      await SystemChrome.setEnabledSystemUIMode(
+        enteringFullscreen
+            ? SystemUiMode.immersiveSticky
+            : SystemUiMode.edgeToEdge,
+      );
+    } on PlatformException {
+      // Keep playback usable if a platform/TV shell rejects orientation or
+      // system-UI changes; fullscreen controls remain available.
+    } finally {
+      if (mounted) setState(() {});
+    }
   }
 
   Future<void> _recover(
@@ -535,7 +563,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _healthTimer?.cancel();
     _health.dispose();
     _engine.dispose();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Do not leave Android locked in landscape if the route is removed while
+    // fullscreen (including route replacement/back navigation).
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      unawaited(SystemChrome.setPreferredOrientations(
+        const <DeviceOrientation>[
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ],
+      ));
+    }
+    unawaited(
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge),
+    );
     super.dispose();
   }
 
