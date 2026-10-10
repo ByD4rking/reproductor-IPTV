@@ -280,11 +280,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final controller = _engine.controller;
     if (controller == null || !controller.value.isInitialized) return;
 
-    // The native player can stop without emitting a useful error. Treat an
-    // unexpected pause as a recoverable failure, but never fight an explicit
-    // user pause.
+    // The native player can stop without emitting a useful error. Live
+    // streams may also report completion with no error when the endpoint drops
+    // the playlist/segment connection. Check completion before the generic
+    // non-playing timeout so a live stream is recovered immediately.
     if (!controller.value.isPlaying) {
-      if (!_userPaused &&
+      final value = controller.value;
+      final likelyLive = value.duration == Duration.zero;
+      if (value.isCompleted &&
+          likelyLive &&
+          !_userPaused &&
+          _autoRecovery) {
+        await _recover(markFailure: true);
+        return;
+      }
+      // Do not repeatedly reopen a normal VOD after it has finished, and
+      // never fight an explicit user pause.
+      if (!value.isCompleted &&
+          !_userPaused &&
           _autoRecovery &&
           DateTime.now().difference(_lastProgress) >=
               const Duration(seconds: 5)) {
