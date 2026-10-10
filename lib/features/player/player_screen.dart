@@ -11,6 +11,7 @@ import '../../core/playback/engine/playback_request.dart';
 import '../../core/playback/engine/playback_engine_state.dart';
 import '../../core/playback/diagnostics/playback_error.dart';
 import '../../core/playback/engine/video_player_engine.dart';
+import '../../core/playback/engine/playback_tracks.dart';
 import '../../core/playback/monitor/stall_detector.dart';
 import '../../core/playback/monitor/buffer_health_monitor.dart';
 import '../../core/playback/monitor/adaptive_buffer_policy.dart';
@@ -426,6 +427,110 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  Future<void> _showTrackSelector() async {
+    PlaybackTracks available;
+    try {
+      available = await _engine.tracks();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudieron consultar las pistas de este canal.'),
+          ),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+
+    if (available.audio.isEmpty && available.video.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Este canal no expone pistas de audio o calidad seleccionables.'),
+        ),
+      );
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          children: [
+            if (available.audio.isNotEmpty) ...[
+              const ListTile(
+                leading: Icon(Icons.audiotrack_rounded),
+                title: Text('Pista de audio'),
+                subtitle: Text('Elige idioma o pista disponible'),
+              ),
+              ...available.audio.map(
+                (track) => ListTile(
+                  title: Text(track.label),
+                  subtitle: track.language == null || track.language!.isEmpty
+                      ? null
+                      : Text(track.language!),
+                  trailing: track.selected
+                      ? const Icon(Icons.check_circle_rounded)
+                      : null,
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    try {
+                      await _engine.selectAudioTrack(track.id);
+                    } catch (_) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('El dispositivo no pudo cambiar la pista de audio.'),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+            ],
+            if (available.video.isNotEmpty) ...[
+              const Divider(height: 24),
+              const ListTile(
+                leading: Icon(Icons.high_quality_rounded),
+                title: Text('Calidad de imagen'),
+                subtitle: Text('Solo aparecen las calidades que anuncia la señal'),
+              ),
+              ...available.video.map(
+                (track) => ListTile(
+                  title: Text(track.label),
+                  subtitle: track.bitrate == null
+                      ? null
+                      : Text('${(track.bitrate! / 1000000).toStringAsFixed(1)} Mbps'),
+                  trailing: track.selected
+                      ? const Icon(Icons.check_circle_rounded)
+                      : null,
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    try {
+                      await _engine.selectVideoTrack(track.id);
+                    } catch (_) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('El dispositivo no pudo cambiar la calidad.'),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _toggleFullscreen() async {
     _fullscreen = !_fullscreen;
     await SystemChrome.setEnabledSystemUIMode(
@@ -807,6 +912,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 tooltip: 'Recuperar señal',
                                 onPressed: _recovering ? null : _recover,
                                 icon: const Icon(Icons.refresh_rounded),
+                              ),
+                              IconButton(
+                                tooltip: 'Pistas de audio y calidad',
+                                onPressed: _recovering ? null : _showTrackSelector,
+                                icon: const Icon(Icons.tune_rounded),
                               ),
                               const Spacer(),
                               IconButton(
