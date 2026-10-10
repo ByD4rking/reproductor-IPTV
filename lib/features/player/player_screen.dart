@@ -277,13 +277,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   bool _isLikelyLiveSource(Uri uri) {
     final path = uri.path.toLowerCase();
-    // M3U playlists and transport streams are common live IPTV endpoints.
-    // Some HLS servers expose a non-zero duration even for live windows, so
+    // HLS media playlists and MPEG-TS endpoints are common live IPTV
+    // sources. Do not classify .mpd as live here: DASH is also widely used
+    // for VOD, and retrying a normally completed movie would be incorrect.
+    // Some HLS servers expose a non-zero duration for live windows, so
     // duration alone is not a reliable live/VOD classifier.
-    return path.endsWith('.m3u8') ||
-        path.endsWith('.m3u') ||
-        path.endsWith('.ts') ||
-        path.endsWith('.mpd');
+    return path.endsWith('.m3u8') || path.endsWith('.ts');
   }
 
   Future<void> _checkHealth() async {
