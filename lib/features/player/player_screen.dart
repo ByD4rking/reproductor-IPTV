@@ -275,6 +275,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _sourceAttemptStarted = null;
   }
 
+  bool _isLikelyLiveSource(Uri uri) {
+    final path = uri.path.toLowerCase();
+    // M3U playlists and transport streams are common live IPTV endpoints.
+    // Some HLS servers expose a non-zero duration even for live windows, so
+    // duration alone is not a reliable live/VOD classifier.
+    return path.endsWith('.m3u8') ||
+        path.endsWith('.m3u') ||
+        path.endsWith('.ts') ||
+        path.endsWith('.mpd');
+  }
+
   Future<void> _checkHealth() async {
     if (_session.isStopped || _recovering || _healthCheckRunning) return;
     final controller = _engine.controller;
@@ -286,7 +297,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     // non-playing timeout so a live stream is recovered immediately.
     if (!controller.value.isPlaying) {
       final value = controller.value;
-      final likelyLive = value.duration == Duration.zero;
+      final source = widget.entry.sources.isEmpty
+          ? null
+          : widget.entry.sources[_sourceIndex];
+      final likelyLive = value.duration == Duration.zero ||
+          (source != null && _isLikelyLiveSource(source.url));
       if (value.isCompleted &&
           likelyLive &&
           !_userPaused &&
@@ -372,23 +387,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
 
       final age = progressAt.difference(_lastProgress);
-      if (ended) {
-        // Live IPTV endpoints can close cleanly when the server drops the
-        // segment/playlist connection, so video_player may report completion
-        // without an error. Treat a zero-duration stream as live and enter
-        // the same bounded recovery/failover path used for stalls. Keep normal
-        // VOD completion untouched.
-        final likelyLive = controller.value.duration == Duration.zero;
-        if (likelyLive && _autoRecovery && !_userPaused) {
-          await _recover(markFailure: true);
-          return;
-        }
-        if (mounted && _status != 'Finalizado') {
-          setState(() => _status = 'Finalizado');
-        }
-        return;
-      }
-
       final stalled = _stallDetector.isStalled(
         lastProgressAge: age,
         buffering: buffering,
