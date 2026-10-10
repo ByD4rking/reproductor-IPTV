@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
@@ -275,16 +276,43 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _sourceAttemptStarted = null;
   }
 
+  bool _isLikelyLiveSource(Uri uri) {
+    final path = uri.path.toLowerCase();
+    // HLS media playlists and MPEG-TS endpoints are common live IPTV
+    // sources. Do not classify .mpd as live here: DASH is also widely used
+    // for VOD, and retrying a normally completed movie would be incorrect.
+    // Some HLS servers expose a non-zero duration for live windows, so
+    // duration alone is not a reliable live/VOD classifier.
+    return path.endsWith('.m3u8') || path.endsWith('.ts');
+  }
+
   Future<void> _checkHealth() async {
     if (_session.isStopped || _recovering || _healthCheckRunning) return;
     final controller = _engine.controller;
     if (controller == null || !controller.value.isInitialized) return;
 
-    // The native player can stop without emitting a useful error. Treat an
-    // unexpected pause as a recoverable failure, but never fight an explicit
-    // user pause.
+    // The native player can stop without emitting a useful error. Live
+    // streams may also report completion with no error when the endpoint drops
+    // the playlist/segment connection. Check completion before the generic
+    // non-playing timeout so a live stream is recovered immediately.
     if (!controller.value.isPlaying) {
-      if (!_userPaused &&
+      final value = controller.value;
+      final source = widget.entry.sources.isEmpty
+          ? null
+          : widget.entry.sources[_sourceIndex];
+      final likelyLive = value.duration == Duration.zero ||
+          (source != null && _isLikelyLiveSource(source.url));
+      if (value.isCompleted &&
+          likelyLive &&
+          !_userPaused &&
+          _autoRecovery) {
+        await _recover(markFailure: true);
+        return;
+      }
+      // Do not repeatedly reopen a normal VOD after it has finished, and
+      // never fight an explicit user pause.
+      if (!value.isCompleted &&
+          !_userPaused &&
           _autoRecovery &&
           DateTime.now().difference(_lastProgress) >=
               const Duration(seconds: 5)) {
@@ -359,13 +387,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
 
       final age = progressAt.difference(_lastProgress);
-      if (ended) {
-        if (mounted && _status != 'Finalizado') {
-          setState(() => _status = 'Finalizado');
-        }
-        return;
-      }
-
       final stalled = _stallDetector.isStalled(
         lastProgressAge: age,
         buffering: buffering,
@@ -427,11 +448,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _toggleFullscreen() async {
-    _fullscreen = !_fullscreen;
-    await SystemChrome.setEnabledSystemUIMode(
-      _fullscreen ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
-    );
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final enteringFullscreen = !_fullscreen;
+    // Update the state before awaiting platform calls so rapid taps and the
+    // Android back gesture cannot queue contradictory orientation changes.
+    setState(() => _fullscreen = enteringFullscreen);
+
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await SystemChrome.setPreferredOrientations(
+          enteringFullscreen
+              ? const <DeviceOrientation>[
+                  DeviceOrientation.landscapeLeft,
+                  DeviceOrientation.landscapeRight,
+                ]
+              : const <DeviceOrientation>[
+                  DeviceOrientation.portraitUp,
+                  DeviceOrientation.portraitDown,
+                  DeviceOrientation.landscapeLeft,
+                  DeviceOrientation.landscapeRight,
+                ],
+        );
+      }
+      await SystemChrome.setEnabledSystemUIMode(
+        enteringFullscreen
+            ? SystemUiMode.immersiveSticky
+            : SystemUiMode.edgeToEdge,
+      );
+    } on PlatformException {
+      // Keep playback usable if a platform/TV shell rejects orientation or
+      // system-UI changes; fullscreen controls remain available.
+    } finally {
+      if (mounted) setState(() {});
+    }
   }
 
   Future<void> _recover(
@@ -515,7 +564,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _healthTimer?.cancel();
     _health.dispose();
     _engine.dispose();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Do not leave Android locked in landscape if the route is removed while
+    // fullscreen (including route replacement/back navigation).
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      unawaited(SystemChrome.setPreferredOrientations(
+        const <DeviceOrientation>[
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ],
+      ));
+    }
+    unawaited(
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge),
+    );
     super.dispose();
   }
 
