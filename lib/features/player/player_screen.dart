@@ -360,6 +360,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       final age = progressAt.difference(_lastProgress);
       if (ended) {
+        // Live IPTV endpoints can close cleanly when the server drops the
+        // segment/playlist connection, so video_player may report completion
+        // without an error. Treat a zero-duration stream as live and enter
+        // the same bounded recovery/failover path used for stalls. Keep normal
+        // VOD completion untouched.
+        final likelyLive = controller.value.duration == Duration.zero;
+        if (likelyLive && _autoRecovery && !_userPaused) {
+          await _recover(markFailure: true);
+          return;
+        }
         if (mounted && _status != 'Finalizado') {
           setState(() => _status = 'Finalizado');
         }
