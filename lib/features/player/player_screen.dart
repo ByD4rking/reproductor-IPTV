@@ -39,7 +39,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final _stallDetector = const StallDetector();
   final _bufferHealthMonitor = BufferHealthMonitor();
   final _adaptiveBufferPolicy = const AdaptiveBufferPolicy();
-  final _recoveryCoordinator = RecoveryCoordinator();
+  late final RecoveryCoordinator _recoveryCoordinator;
   final _health = SourceHealthManager(
     repository: SourceHealthRepository(),
   );
@@ -73,6 +73,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
+    // Allow recovery to cycle through every known source, not just two.
+    _recoveryCoordinator = RecoveryCoordinator(
+      policy: RecoveryPolicy(maxSourceChanges: widget.entry.sources.length),
+    );
     // Leave sensor orientation enabled by default; users can force landscape
     // from the player controls and tap again to restore automatic rotation.
     unawaited(SystemChrome.setPreferredOrientations(const <DeviceOrientation>[]));
