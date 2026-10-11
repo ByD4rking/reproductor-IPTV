@@ -148,6 +148,22 @@ void main() {
     expect(playlist.entries.single.logoUrl, isNull);
   });
 
+  test('M3U preserves EXTVLCOPT user agent and referrer per source', () {
+    const text = '#EXTM3U\\n'
+        '#EXTINF:-1 group-title="Noticias",Noticias\\n'
+        '#EXTVLCOPT:http-user-agent=Mozilla/5.0\\n'
+        '#EXTVLCOPT:http-referrer=https://guide.example/\\n'
+        'https://stream.example/live.ts\\n'
+        '#EXTINF:-1 group-title="Cine",Cine\\n'
+        'https://stream.example/movie.ts';
+    final playlist = const M3uParser().parse(text);
+
+    final news = playlist.entries.first.sources.single;
+    expect(news.headers['User-Agent'], 'Mozilla/5.0');
+    expect(news.headers['Referer'], 'https://guide.example/');
+    expect(playlist.entries.last.sources.single.headers, isEmpty);
+  });
+
   test('M3U accepts single-quoted attributes', () {
     const text =
         "#EXTM3U\n#EXTINF:-1 tvg-id='abc' group-title='Kids',Kids\nhttps://example.com/live";
