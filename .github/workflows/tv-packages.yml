@@ -293,5 +293,6 @@ jobs:
           if gh release create "$TAG" release/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "reproductor-IPTV $VERSION ALPHA" --notes-file "$NOTES"; then
             echo "Release $TAG publicado correctamente."
           else
-            echo "::warning::No se pudo publicar el Release; los instaladores quedan disponibles como artifacts."
+            echo "::error::Falló la publicación del Release. No marcar el flujo como exitoso: revisa RELEASE_TOKEN/GITHUB_TOKEN, permisos contents: write, tag y assets."
+            exit 1
           fi
