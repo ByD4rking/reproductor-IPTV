@@ -42,6 +42,7 @@ void main() {
     required Map<String, Object?> releaseJson,
     String installedVersion = '0.3.0',
     String buildNumber = '1',
+    String profile = 'mobile',
   }) {
     return AppUpdateService(
       client: MockClient((request) async {
@@ -50,6 +51,7 @@ void main() {
       }),
       packageInfoLoader: () async =>
           installed(version: installedVersion, build: buildNumber),
+      profileLoader: () async => profile,
     );
   }
 
@@ -77,6 +79,35 @@ void main() {
       service(releaseJson: release(digest: '')).checkForUpdate(),
       throwsFormatException,
     );
+  });
+
+  test('selects the APK matching an Android TV profile', () async {
+    final tag = 'v0.4.0-build-270';
+    final result = await service(
+      profile: 'tv',
+      releaseJson: release(
+        tag: tag,
+        assets: [
+          {
+            'name': 'Reproductor-IPTV-0.4.0-Android-universal.apk',
+            'size': 1000,
+            'digest': 'sha256:${'a' * 64}',
+            'browser_download_url':
+                'https://github.com/ByD4rking/reproductor-IPTV/releases/download/$tag/Reproductor-IPTV-0.4.0-Android-universal.apk',
+          },
+          {
+            'name': 'Reproductor-IPTV-0.4.0-AndroidTV-GoogleTV-universal.apk',
+            'size': 1000,
+            'digest': 'sha256:${'b' * 64}',
+            'browser_download_url':
+                'https://github.com/ByD4rking/reproductor-IPTV/releases/download/$tag/Reproductor-IPTV-0.4.0-AndroidTV-GoogleTV-universal.apk',
+          },
+        ],
+      ),
+    ).checkForUpdate();
+
+    expect(result.info.assetName, contains('AndroidTV-GoogleTV-universal.apk'));
+    expect(result.info.sha256, 'b' * 64);
   });
 
   test('does not offer an update if the release has no universal APK', () async {
