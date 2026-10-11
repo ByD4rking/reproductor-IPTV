@@ -114,6 +114,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
           const ListTile(
+            leading: Icon(Icons.science_outlined),
+            title: Text('reproductor-IPTV 0.3.0 · ALPHA'),
+            subtitle: Text(
+              'Versión de desarrollo. La reproducción y la estabilidad siguen en validación.',
+            ),
+          ),
+          const Divider(),
+          const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Almacenamiento local'),
             subtitle: Text(
