@@ -419,7 +419,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       if (mounted && buffering && !stalled) {
         setState(() => _status =
-            buffer.degraded ? 'Buffer bajo · recuperando...' : 'Buffering');
+            buffer.degraded ? 'Buffer bajo · reproducción en curso' : 'Buffering');
       }
       if ((stalled || buffer.severe) && _autoRecovery) {
         await _recover(markFailure: true);
@@ -529,7 +529,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _recovering = false;
       return;
     }
-    if (mounted) setState(() => _status = 'Recuperando conexión...');
+    if (mounted) setState(() => _status = 'Reconectando señal…');
 
     try {
       // Native pause/stop can stall too; never let one hung platform call
@@ -841,7 +841,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       children: [
                         const CircularProgressIndicator(),
                         const SizedBox(height: 10),
-                        Text(_recovering ? 'Recuperando conexión…' : 'Buffering…'),
+                        Text(_recovering ? 'Reconectando señal…' : 'Cargando señal…'),
                       ],
                     ),
                   ),
