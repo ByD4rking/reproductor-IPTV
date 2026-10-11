@@ -20,7 +20,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   @override
   void initState() {
     super.initState();
-    _check();
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) _check();
   }
 
   Future<void> _check() async {
@@ -73,7 +73,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   @override
   Widget build(BuildContext context) {
     final info = _result?.info;
-    final android = defaultTargetPlatform == TargetPlatform.android;
+    final android = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     return Scaffold(
       appBar: AppBar(title: const Text('Actualizaciones')),
       body: ListView(
@@ -202,7 +202,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: _checking || _installing ? null : _check,
+                      onPressed: !android || _checking || _installing ? null : _check,
                       icon: const Icon(Icons.refresh),
                       label: const Text('Buscar actualizaciones'),
                     ),
