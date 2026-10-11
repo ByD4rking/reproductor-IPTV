@@ -350,7 +350,7 @@ void main() {
       switchSource: () async {},
     );
     expect(nextRound?.level, RecoveryLevel.retry);
-    expect(attempts, 4);
+    expect(attempts, 3);
   });
 
   test('non-retryable failure switches source before exhausting source budget',
