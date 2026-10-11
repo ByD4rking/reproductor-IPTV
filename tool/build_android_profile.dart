@@ -126,12 +126,23 @@ Future<void> _ensureInternetPermission(File manifest) async {
   var xml = await manifest.readAsString();
   const permission =
       '    <uses-permission android:name="android.permission.INTERNET" />\n';
+  const installPermission =
+      '    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n';
   var applicationIndex = xml.indexOf('<application');
   if (applicationIndex < 0) {
     throw StateError('AndroidManifest no contiene <application>.');
   }
 
   var changed = false;
+  if (!xml.contains('android.permission.REQUEST_INSTALL_PACKAGES')) {
+    xml = xml.replaceRange(applicationIndex, applicationIndex, installPermission);
+    applicationIndex = xml.indexOf('<application');
+    if (applicationIndex < 0) {
+      throw StateError('AndroidManifest perdió <application> al añadir permiso de instalación.');
+    }
+    changed = true;
+  }
+
   if (!xml.contains('android.permission.INTERNET')) {
     xml = xml.replaceRange(applicationIndex, applicationIndex, permission);
     applicationIndex = xml.indexOf('<application');
@@ -163,6 +174,9 @@ Future<void> _ensureInternetPermission(File manifest) async {
   final verified = await manifest.readAsString();
   if (!verified.contains('android.permission.INTERNET')) {
     throw StateError('La APK release no quedó configurada con INTERNET.');
+  }
+  if (!verified.contains('android.permission.REQUEST_INSTALL_PACKAGES')) {
+    throw StateError('La APK release no quedó configurada para solicitar instalación de actualizaciones.');
   }
   final applicationStart = verified.indexOf('<application');
   final applicationEnd = verified.indexOf('>', applicationStart);
