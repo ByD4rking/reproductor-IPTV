@@ -56,7 +56,14 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: flutter pub get
-      - run: dart run tool/build_android_profile.dart --profile=${{ matrix.profile }}
+      - name: Build signed Android profile
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          REQUIRE_ANDROID_RELEASE_SIGNING: 'true'
+        run: dart run tool/build_android_profile.dart --profile=${{ matrix.profile }}
       - name: Validate APKs
         shell: bash
         run: |
