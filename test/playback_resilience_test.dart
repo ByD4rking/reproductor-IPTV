@@ -10,6 +10,7 @@ import 'package:reproductor_iptv/core/playback/recovery/backoff.dart';
 import 'package:reproductor_iptv/core/playback/recovery/recovery_coordinator.dart';
 import 'package:reproductor_iptv/core/playback/recovery/recovery_policy.dart';
 import 'package:reproductor_iptv/core/playback/session/playback_session.dart';
+import 'package:reproductor_iptv/core/sources/source_rotation.dart';
 
 void main() {
   test('buffer monitor ignores a brief low-buffer transient', () {
@@ -338,6 +339,18 @@ void main() {
       sourceChanges: 6,
     );
     expect(exhausted.level, RecoveryLevel.degraded);
+  });
+
+  test('source rotation advances sequentially without selecting current source', () {
+    expect(SourceRotation.nextIndex(currentIndex: 0, sourceCount: 4), 1);
+    expect(SourceRotation.nextIndex(currentIndex: 1, sourceCount: 4), 2);
+    expect(SourceRotation.nextIndex(currentIndex: 2, sourceCount: 4), 3);
+    expect(SourceRotation.nextIndex(currentIndex: 3, sourceCount: 4), 0);
+  });
+
+  test('source rotation handles empty and single-source playlists', () {
+    expect(SourceRotation.nextIndex(currentIndex: 0, sourceCount: 0), 0);
+    expect(SourceRotation.nextIndex(currentIndex: 0, sourceCount: 1), 0);
   });
 
   test('cancel invalidates a delayed recovery', () async {
