@@ -66,12 +66,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _healthCheckRunning = false;
   bool _userPaused = false;
   bool _fullscreen = false;
+  bool _orientationForcedLandscape = false;
   bool _controlsVisible = true;
   Timer? _controlsTimer;
 
   @override
   void initState() {
     super.initState();
+    // Leave sensor orientation enabled by default; users can force landscape
+    // from the player controls and tap again to restore automatic rotation.
+    unawaited(SystemChrome.setPreferredOrientations(const <DeviceOrientation>[]));
     _startedAt = DateTime.now();
     _session.start();
     _playbackErrorSubscription = _engine.errors.listen(_handleEngineError);
@@ -426,6 +430,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  Future<void> _toggleOrientation() async {
+    if (_orientationForcedLandscape) {
+      _orientationForcedLandscape = false;
+      await SystemChrome.setPreferredOrientations(const <DeviceOrientation>[]);
+    } else {
+      _orientationForcedLandscape = true;
+      await SystemChrome.setPreferredOrientations(const <DeviceOrientation>[
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
+    if (mounted) setState(() {});
+  }
+
   Future<void> _toggleFullscreen() async {
     _fullscreen = !_fullscreen;
     await SystemChrome.setEnabledSystemUIMode(
@@ -516,6 +534,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _health.dispose();
     _engine.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    unawaited(SystemChrome.setPreferredOrientations(const <DeviceOrientation>[]));
     super.dispose();
   }
 
@@ -807,6 +826,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 tooltip: 'Recuperar señal',
                                 onPressed: _recovering ? null : _recover,
                                 icon: const Icon(Icons.refresh_rounded),
+                              ),
+                              IconButton(
+                                tooltip: _orientationForcedLandscape
+                                    ? 'Restaurar rotación automática'
+                                    : 'Girar pantalla horizontal',
+                                onPressed: _toggleOrientation,
+                                icon: Icon(
+                                  _orientationForcedLandscape
+                                      ? Icons.screen_rotation_alt_rounded
+                                      : Icons.screen_rotation_rounded,
+                                ),
                               ),
                               const Spacer(),
                               IconButton(
