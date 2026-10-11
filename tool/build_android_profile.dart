@@ -20,6 +20,7 @@ Future<void> main(List<String> args) async {
   }
 
   await _ensureInternetPermission(manifest);
+  await _configureAndroidReleaseSigning();
 
   if (profile == 'tv' || profile == 'firetv') {
     await _configureAndroidTv(manifest);
@@ -120,6 +121,108 @@ String? _profile(List<String> args) {
     }
   }
   return null;
+}
+
+Future<void> _configureAndroidReleaseSigning() async {
+  final encoded = Platform.environment['ANDROID_KEYSTORE_BASE64']?.trim() ?? '';
+  final alias = Platform.environment['ANDROID_KEY_ALIAS']?.trim() ?? '';
+  final keyPassword = Platform.environment['ANDROID_KEY_PASSWORD'] ?? '';
+  final storePassword = Platform.environment['ANDROID_STORE_PASSWORD'] ?? '';
+  final required =
+      Platform.environment['REQUIRE_ANDROID_RELEASE_SIGNING'] == 'true';
+  final values = [encoded, alias, keyPassword, storePassword];
+  if (values.every((value) => value.isEmpty)) {
+    if (required) {
+      throw StateError(
+        'Faltan los secretos de firma Android. Configura ANDROID_KEYSTORE_BASE64, '
+        'ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD y ANDROID_STORE_PASSWORD '
+        'en GitHub Actions antes de publicar una Release actualizable.',
+      );
+    }
+    stdout.writeln(
+      'WARNING: APK de desarrollo con firma temporal; no sirve para garantizar actualizaciones sobre instalaciones previas.',
+    );
+    return;
+  }
+  if (values.any((value) => value.isEmpty)) {
+    throw StateError('La configuración de firma Android está incompleta.');
+  }
+
+  late final List<int> keystoreBytes;
+  try {
+    keystoreBytes = base64.decode(encoded);
+  } on FormatException {
+    throw StateError('ANDROID_KEYSTORE_BASE64 no es Base64 válido.');
+  }
+  if (keystoreBytes.isEmpty) {
+    throw StateError('El keystore Android está vacío.');
+  }
+  final keystore = File(
+    '${Directory.systemTemp.path}/reproductor-iptv-release-keystore.jks',
+  );
+  await keystore.writeAsBytes(keystoreBytes, flush: true);
+  final gradleKts = File('android/app/build.gradle.kts');
+  final gradleGroovy = File('android/app/build.gradle');
+  final gradle = await gradleKts.exists()
+      ? gradleKts
+      : await gradleGroovy.exists()
+          ? gradleGroovy
+          : null;
+  if (gradle == null) {
+    throw StateError('No se encontró el archivo Gradle de Android para configurar la firma.');
+  }
+
+  var source = await gradle.readAsString();
+  final storePath = keystore.absolute.path.replaceAll('\\\\', '/');
+  if (gradle.path.endsWith('.kts')) {
+    const debugSigning = 'signingConfig = signingConfigs.getByName("debug")';
+    const releaseSigning = 'signingConfig = signingConfigs.getByName("release")';
+    if (!source.contains(debugSigning) && !source.contains(releaseSigning)) {
+      throw StateError('No se encontró la configuración de firma release esperada en Gradle Kotlin DSL.');
+    }
+    source = source.replaceAll(debugSigning, releaseSigning);
+    const androidAnchor = 'android {';
+    if (!source.contains(androidAnchor)) {
+      throw StateError('Gradle Kotlin DSL no contiene android {.');
+    }
+    const signingBlock = '''
+    signingConfigs {
+        create("release") {
+            storeFile = file("$storePath")
+            storePassword = System.getenv("ANDROID_STORE_PASSWORD")
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+        }
+    }
+
+''';
+    source = source.replaceFirst(androidAnchor, '$androidAnchor\n$signingBlock');
+  } else {
+    const debugSigning = 'signingConfig signingConfigs.debug';
+    const releaseSigning = 'signingConfig signingConfigs.release';
+    if (!source.contains(debugSigning) && !source.contains(releaseSigning)) {
+      throw StateError('No se encontró la configuración de firma release esperada en Gradle Groovy.');
+    }
+    source = source.replaceAll(debugSigning, releaseSigning);
+    const androidAnchor = 'android {';
+    if (!source.contains(androidAnchor)) {
+      throw StateError('Gradle Groovy no contiene android {.');
+    }
+    final signingBlock = '''
+    signingConfigs {
+        release {
+            storeFile file("$storePath")
+            storePassword System.getenv("ANDROID_STORE_PASSWORD")
+            keyAlias System.getenv("ANDROID_KEY_ALIAS")
+            keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+        }
+    }
+
+''';
+    source = source.replaceFirst(androidAnchor, '$androidAnchor\n$signingBlock');
+  }
+  await gradle.writeAsString(source);
+  stdout.writeln('Android Release APK signing configured with the persistent keystore.');
 }
 
 Future<void> _ensureInternetPermission(File manifest) async {
