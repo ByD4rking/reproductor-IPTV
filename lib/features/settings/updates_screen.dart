@@ -220,6 +220,13 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
             ),
           ),
           const ListTile(
+            leading: Icon(Icons.verified_user_outlined),
+            title: Text('Firma de la aplicación'),
+            subtitle: Text(
+              'Android solo permite actualizar si el APK está firmado con la misma clave que la versión instalada. Si la firma no coincide, el instalador rechazará la actualización.',
+            ),
+          ),
+          const ListTile(
             leading: Icon(Icons.save_outlined),
             title: Text('Tus listas se conservan'),
             subtitle: Text(
