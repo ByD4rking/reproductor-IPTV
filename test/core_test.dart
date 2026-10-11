@@ -104,6 +104,23 @@ void main() {
         fromText.entries.single.sources.single.url);
   });
 
+  test('resolves relative stream URLs against the remote playlist URL', () {
+    const parser = M3uParser();
+    final playlist = parser.parseLines(
+      [
+        '#EXTM3U',
+        '#EXTINF:-1 group-title="Noticias",Noticias',
+        '../live/news.m3u8?token=sample',
+      ],
+      baseUri: Uri.parse('https://cdn.example/lists/chile/index.m3u'),
+    );
+
+    expect(
+      playlist.entries.single.sources.single.url,
+      Uri.parse('https://cdn.example/lists/live/news.m3u8?token=sample'),
+    );
+  });
+
   test('resolves relative channel logos against the playlist URL', () {
     const parser = M3uParser();
     final playlist = parser.parseLines(
