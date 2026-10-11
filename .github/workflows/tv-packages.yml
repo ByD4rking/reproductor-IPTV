@@ -238,7 +238,7 @@ jobs:
   publish:
     name: Publish downloadable release
     needs: [quality, android, webos, tizen]
-    if: ${{ always() && needs.quality.result == 'success' && needs.android.result == 'success' && needs.android.outputs.release_signed == 'true' && (needs.webos.result == 'success' || needs.webos.result == 'skipped') && (needs.tizen.result == 'success' || needs.tizen.result == 'skipped') }}
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && always() && needs.quality.result == 'success' && needs.android.result == 'success' && needs.android.outputs.release_signed == 'true' && (needs.webos.result == 'success' || needs.webos.result == 'skipped') && (needs.tizen.result == 'success' || needs.tizen.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
