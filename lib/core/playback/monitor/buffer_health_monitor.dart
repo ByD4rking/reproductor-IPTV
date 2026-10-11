@@ -49,11 +49,12 @@ class BufferHealthMonitor {
 
     final lowDuration =
         _lowSince == null ? Duration.zero : now.difference(_lowSince!);
-    // Do not depend on the engine's buffering flag. Some HLS/network stalls
-    // keep `isBuffering` false while the playhead is still moving briefly.
-    // Sustained low buffer is itself a stronger starvation signal.
+    // A low buffer while the playhead is still advancing is a warning, not
+    // sufficient evidence to restart playback. Live streams can legitimately
+    // maintain a small buffer, and restarting them creates avoidable cutouts.
+    // Escalate to severe only when the native player also reports buffering.
     final degraded = playheadMoving && lowDuration >= effectiveAfter;
-    final severe = playheadMoving &&
+    final severe = buffering &&
         bufferedAhead <= severeThreshold &&
         lowDuration >= effectiveAfter;
 
