@@ -17,10 +17,10 @@ dependencies:
   path_provider: ^2.1.5
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.4.2
-  package_info_plus: ^8.3.1
+  package_info_plus: ^10.2.2
   open_filex: ^4.7.0
   permission_handler: ^12.0.1
-  device_info_plus: ^11.5.0
+  device_info_plus: ^13.3.0
 
   # Official LG Flutter webOS plugins, pinned to a known upstream commit
   # so CI does not silently change dependencies between builds.
