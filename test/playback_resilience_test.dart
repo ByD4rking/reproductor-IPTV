@@ -323,7 +323,7 @@ void main() {
   });
 
   test('recovery policy can budget switches for every playlist source', () {
-    const policy = RecoveryPolicy(maxRetries: 3, maxSourceChanges: 6);
+    const policy = RecoveryPolicy(maxRetries: 3, maxSourceChanges: 5);
     final decision = policy.decide(
       userStopped: false,
       retryable: true,
@@ -336,7 +336,7 @@ void main() {
       userStopped: false,
       retryable: true,
       retryCount: 3,
-      sourceChanges: 6,
+      sourceChanges: 5,
     );
     expect(exhausted.level, RecoveryLevel.degraded);
   });
