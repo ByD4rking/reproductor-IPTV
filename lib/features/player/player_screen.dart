@@ -477,7 +477,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ? null
         : widget.entry.sources[_sourceIndex];
     if (markFailure && source != null) {
-      await _health.recordFailure(source.id, DateTime.now());
+      // Health persistence must never be able to wedge the recovery lock.
+      try {
+        await _health.recordFailure(source.id, DateTime.now());
+      } catch (_) {
+        // Playback recovery remains available if local health storage fails.
+      }
       _sourceAttemptStarted = null;
     }
     _stablePlaybackSince = null;
@@ -491,10 +496,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     try {
       // Native pause/stop can stall too; never let one hung platform call
       // hold the recovery lock forever.
-      await _engine.stop().timeout(
-            const Duration(seconds: 5),
-            onTimeout: () {},
-          );
+      try {
+        await _engine.stop().timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {},
+            );
+      } catch (_) {
+        // Continue with a new engine generation even if native stop fails.
+      }
       final decision = await _recoveryCoordinator.recover(
         userStopped: _session.isStopped,
         retryable: retryable,
