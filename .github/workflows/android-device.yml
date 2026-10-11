@@ -34,6 +34,8 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: flutter pub get
+      - name: Configure and verify Android ExoPlayer forward buffer
+        run: dart run tool/configure_android_exoplayer_buffer.dart
       - run: flutter create --platforms=android --project-name reproductor_iptv .
       - name: Configure Android network permission
         run: dart run tool/ensure_android_network_permission.dart
