@@ -106,7 +106,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           final favorite = _items[index];
-          final entry = _entries['${favorite.preferredPlaylistId}::${favorite.channelId}'] ?? _entries[favorite.channelId];
+          final entry = favorite.preferredPlaylistId == null
+              ? _entries[favorite.channelId]
+              : _entries['${favorite.preferredPlaylistId}::${favorite.channelId}'];
           final playlistName = favorite.preferredPlaylistId == null ? null : _playlistNames[favorite.preferredPlaylistId];
           return Card(
             child: ListTile(
