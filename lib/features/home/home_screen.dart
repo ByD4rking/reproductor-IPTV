@@ -358,21 +358,6 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Reproductor IPTV'),
         actions: [
           IconButton(
-            tooltip: 'Playlists',
-            onPressed: () async {
-              final selected = await Navigator.of(context).push<String>(
-                MaterialPageRoute(
-                  builder: (_) => PlaylistImportScreen(repository: _repository),
-                ),
-              );
-              if (selected != null) {
-                await _settings.setActivePlaylistId(selected);
-              }
-              await _loadLibrary();
-            },
-            icon: const Icon(Icons.playlist_play),
-          ),
-          IconButton(
             tooltip: 'Ajustes',
             onPressed: _openSettings,
             icon: const Icon(Icons.settings_outlined),
@@ -468,38 +453,30 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           }
 
-          Widget playlistSelector() => _PlaylistSwitcher(
-                playlists: _repository.playlists,
-                active: playlist,
-                onSelected: (selected) async {
-                  final generation = ++_playlistSwitchGeneration;
-                  final organization = await _organizationRepository.syncWithGroups(
-                    selected.id,
-                    selected.entries.map((entry) =>
-                        entry.category?.trim().isEmpty ?? true
-                            ? 'Sin categoría'
-                            : (entry.category?.trim() ?? 'Sin categoría')),
-                  );
-                  final favorites = await FavoriteRepository().load();
-                  if (!mounted || generation != _playlistSwitchGeneration) return;
-                  await _settings.setActivePlaylistId(selected.id);
-                  if (!mounted || generation != _playlistSwitchGeneration) return;
-                  _rebuildEntryIndex(selected);
-                  setState(() {
-                    _playlist = selected;
-                    _category = 'Todos';
-                    _showingChannels = false;
-                    _organization = organization;
-                    _favoriteChannelIds = favorites
-                        .where((favorite) =>
-                            favorite.preferredPlaylistId == selected.id)
-                        .map((favorite) => favorite.channelId)
-                        .toSet();
-                    _query = '';
-                    _searchIndex = SearchIndex()
-                      ..replace(selected.entries.map((entry) => entry.channel));
-                  });
-                },
+          Widget categoryHeading() => Padding(
+                padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_showingChannels)
+                      IconButton.filledTonal(
+                        tooltip: 'Volver a carpetas',
+                        visualDensity: VisualDensity.compact,
+                        alignment: Alignment.centerLeft,
+                        padding: EdgeInsets.zero,
+                        onPressed: () => setState(() {
+                          _showingChannels = false;
+                          _category = 'Todos';
+                          _query = '';
+                        }),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                    Text(
+                      _query.isNotEmpty ? 'Resultados de búsqueda' : _category,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
+                ),
               );
 
           Widget searchField() => TextField(
@@ -723,16 +700,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                     ),
-                    if (!wide && _showingChannels)
-                      IconButton.filledTonal(
-                        tooltip: 'Volver a carpetas',
-                        onPressed: () => setState(() {
-                          _showingChannels = false;
-                          _category = 'Todos';
-                          _query = '';
-                        }),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                      ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -808,8 +775,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                playlistSelector(),
-                const SizedBox(height: 8),
                 searchField(),
               ],
             ),
@@ -825,13 +790,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       header,
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
-                        child: Text(
-                          _query.isNotEmpty ? 'Resultados de búsqueda' : _category,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ),
+                      categoryHeading(),
                       Expanded(child: channelGrid()),
                     ],
                   ),
@@ -849,13 +808,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
-                            child: Text(
-                              _query.isNotEmpty ? 'Resultados de búsqueda' : _category,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ),
+                          categoryHeading(),
                           Expanded(child: channelGrid()),
                         ],
                       )
@@ -1153,57 +1106,6 @@ class _ChannelCardState extends State<_ChannelCard> {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
-class _PlaylistSwitcher extends StatelessWidget {
-  const _PlaylistSwitcher({
-    required this.playlists,
-    required this.active,
-    required this.onSelected,
-  });
-
-  final List<Playlist> playlists;
-  final Playlist active;
-  final Future<void> Function(Playlist) onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Card(
-        child: ListTile(
-          leading: const Icon(Icons.playlist_play),
-          title: Text(active.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text('${active.entries.length} canales · lista activa'),
-          trailing: PopupMenuButton<String>(
-            tooltip: 'Cambiar playlist',
-            onSelected: (id) {
-              final selected = playlists.where((p) => p.id == id);
-              if (selected.isNotEmpty) onSelected(selected.first);
-            },
-            itemBuilder: (_) => playlists
-                .map((playlist) => PopupMenuItem<String>(
-                      value: playlist.id,
-                      child: Row(
-                        children: [
-                          Icon(playlist.id == active.id
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_off),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(playlist.name,
-                                maxLines: 1, overflow: TextOverflow.ellipsis),
-                          ),
-                        ],
-                      ),
-                    ))
-                .toList(),
           ),
         ),
       ),
