@@ -399,7 +399,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     final playlist = _playlist!;
     final entries = _visibleEntries;
-    return Scaffold(
+    return PopScope(
+      canPop: !_showingChannels || MediaQuery.sizeOf(context).width >= 900,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        setState(() {
+          _showingChannels = false;
+          _category = 'Todos';
+          _query = '';
+        });
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Reproductor IPTV'),
         actions: [
@@ -500,28 +510,26 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           Widget categoryHeading() => Padding(
-                padding: const EdgeInsets.fromLTRB(12, 2, 18, 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                padding: const EdgeInsets.fromLTRB(12, 4, 18, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // El botón va ENCIMA del nombre de la carpeta.
                     if (_showingChannels)
-                      IconButton.filledTonal(
-                        tooltip: 'Volver a carpetas',
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints(
-                          minWidth: 40,
-                          minHeight: 40,
+                      FilledButton.tonalIcon(
+                        style: FilledButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
                         ),
-                        padding: EdgeInsets.zero,
                         onPressed: () => setState(() {
                           _showingChannels = false;
                           _category = 'Todos';
                           _query = '';
                         }),
                         icon: const Icon(Icons.arrow_back_rounded),
+                        label: const Text('Volver a carpetas'),
                       ),
-                    if (_showingChannels) const SizedBox(width: 8),
-                    Expanded(
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 6, 0, 0),
                       child: Text(
                         _query.isNotEmpty ? 'Resultados de búsqueda' : _category,
                         maxLines: 1,
@@ -872,6 +880,7 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
+    ),
     );
   }
 
