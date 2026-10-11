@@ -279,7 +279,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _checkHealth() async {
     if (_session.isStopped || _recovering || _healthCheckRunning) return;
     final controller = _engine.controller;
-    if (controller == null || !controller.value.isInitialized) return;
+    if (controller == null || !controller.value.isInitialized) {
+      // After a failed open, some engines leave no initialized controller and
+      // emit no further error. The ordinary stall detector cannot help because
+      // it needs a controller; schedule another bounded recovery round instead.
+      final terminalState = _status == 'Reproducción degradada' ||
+          _status == 'No hay una fuente reproducible';
+      if (terminalState &&
+          !_userPaused &&
+          _autoRecovery &&
+          DateTime.now().difference(_lastProgress) >=
+              const Duration(seconds: 8)) {
+        await _recover(markFailure: true);
+      }
+      return;
+    }
 
     // The native player can stop without emitting a useful error. Treat an
     // unexpected pause as a recoverable failure, but never fight an explicit
