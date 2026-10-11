@@ -6,11 +6,13 @@ class RecoveryCoordinator {
   RecoveryCoordinator({
     RecoveryPolicy policy = const RecoveryPolicy(),
     math.Random? random,
+    this.singleSourceRetryDelay = const Duration(seconds: 8),
   })  : _policy = policy,
         _random = random ?? math.Random();
 
   final RecoveryPolicy _policy;
   final math.Random _random;
+  final Duration singleSourceRetryDelay;
   int _retryCount = 0;
   int _sourceChanges = 0;
   bool _running = false;
@@ -55,14 +57,22 @@ class RecoveryCoordinator {
       );
 
       if (decision.level == RecoveryLevel.switchSource && !allowSourceSwitch) {
-        // A single-source channel must not permanently exhaust its retry
-        // budget. The player schedules another bounded recovery round.
+        // A channel with one URL cannot switch sources. Previously this
+        // branch returned "degraded" without calling reprepare, leaving the
+        // player stopped after the retry budget was exhausted. Re-probe the
+        // same URL after a cooldown instead of ending the recovery round.
         _retryCount = 0;
         _sourceChanges = 0;
-        return const RecoveryDecision(
-          level: RecoveryLevel.degraded,
-          delay: Duration.zero,
+        final fallback = RecoveryDecision(
+          level: RecoveryLevel.reprepare,
+          delay: singleSourceRetryDelay,
         );
+        if (fallback.delay > Duration.zero) {
+          await Future<void>.delayed(fallback.delay);
+        }
+        if (generation != _generation) return null;
+        await reprepare();
+        return fallback;
       }
 
       if (decision.level == RecoveryLevel.retry ||
