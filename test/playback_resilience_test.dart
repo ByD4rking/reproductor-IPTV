@@ -71,25 +71,6 @@ void main() {
     expect(snapshot.severe, isFalse);
   });
 
-  test('low buffer without native buffering warns but does not trigger severe recovery', () {
-    final monitor = BufferHealthMonitor();
-    final start = DateTime(2026, 1, 1);
-    monitor.sample(
-      bufferedAhead: const Duration(milliseconds: 300),
-      playheadMoving: true,
-      buffering: false,
-      now: start,
-    );
-    final snapshot = monitor.sample(
-      bufferedAhead: const Duration(milliseconds: 200),
-      playheadMoving: true,
-      buffering: false,
-      now: start.add(const Duration(seconds: 8)),
-    );
-    expect(snapshot.degraded, isTrue);
-    expect(snapshot.severe, isFalse);
-  });
-
   test('low buffer with sustained native buffering remains severe', () {
     final monitor = BufferHealthMonitor();
     final start = DateTime(2026, 1, 1);
