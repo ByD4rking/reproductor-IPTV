@@ -3,11 +3,26 @@ import 'package:reproductor_iptv/core/domain/entities/channel.dart';
 import 'package:reproductor_iptv/core/domain/entities/catchup.dart';
 import 'package:reproductor_iptv/core/domain/entities/stream_source.dart';
 import 'package:reproductor_iptv/core/playback/engine/playback_request.dart';
+import 'package:reproductor_iptv/core/playback/engine/stream_format_hint.dart';
 import 'package:reproductor_iptv/core/playback/monitor/adaptive_buffer_policy.dart';
 import 'package:reproductor_iptv/core/playback/monitor/playback_health_signals.dart';
 import 'package:reproductor_iptv/core/search/search_index.dart';
 
 void main() {
+  test('detects HLS and DASH from IPTV URL query formats', () {
+    expect(
+      streamFormatHint(Uri.parse('https://provider.example/live/42?output=m3u8')),
+      VideoFormat.hls,
+    );
+    expect(
+      streamFormatHint(Uri.parse('https://provider.example/stream?id=42&type=mpd')),
+      VideoFormat.dash,
+    );
+    expect(
+      streamFormatHint(Uri.parse('https://provider.example/live/42?token=abc')),
+      isNull,
+    );
+  });
   test('playback request merges source headers, cookies and user agent', () {
     final source = StreamSource(
       id: 's1',
