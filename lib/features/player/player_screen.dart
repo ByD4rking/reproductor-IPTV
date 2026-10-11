@@ -161,11 +161,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final started = DateTime.now();
       _sourceAttemptStarted = started;
       try {
-        await _engine.prepare(PlaybackRequest(source: source));
+        await _engine
+            .prepare(PlaybackRequest(source: source))
+            .timeout(const Duration(seconds: 20));
         if (!_session.isCurrentOperation(operation) || _session.isStopped) {
           return;
         }
-        await _engine.play();
+        await _engine.play().timeout(const Duration(seconds: 10));
         _userPaused = false;
         _lastPosition = _engine.position;
         _lastBufferedAhead = _engine.buffered;
@@ -285,13 +287,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
       // After a failed open, some engines leave no initialized controller and
       // emit no further error. The ordinary stall detector cannot help because
       // it needs a controller; schedule another bounded recovery round instead.
+      final now = DateTime.now();
       final terminalState = _status == 'Reproducción degradada' ||
           _status == 'No hay una fuente reproducible';
-      if (terminalState &&
+      final connectingTimedOut = _status.startsWith('Conectando fuente') &&
+          _sourceAttemptStarted != null &&
+          now.difference(_sourceAttemptStarted!) >= const Duration(seconds: 20);
+      if ((terminalState &&
+              now.difference(_lastProgress) >= const Duration(seconds: 8) ||
+          connectingTimedOut) &&
           !_userPaused &&
-          _autoRecovery &&
-          DateTime.now().difference(_lastProgress) >=
-              const Duration(seconds: 8)) {
+          _autoRecovery) {
         await _recover(markFailure: true);
       }
       return;
@@ -483,7 +489,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (mounted) setState(() => _status = 'Recuperando conexión...');
 
     try {
-      await _engine.stop();
+      // Native pause/stop can stall too; never let one hung platform call
+      // hold the recovery lock forever.
+      await _engine.stop().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {},
+          );
       final decision = await _recoveryCoordinator.recover(
         userStopped: _session.isStopped,
         retryable: retryable,
