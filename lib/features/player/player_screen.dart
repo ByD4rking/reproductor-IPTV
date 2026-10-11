@@ -157,8 +157,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (operation < 0) return;
 
     var attempts = 0;
-    final attemptLimit = tryAllSources && widget.entry.sources.length > 1
-        ? widget.entry.sources.length - 1
+    // When explicitly trying all sources, include every source exactly once.
+    // The previous length - 1 limit skipped the final source in the list.
+    final attemptLimit = tryAllSources
+        ? widget.entry.sources.length
         : widget.entry.sources.length + 3;
     while (!_session.isStopped &&
         _session.isCurrentOperation(operation) &&
@@ -472,6 +474,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _retryInitialPlayback() async {
+    if (_session.isStopped || _recovering || widget.entry.sources.isEmpty) {
+      return;
+    }
+    final operation = _session.beginOperation();
+    if (operation < 0) return;
+    _sourceIndex = _bestSourceIndex();
+    _error = null;
+    if (mounted) setState(() => _status = 'Conectando fuente ${_sourceIndex + 1}');
+    await _openSource(
+      automatic: false,
+      operationId: operation,
+      tryAllSources: true,
+    );
+  }
+
   Future<void> _recover(
       {bool retryable = true, bool markFailure = false}) async {
     if (_recovering || _session.isStopped) return;
@@ -570,15 +588,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget build(BuildContext context) {
     final controller = _engine.controller;
     if (controller == null || !controller.value.isInitialized) {
+      // Opening a channel is an automatic operation, not a user action.
+      // Keep the loading surface passive while preparation/recovery is active;
+      // only expose manual retry after the automatic attempt has failed.
+      final opening = _recovering ||
+          _status == 'Preparando' ||
+          _status.startsWith('Conectando fuente') ||
+          _status == 'Recuperando conexión...';
       return Scaffold(
         appBar: AppBar(
           title: Text(widget.entry.channel.displayName),
           actions: [
-            IconButton(
-              tooltip: 'Recuperar',
-              onPressed: _recovering ? null : _recover,
-              icon: const Icon(Icons.refresh),
-            ),
+            if (!opening)
+              IconButton(
+                tooltip: 'Intentar de nuevo',
+                onPressed: _retryInitialPlayback,
+                icon: const Icon(Icons.refresh),
+              ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Center(child: Text(_status)),
@@ -594,19 +620,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(_recovering ? Icons.sync : Icons.tv_off, size: 72),
+                  if (opening)
+                    const CircularProgressIndicator()
+                  else
+                    const Icon(Icons.tv_off, size: 72),
                   const SizedBox(height: 16),
                   Text(
-                    _error ?? _status,
+                    opening ? _status : (_error ?? _status),
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 18),
                   ),
-                  const SizedBox(height: 18),
-                  FilledButton.icon(
-                    onPressed: _recovering ? null : _recover,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Reintentar'),
-                  ),
+                  if (!opening) ...[
+                    const SizedBox(height: 18),
+                    FilledButton.icon(
+                      onPressed: _retryInitialPlayback,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Intentar de nuevo'),
+                    ),
+                  ],
                 ],
               ),
             ),
