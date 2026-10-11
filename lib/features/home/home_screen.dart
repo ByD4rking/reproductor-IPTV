@@ -138,7 +138,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _organization = organization;
       _favoriteChannelIds = favorites
           .where((favorite) =>
-              favorite.preferredPlaylistId == null ||
               favorite.preferredPlaylistId == playlist?.id)
           .map((favorite) => favorite.channelId)
           .toSet();
@@ -453,7 +452,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     _organization = organization;
                     _favoriteChannelIds = favorites
                         .where((favorite) =>
-                            favorite.preferredPlaylistId == null ||
                             favorite.preferredPlaylistId == selected.id)
                         .map((favorite) => favorite.channelId)
                         .toSet();
