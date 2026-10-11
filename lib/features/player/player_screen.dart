@@ -429,6 +429,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  Future<void> _selectSource(int index) async {
+    if (index < 0 || index >= widget.entry.sources.length ||
+        index == _sourceIndex || _recovering || _session.isStopped) return;
+    _controlsTimer?.cancel();
+    _recovering = true;
+    final operation = _session.beginOperation();
+    if (operation < 0) { _recovering = false; return; }
+    setState(() {
+      _sourceIndex = index;
+      _error = null;
+      _status = 'Cambiando a fuente ${index + 1}…';
+      _controlsVisible = true;
+    });
+    try {
+      try {
+        await _engine.stop().timeout(const Duration(seconds: 5), onTimeout: () {});
+      } catch (_) {}
+      if (_session.isCurrentOperation(operation) && !_session.isStopped) {
+        await _openSource(automatic: false, operationId: operation, allowNestedRecovery: false);
+      }
+    } finally {
+      _recovering = false;
+      if (mounted) { setState(() {}); _scheduleControlsHide(); }
+    }
+  }
+
   Future<void> _togglePlayback() async {
     final controller = _engine.controller;
     if (controller == null) return;
@@ -600,20 +626,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final terminal = _status == 'No hay una fuente reproducible' ||
           _status == 'Reproducción degradada';
       final headline = recovering
-          ? 'Recuperando la señal'
+          ? 'Reconectando señal…'
           : waiting
               ? 'Esperando la fuente'
               : terminal
                   ? 'La señal no responde'
-                  : 'Preparando canal';
+                  : 'Cargando canal…';
       final detail = _error ??
           (recovering
-              ? 'Intento ${_recoveryCoordinator.retryCount + 1}. Reintentando la conexión automáticamente; si esta fuente no responde, se volverá a comprobar tras una espera.'
+              ? 'Intento ${_recoveryCoordinator.retryCount + 1}. Buscando una fuente disponible y reanudando la reproducción automáticamente.'
               : waiting
-                  ? 'La fuente está temporalmente bloqueada; volveremos a probar'
+                  ? 'Esta fuente está temporalmente en espera. Se volverá a comprobar sin bloquear la aplicación.'
                   : terminal
-                      ? 'Seguiremos comprobando si la señal vuelve'
-                      : 'Conectando con la fuente de reproducción');
+                      ? 'No se ha podido iniciar la señal. Puedes reintentar ahora o dejar que se siga comprobando.'
+                      : 'Preparando el reproductor y esperando los primeros datos de vídeo.');
       return Scaffold(
         backgroundColor: const Color(0xFF070B12),
         appBar: AppBar(
@@ -653,16 +679,43 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             : const Color(0xFF1A2638),
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      child: Icon(
-                        recovering
-                            ? Icons.wifi_find_rounded
-                            : waiting
-                                ? Icons.hourglass_top_rounded
-                                : terminal
-                                    ? Icons.signal_wifi_connected_no_internet_4_rounded
-                                    : Icons.live_tv_rounded,
-                        size: 42,
-                        color: const Color(0xFF68D5FF),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (widget.entry.logoUrl != null)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Image.network(
+                                widget.entry.logoUrl.toString(),
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.live_tv_rounded,
+                                  size: 42,
+                                  color: Color(0xFF68D5FF),
+                                ),
+                              ),
+                            )
+                          else
+                            Icon(
+                              terminal
+                                  ? Icons.signal_wifi_connected_no_internet_4_rounded
+                                  : Icons.live_tv_rounded,
+                              size: 42,
+                              color: const Color(0xFF68D5FF),
+                            ),
+                          if (!terminal)
+                            SizedBox(
+                              width: 76,
+                              height: 76,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                color: const Color(0xFF68D5FF),
+                                backgroundColor: Colors.white.withValues(alpha: 0.12),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 22),
@@ -709,7 +762,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             ? null
                             : () => _recover(markFailure: false),
                         icon: const Icon(Icons.refresh_rounded),
-                        label: const Text('Reintentar conexión'),
+                        label: const Text('Reintentar ahora'),
                       ),
                     ),
                   ],
@@ -818,8 +871,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           child: Row(
                             children: [
-                              const Icon(Icons.circle, size: 9),
-                              const SizedBox(width: 8),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(7),
+                                child: widget.entry.logoUrl == null
+                                    ? const SizedBox(
+                                        width: 28,
+                                        height: 28,
+                                        child: Icon(Icons.live_tv_rounded, size: 22),
+                                      )
+                                    : Image.network(
+                                        widget.entry.logoUrl.toString(),
+                                        width: 28,
+                                        height: 28,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) => const SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: Icon(Icons.live_tv_rounded, size: 22),
+                                        ),
+                                      ),
+                              ),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   widget.entry.channel.displayName,
@@ -892,14 +964,50 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                   style: const TextStyle(fontWeight: FontWeight.w600),
                                 ),
                               ),
-                              Text(
-                                'FUENTE ${_sourceIndex + 1}/${widget.entry.sources.length}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  letterSpacing: 0.6,
-                                  color: Colors.white.withValues(alpha: 0.72),
-                                ),
-                              ),
+                              if (widget.entry.sources.length > 1)
+                                PopupMenuButton<int>(
+                                  tooltip: 'Cambiar fuente de reproducción',
+                                  enabled: !_recovering,
+                                  onSelected: (index) => unawaited(_selectSource(index)),
+                                  itemBuilder: (context) => [
+                                    for (var index = 0; index < widget.entry.sources.length; index++)
+                                      PopupMenuItem<int>(
+                                        value: index,
+                                        child: Row(
+                                          children: [
+                                            Icon(index == _sourceIndex
+                                                ? Icons.radio_button_checked
+                                                : Icons.radio_button_unchecked, size: 18),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                'Fuente ${index + 1} · ${widget.entry.sources[index].url.host}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'FUENTE ${_sourceIndex + 1}/${widget.entry.sources.length}',
+                                          style: TextStyle(fontSize: 11, letterSpacing: 0.5,
+                                            color: Colors.white.withValues(alpha: 0.82)),
+                                        ),
+                                        const Icon(Icons.arrow_drop_down, size: 18),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              else
+                                Text('FUENTE 1/1', style: TextStyle(fontSize: 11, letterSpacing: 0.6,
+                                  color: Colors.white.withValues(alpha: 0.72))),
                             ],
                           ),
                           if (canSeek) ...[
