@@ -45,11 +45,14 @@ class _HomeScreenState extends State<HomeScreen> {
   // Cache derived channel collections across unrelated widget rebuilds.
   // Large IPTV playlists can contain thousands of entries; recomputing both
   // folder groups and the full filtered list on every setState wastes CPU.
-  Playlist? _derivedPlaylist;
-  String? _derivedQuery;
-  String? _derivedCategory;
-  Set<String>? _derivedFavorites;
-  PlaylistOrganization? _derivedOrganization;
+  Playlist? _groupsPlaylist;
+  Set<String>? _groupsFavorites;
+  PlaylistOrganization? _groupsOrganization;
+  Playlist? _visiblePlaylist;
+  String? _visibleQuery;
+  String? _visibleCategory;
+  Set<String>? _visibleFavorites;
+  PlaylistOrganization? _visibleOrganization;
   List<PlaylistEntry> _cachedVisibleEntries = const <PlaylistEntry>[];
   List<PlaylistGroup> _cachedGroups = const <PlaylistGroup>[];
 
@@ -193,15 +196,12 @@ class _HomeScreenState extends State<HomeScreen> {
       );
   }
 
-  bool get _derivedStateMatches =>
-      identical(_derivedPlaylist, _playlist) &&
-      _derivedQuery == _query &&
-      _derivedCategory == _category &&
-      identical(_derivedFavorites, _favoriteChannelIds) &&
-      identical(_derivedOrganization, _organization);
-
   List<PlaylistGroup> get _groups {
-    if (_derivedStateMatches) return _cachedGroups;
+    if (identical(_groupsPlaylist, _playlist) &&
+        identical(_groupsFavorites, _favoriteChannelIds) &&
+        identical(_groupsOrganization, _organization)) {
+      return _cachedGroups;
+    }
     final playlist = _playlist;
     if (playlist == null) return const <PlaylistGroup>[];
     _cachedGroups = PlaylistGroups.fromPlaylist(
@@ -209,25 +209,29 @@ class _HomeScreenState extends State<HomeScreen> {
       favoriteChannelIds: _favoriteChannelIds,
       organization: _organization,
     );
-    _rememberDerivedState();
+    _groupsPlaylist = playlist;
+    _groupsFavorites = _favoriteChannelIds;
+    _groupsOrganization = _organization;
     return _cachedGroups;
   }
 
-  void _rememberDerivedState() {
-    _derivedPlaylist = _playlist;
-    _derivedQuery = _query;
-    _derivedCategory = _category;
-    _derivedFavorites = _favoriteChannelIds;
-    _derivedOrganization = _organization;
-  }
-
   List<PlaylistEntry> get _visibleEntries {
-    if (_derivedStateMatches) return _cachedVisibleEntries;
+    if (identical(_visiblePlaylist, _playlist) &&
+        _visibleQuery == _query &&
+        _visibleCategory == _category &&
+        identical(_visibleFavorites, _favoriteChannelIds) &&
+        identical(_visibleOrganization, _organization)) {
+      return _cachedVisibleEntries;
+    }
     final playlist = _playlist;
     final index = _searchIndex;
     if (playlist == null || index == null) {
       _cachedVisibleEntries = const <PlaylistEntry>[];
-      _rememberDerivedState();
+      _visiblePlaylist = playlist;
+      _visibleQuery = _query;
+      _visibleCategory = _category;
+      _visibleFavorites = _favoriteChannelIds;
+      _visibleOrganization = _organization;
       return _cachedVisibleEntries;
     }
 
@@ -253,7 +257,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ? _category == 'Sin categoría'
           : category == _category;
     }).toList(growable: false);
-    _rememberDerivedState();
+    _visiblePlaylist = playlist;
+    _visibleQuery = _query;
+    _visibleCategory = _category;
+    _visibleFavorites = _favoriteChannelIds;
+    _visibleOrganization = _organization;
     return _cachedVisibleEntries;
   }
 
