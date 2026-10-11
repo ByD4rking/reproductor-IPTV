@@ -480,22 +480,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
     // periodic health monitor can both enter recovery in the same event turn.
     _recovering = true;
 
-    final source = widget.entry.sources.isEmpty
-        ? null
-        : widget.entry.sources[_sourceIndex];
-    if (markFailure && source != null) {
-      await _health.recordFailure(source.id, DateTime.now());
-      _sourceAttemptStarted = null;
-    }
-    _stablePlaybackSince = null;
-    final operation = _session.beginOperation();
-    if (operation < 0) {
-      _recovering = false;
-      return;
-    }
-    if (mounted) setState(() => _status = 'Recuperando conexión...');
-
     try {
+      final source = widget.entry.sources.isEmpty
+          ? null
+          : widget.entry.sources[_sourceIndex];
+      if (markFailure && source != null) {
+        await _health.recordFailure(source.id, DateTime.now());
+        _sourceAttemptStarted = null;
+      }
+      _stablePlaybackSince = null;
+      final operation = _session.beginOperation();
+      if (operation < 0) return;
+      if (mounted) setState(() => _status = 'Recuperando conexión...');
+
       await _engine.stop();
       final decision = await _recoveryCoordinator.recover(
         userStopped: _session.isStopped,
