@@ -453,15 +453,18 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           Widget categoryHeading() => Padding(
-                padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: const EdgeInsets.fromLTRB(12, 2, 18, 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     if (_showingChannels)
                       IconButton.filledTonal(
                         tooltip: 'Volver a carpetas',
                         visualDensity: VisualDensity.compact,
-                        alignment: Alignment.centerLeft,
+                        constraints: const BoxConstraints(
+                          minWidth: 40,
+                          minHeight: 40,
+                        ),
                         padding: EdgeInsets.zero,
                         onPressed: () => setState(() {
                           _showingChannels = false;
@@ -470,9 +473,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         }),
                         icon: const Icon(Icons.arrow_back_rounded),
                       ),
-                    Text(
-                      _query.isNotEmpty ? 'Resultados de búsqueda' : _category,
-                      style: Theme.of(context).textTheme.titleMedium,
+                    if (_showingChannels) const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _query.isNotEmpty ? 'Resultados de búsqueda' : _category,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                     ),
                   ],
                 ),
