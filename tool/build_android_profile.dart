@@ -13,6 +13,7 @@ Future<void> main(List<String> args) async {
   }
 
   await _run('flutter', const ['create', '--platforms=android', '.']);
+  await _run('dart', const ['run', 'tool/configure_android_exoplayer_buffer.dart']);
 
   final manifest = File('android/app/src/main/AndroidManifest.xml');
   if (!await manifest.exists()) {
