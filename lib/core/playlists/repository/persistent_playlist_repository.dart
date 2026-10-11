@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/entities/channel.dart';
+import '../../domain/entities/media_content_profile.dart';
 import '../../domain/entities/playlist.dart';
 import '../../domain/entities/stream_source.dart';
 import 'playlist_repository.dart';
@@ -112,6 +113,11 @@ class PersistentPlaylistRepository implements PlaylistRepository {
                   },
                   'category': e.category,
                   'logoUrl': e.logoUrl?.toString(),
+                  'mediaContentProfile': {
+                    'type': e.mediaContentProfile.type.name,
+                    'confidence': e.mediaContentProfile.confidence.name,
+                    'evidence': e.mediaContentProfile.evidence.name,
+                  },
                   'sources': e.sources
                       .map((s) => {
                             'id': s.id,
@@ -123,6 +129,26 @@ class PersistentPlaylistRepository implements PlaylistRepository {
                 })
             .toList(growable: false),
       };
+
+  MediaContentProfile _decodeMediaContentProfile(Object? raw) {
+    if (raw is! Map) return MediaContentProfile.unknown;
+    final typeName = raw['type'];
+    final confidenceName = raw['confidence'];
+    final evidenceName = raw['evidence'];
+    final type = MediaContentType.values.where((value) => value.name == typeName);
+    final confidence =
+        MediaContentConfidence.values.where((value) => value.name == confidenceName);
+    final evidence =
+        MediaContentEvidence.values.where((value) => value.name == evidenceName);
+    if (type.isEmpty || confidence.isEmpty || evidence.isEmpty) {
+      return MediaContentProfile.unknown;
+    }
+    return MediaContentProfile(
+      type: type.first,
+      confidence: confidence.first,
+      evidence: evidence.first,
+    );
+  }
 
   Playlist _decode(Map<String, dynamic> map) {
     final entries = (map['entries'] as List<dynamic>).map((item) {
@@ -150,6 +176,9 @@ class PersistentPlaylistRepository implements PlaylistRepository {
         category: e['category'] as String?,
         logoUrl:
             e['logoUrl'] == null ? null : Uri.parse(e['logoUrl'] as String),
+        mediaContentProfile: _decodeMediaContentProfile(
+          e['mediaContentProfile'],
+        ),
       );
     }).toList(growable: false);
 
