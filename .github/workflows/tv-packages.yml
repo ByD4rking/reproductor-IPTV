@@ -220,45 +220,45 @@ jobs:
 
           for FILE in release-assets/android-mobile/*.apk; do
             [ -f "$FILE" ] || continue
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-Android-universal.apk"
+            cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-Android-universal.apk"
           done
           for FILE in release-assets/android-tv/*.apk; do
             [ -f "$FILE" ] || continue
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-AndroidTV-GoogleTV-universal.apk"
+            cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-AndroidTV-GoogleTV-universal.apk"
           done
           for FILE in release-assets/android-firetv/*.apk; do
             [ -f "$FILE" ] || continue
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-FireTV-FireOS-universal.apk"
+            cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-FireTV-FireOS-universal.apk"
           done
           for FILE in release-assets/webos-ipk/*.ipk; do
             [ -f "$FILE" ] || continue
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-LG-webOS.ipk"
+            cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-LG-webOS.ipk"
           done
           for FILE in release-assets/tizen-wgt/*.wgt; do
             [ -f "$FILE" ] || continue
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-Samsung-Tizen.wgt"
+            cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-Samsung-Tizen.wgt"
           done
 
           {
-            echo "reproductor-IPTV $VERSION — DESCARGAS OFICIALES"
+            echo "reproductor-IPTV $VERSION ALPHA — DESCARGAS OFICIALES"
             echo
             echo "ANDROID"
-            echo "- Reproductor-IPTV-$VERSION-Android-universal.apk"
+            echo "- Reproductor-IPTV-$VERSION-ALPHA-Android-universal.apk"
             echo
             echo "ANDROID TV / GOOGLE TV"
-            echo "- Reproductor-IPTV-$VERSION-AndroidTV-GoogleTV-universal.apk"
+            echo "- Reproductor-IPTV-$VERSION-ALPHA-AndroidTV-GoogleTV-universal.apk"
             echo
             echo "AMAZON FIRE TV / FIRE OS"
-            echo "- Reproductor-IPTV-$VERSION-FireTV-FireOS-universal.apk"
+            echo "- Reproductor-IPTV-$VERSION-ALPHA-FireTV-FireOS-universal.apk"
             if compgen -G "release/*-LG-webOS.ipk" > /dev/null; then
               echo
               echo "LG SMART TV"
-              echo "- Reproductor-IPTV-$VERSION-LG-webOS.ipk"
+              echo "- Reproductor-IPTV-$VERSION-ALPHA-LG-webOS.ipk"
             fi
             if compgen -G "release/*-Samsung-Tizen.wgt" > /dev/null; then
               echo
               echo "SAMSUNG SMART TV"
-              echo "- Reproductor-IPTV-$VERSION-Samsung-Tizen.wgt"
+              echo "- Reproductor-IPTV-$VERSION-ALPHA-Samsung-Tizen.wgt"
             fi
             echo
             echo "IMPORTANTE"
@@ -290,7 +290,7 @@ jobs:
           LG webOS usa el IPK Flutter nativo del SDK oficial de LG.
           La generación del paquete no sustituye la prueba física.
           EOF
-          if gh release create "$TAG" release/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "reproductor-IPTV $VERSION" --notes-file "$NOTES"; then
+          if gh release create "$TAG" release/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "reproductor-IPTV $VERSION ALPHA" --notes-file "$NOTES"; then
             echo "Release $TAG publicado correctamente."
           else
             echo "::warning::No se pudo publicar el Release; los instaladores quedan disponibles como artifacts."
