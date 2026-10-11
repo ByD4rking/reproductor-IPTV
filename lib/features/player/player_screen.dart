@@ -222,11 +222,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (_session.isCurrentOperation(operation)) {
             _lastPosition = _engine.position;
             _lastBufferedAhead = _engine.buffered;
-            _lastProgress = DateTime.now();
+            // Do not reset _lastProgress on a failed open. The watchdog uses
+            // its age to schedule another recovery round if no controller was
+            // created and the native engine emits no error.
             if (mounted) {
               setState(() {
                 _error = null;
-                _status = 'Reproduciendo';
+                _status = 'Reconectando…';
               });
             }
             continue;
