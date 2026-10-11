@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:open_filex/open_filex.dart';
@@ -63,6 +64,7 @@ class AppUpdateService {
     Future<bool> Function()? canInstallLoader,
     Future<bool> Function()? requestInstallPermission,
     Future<void> Function(String path)? installer,
+    Future<String> Function()? profileLoader,
     this.repository = 'ByD4rking/reproductor-IPTV',
   })  : _client = client ?? http.Client(),
         _packageInfoLoader = packageInfoLoader ?? PackageInfo.fromPlatform,
@@ -70,7 +72,8 @@ class AppUpdateService {
         _canInstallLoader = canInstallLoader ?? _defaultCanInstall,
         _requestInstallPermission =
             requestInstallPermission ?? _defaultRequestInstallPermission,
-        _installer = installer ?? _defaultInstaller;
+        _installer = installer ?? _defaultInstaller,
+        _profileLoader = profileLoader ?? _detectAndroidProfile;
 
   final http.Client _client;
   final Future<PackageInfo> Function() _packageInfoLoader;
@@ -78,6 +81,7 @@ class AppUpdateService {
   final Future<bool> Function() _canInstallLoader;
   final Future<bool> Function() _requestInstallPermission;
   final Future<void> Function(String path) _installer;
+  final Future<String> Function() _profileLoader;
   final String repository;
 
   static const _releaseEndpoint =
@@ -123,7 +127,7 @@ class AppUpdateService {
 
     final assetsRaw = decoded['assets'];
     final assets = assetsRaw is List ? assetsRaw : const [];
-    final selected = _selectApkAsset(assets);
+    final selected = _selectApkAsset(assets, await _profileLoader());
     final notes = (decoded['body'] ?? '').toString();
     final comparison = _compareParsedVersions(latest, installed);
     if (comparison <= 0) {
@@ -252,24 +256,36 @@ class AppUpdateService {
     await _installer(file.path);
   }
 
-  Map<String, dynamic>? _selectApkAsset(List assets) {
+  Map<String, dynamic>? _selectApkAsset(List assets, String profile) {
     final apkAssets = assets.whereType<Map<String, dynamic>>().where((asset) {
       final name = asset['name']?.toString() ?? '';
       return name.toLowerCase().endsWith('.apk');
     }).toList();
-    if (apkAssets.isEmpty) return null;
-    final preferred = apkAssets.where((asset) {
+    final expected = switch (profile) {
+      'firetv' => 'firetv-fireos-universal.apk',
+      'tv' => 'androidtv-googletv-universal.apk',
+      _ => 'android-universal.apk',
+    };
+    for (final asset in apkAssets) {
       final name = (asset['name']?.toString() ?? '').toLowerCase();
-      return name.contains('android-universal.apk') &&
-          !name.contains('androidtv') &&
-          !name.contains('firetv');
-    }).toList();
-    if (preferred.isNotEmpty) return preferred.first;
-    final universal = apkAssets.where((asset) {
-      final name = (asset['name']?.toString() ?? '').toLowerCase();
-      return name.contains('android') && name.contains('universal');
-    }).toList();
-    return universal.isEmpty ? null : universal.first;
+      if (name.endsWith(expected)) return asset;
+    }
+    return null;
+  }
+
+  static Future<String> _detectAndroidProfile() async {
+    if (!Platform.isAndroid) return 'mobile';
+    final info = await DeviceInfoPlugin().androidInfo;
+    final features = info.systemFeatures.map((feature) => feature.toLowerCase());
+    final isTv = features.any(
+      (feature) => feature.contains('android.software.leanback'),
+    );
+    if (!isTv) return 'mobile';
+    final brand = '${info.brand} ${info.manufacturer} ${info.model}'.toLowerCase();
+    if (brand.contains('amazon') || brand.contains('fire tv') || brand.contains('aft')) {
+      return 'firetv';
+    }
+    return 'tv';
   }
 
   static _ParsedVersion _parseVersion(String raw) {
