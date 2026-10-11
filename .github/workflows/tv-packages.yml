@@ -283,9 +283,9 @@ jobs:
           TAG="v$VERSION-build-${{ github.run_number }}"
           NOTES=$(mktemp)
           cat > "$NOTES" <<EOF
-          # reproductor-IPTV $VERSION
+          # reproductor-IPTV $VERSION — ALPHA
 
-          Descargas oficiales por plataforma.
+          Versión ALPHA en desarrollo. Descargas oficiales por plataforma.
 
           LG webOS usa el IPK Flutter nativo del SDK oficial de LG.
           La generación del paquete no sustituye la prueba física.
