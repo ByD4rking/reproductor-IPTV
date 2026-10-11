@@ -34,3 +34,9 @@ An APK installed before a persistent release key was used may be signed with a d
 - The app requires a valid SHA-256 digest published by GitHub and checks it before opening the installer.
 - Android handles package/signature validation and asks the user to confirm installation.
 - A missing APK, missing digest, incomplete download, or failed integrity check blocks installation.
+
+## CI builds when release signing is not configured
+
+The installer workflow can still build and validate Android APKs when none of the four persistent signing secrets is configured. Those APKs use the runner's debug signing key, are uploaded only as short-lived GitHub Actions artifacts, and are explicitly marked in `profile.json` with `signing: debug-fallback` and `releaseEligible: false`. They are for installation/testing only and must not be distributed as official updates. If only some signing secrets are present, the workflow fails rather than guessing.
+
+The GitHub Release job is intentionally skipped unless all Android profiles report persistent release signing. Pull-request workflows never publish Releases. To create an official, in-place-updatable release, configure the four secrets listed above and rerun the workflow on `main`.

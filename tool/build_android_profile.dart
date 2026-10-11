@@ -70,12 +70,21 @@ Future<void> main(List<String> args) async {
   // Se genera un APK universal deliberadamente: el usuario no debe tener que
   // adivinar si su dispositivo necesita arm64, armeabi-v7a o x86_64.
   // Flutter soporta Android API 24+ en esta línea de SDK.
+  final hasPersistentSigning = [
+    'ANDROID_KEYSTORE_BASE64',
+    'ANDROID_KEY_ALIAS',
+    'ANDROID_KEY_PASSWORD',
+    'ANDROID_STORE_PASSWORD',
+  ].every((key) => (Platform.environment[key] ?? '').trim().isNotEmpty);
+
   final metadata = <String, Object>{
     'profile': profile,
     'platform': 'android',
     'tvOptimized': profile != 'mobile',
     'fireTvCompatible': profile == 'firetv',
     'distribution': 'universal-apk',
+    'signing': hasPersistentSigning ? 'persistent-release' : 'debug-fallback',
+    'releaseEligible': hasPersistentSigning,
     'minimumAndroidApi': 24,
     'apkFiles': [name],
   };

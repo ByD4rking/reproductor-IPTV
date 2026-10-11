@@ -12,10 +12,20 @@ on:
       - 'integration_test/**'
       - 'test/**'
       - '.github/workflows/tv-packages.yml'
+  pull_request:
+    paths:
+      - 'lib/**'
+      - 'platform/**'
+      - 'tool/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'integration_test/**'
+      - 'test/**'
+      - '.github/workflows/tv-packages.yml'
   workflow_dispatch:
 
 concurrency:
-  group: installers-main
+  group: installers-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -44,6 +54,8 @@ jobs:
   android:
     name: Android APKs
     runs-on: ubuntu-latest
+    outputs:
+      release_signed: ${{ steps.signing.outputs.configured }}
     strategy:
       fail-fast: false
       matrix:
@@ -55,23 +67,52 @@ jobs:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - run: flutter pub get
-      - name: Build signed Android profile
+      - name: Check persistent signing configuration
+        id: signing
+        shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
-          REQUIRE_ANDROID_RELEASE_SIGNING: 'true'
+        run: |
+          set -euo pipefail
+          present=0
+          for value in "$ANDROID_KEYSTORE_BASE64" "$ANDROID_KEY_ALIAS" "$ANDROID_KEY_PASSWORD" "$ANDROID_STORE_PASSWORD"; do
+            if [[ -n "$value" ]]; then present=$((present + 1)); fi
+          done
+          if [[ "$present" -eq 0 ]]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Persistent Android signing is not configured. APKs will be built only as temporary CI artifacts and will NOT be published as updateable releases."
+          elif [[ "$present" -eq 4 ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Persistent Android signing secrets are present."
+          else
+            echo "::error::Android signing is partially configured. Set all four secrets or remove all four; refusing an ambiguous build."
+            exit 1
+          fi
+      - run: flutter pub get
+      - name: Build Android profile
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
         run: dart run tool/build_android_profile.dart --profile=${{ matrix.profile }}
-      - name: Validate APKs
+      - name: Validate APK and signing mode
         shell: bash
         run: |
           set -euo pipefail
-          test -s dist/android/${{ matrix.profile }}/profile.json
-          test "$(find dist/android/${{ matrix.profile }} -type f -name '*.apk' | wc -l)" -eq 1
-          APK="$(find dist/android/${{ matrix.profile }} -type f -name '*.apk' -print -quit)"
+          PROFILE_DIR="dist/android/${{ matrix.profile }}"
+          test -s "$PROFILE_DIR/profile.json"
+          test "$(find "$PROFILE_DIR" -type f -name '*.apk' | wc -l)" -eq 1
+          APK="$(find "$PROFILE_DIR" -type f -name '*.apk' -print -quit)"
           test -s "$APK"
+          if [[ "${{ steps.signing.outputs.configured }}" == "true" ]]; then
+            grep -F '"signing": "persistent-release"' "$PROFILE_DIR/profile.json"
+          else
+            grep -F '"signing": "debug-fallback"' "$PROFILE_DIR/profile.json"
+          fi
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           AAPT="$(find "$SDK_ROOT/build-tools" -type f -name aapt | sort -V | tail -n1)"
           test -n "$AAPT"
@@ -82,7 +123,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: android-${{ matrix.profile }}
-          path: dist/android/${{ matrix.profile }}/*.apk
+          path: dist/android/${{ matrix.profile }}/*
           if-no-files-found: error
           retention-days: 30
 
@@ -127,9 +168,6 @@ jobs:
       - name: Create native webOS platform
         run: |
           set -euo pipefail
-          # The LG SDK is currently based on Dart 3.10. Keep webOS on the
-          # newest video_player release that supports that SDK; other targets
-          # continue using the version declared in pubspec.yaml.
           sed -i 's/^  video_player: \^2\.14\.1$/  video_player: ^2.11.1/' pubspec.yaml
           source "$WEBOS_FLUTTER_NDK_ENV"
           flutter-webos create --platforms webos .
@@ -200,7 +238,7 @@ jobs:
   publish:
     name: Publish downloadable release
     needs: [quality, android, webos, tizen]
-    if: ${{ always() && needs.quality.result == 'success' && needs.android.result == 'success' && (needs.webos.result == 'success' || needs.webos.result == 'skipped') && (needs.tizen.result == 'success' || needs.tizen.result == 'skipped') }}
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && always() && needs.quality.result == 'success' && needs.android.result == 'success' && needs.android.outputs.release_signed == 'true' && (needs.webos.result == 'success' || needs.webos.result == 'skipped') && (needs.tizen.result == 'success' || needs.tizen.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -217,28 +255,16 @@ jobs:
           set -euo pipefail
           mkdir -p release
           VERSION=$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)
-
-          for FILE in release-assets/android-mobile/*.apk; do
-            [ -f "$FILE" ] || continue
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-Android-universal.apk"
+          for FILE in release-assets/android-mobile/*.apk; do [ -f "$FILE" ] || continue; cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-Android-universal.apk"; done
+          for FILE in release-assets/android-tv/*.apk; do [ -f "$FILE" ] || continue; cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-AndroidTV-GoogleTV-universal.apk"; done
+          for FILE in release-assets/android-firetv/*.apk; do [ -f "$FILE" ] || continue; cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-FireTV-FireOS-universal.apk"; done
+          for FILE in release-assets/webos-ipk/*.ipk; do [ -f "$FILE" ] || continue; cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-LG-webOS.ipk"; done
+          for FILE in release-assets/tizen-wgt/*.wgt; do [ -f "$FILE" ] || continue; cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-Samsung-Tizen.wgt"; done
+          test "$(find release -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) | wc -l)" -ge 3
+          for profile in mobile tv firetv; do
+            test -s "release-assets/android-$profile/profile.json"
+            grep -F '"signing": "persistent-release"' "release-assets/android-$profile/profile.json"
           done
-          for FILE in release-assets/android-tv/*.apk; do
-            [ -f "$FILE" ] || continue
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-AndroidTV-GoogleTV-universal.apk"
-          done
-          for FILE in release-assets/android-firetv/*.apk; do
-            [ -f "$FILE" ] || continue
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-FireTV-FireOS-universal.apk"
-          done
-          for FILE in release-assets/webos-ipk/*.ipk; do
-            [ -f "$FILE" ] || continue
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-LG-webOS.ipk"
-          done
-          for FILE in release-assets/tizen-wgt/*.wgt; do
-            [ -f "$FILE" ] || continue
-            cp "$FILE" "release/Reproductor-IPTV-$VERSION-ALPHA-Samsung-Tizen.wgt"
-          done
-
           {
             echo "reproductor-IPTV $VERSION ALPHA — DESCARGAS OFICIALES"
             echo
@@ -250,29 +276,15 @@ jobs:
             echo
             echo "AMAZON FIRE TV / FIRE OS"
             echo "- Reproductor-IPTV-$VERSION-ALPHA-FireTV-FireOS-universal.apk"
-            if compgen -G "release/*-LG-webOS.ipk" > /dev/null; then
-              echo
-              echo "LG SMART TV"
-              echo "- Reproductor-IPTV-$VERSION-ALPHA-LG-webOS.ipk"
-            fi
-            if compgen -G "release/*-Samsung-Tizen.wgt" > /dev/null; then
-              echo
-              echo "SAMSUNG SMART TV"
-              echo "- Reproductor-IPTV-$VERSION-ALPHA-Samsung-Tizen.wgt"
-            fi
+            if compgen -G "release/*-LG-webOS.ipk" > /dev/null; then echo; echo "LG SMART TV"; echo "- Reproductor-IPTV-$VERSION-ALPHA-LG-webOS.ipk"; fi
+            if compgen -G "release/*-Samsung-Tizen.wgt" > /dev/null; then echo; echo "SAMSUNG SMART TV"; echo "- Reproductor-IPTV-$VERSION-ALPHA-Samsung-Tizen.wgt"; fi
             echo
             echo "IMPORTANTE"
             echo "- Chromecast con Google TV usa la versión Android TV/Google TV."
             echo "- Chromecast tradicional no instala APK."
             echo "- SHA256SUMS.txt acompaña a los instaladores."
           } > release/README.txt
-
-          test "$(find release -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) | wc -l)" -ge 3
-          (
-            cd release
-            find . -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) -print0 |
-              sort -z | xargs -0 sha256sum > SHA256SUMS.txt
-          )
+          (cd release; find . -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' -o -name '*.wgt' \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt)
           test -s release/SHA256SUMS.txt
       - name: Create GitHub Release
         env:
@@ -287,12 +299,9 @@ jobs:
 
           Versión ALPHA en desarrollo. Descargas oficiales por plataforma.
 
-          LG webOS usa el IPK Flutter nativo del SDK oficial de LG.
+          Los APK Android se publican únicamente si están firmados con la clave persistente del proyecto.
+          LG webOS usa el IPK Flutter nativo del SDK de LG.
           La generación del paquete no sustituye la prueba física.
           EOF
-          if gh release create "$TAG" release/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "reproductor-IPTV $VERSION ALPHA" --notes-file "$NOTES"; then
-            echo "Release $TAG publicado correctamente."
-          else
-            echo "::error::Falló la publicación del Release. No marcar el flujo como exitoso: revisa RELEASE_TOKEN/GITHUB_TOKEN, permisos contents: write, tag y assets."
-            exit 1
-          fi
+          gh release create "$TAG" release/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "reproductor-IPTV $VERSION ALPHA" --notes-file "$NOTES"
+          echo "Release $TAG publicado correctamente."
