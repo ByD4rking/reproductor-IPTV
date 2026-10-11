@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/channel.dart';
+import '../../domain/entities/media_content_profile.dart';
 import '../../domain/entities/playlist.dart';
 import '../../domain/entities/stream_source.dart';
 import '../../network/url_policy.dart';
@@ -144,6 +145,9 @@ class M3uParser {
             sources: List.unmodifiable([...existing.sources, source]),
             category: existing.category ?? _category(attrs),
             logoUrl: existing.logoUrl ?? logoUrl,
+            mediaContentProfile: existing.mediaContentProfile.isKnown
+                ? existing.mediaContentProfile
+                : MediaContentProfile.fromM3u(attributes: attrs, url: uri),
           );
           sourceIndex++;
           pendingExtInf = null;
@@ -167,6 +171,10 @@ class M3uParser {
         sources: [source],
         category: _category(attrs),
         logoUrl: logoUrl,
+        mediaContentProfile: MediaContentProfile.fromM3u(
+          attributes: attrs,
+          url: uri,
+        ),
       );
       entries.add(entry);
       if (tvgId != null && tvgId.isNotEmpty) {
