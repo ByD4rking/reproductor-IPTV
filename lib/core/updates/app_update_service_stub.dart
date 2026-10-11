@@ -30,7 +30,16 @@ class UpdateCheckResult {
 }
 
 class AppUpdateService {
-  AppUpdateService({String repository = 'ByD4rking/reproductor-IPTV'});
+  AppUpdateService({
+    String repository = 'ByD4rking/reproductor-IPTV',
+    Object? client,
+    Future<Object?> Function()? packageInfoLoader,
+    Future<Object?> Function()? directoryLoader,
+    Future<bool> Function()? canInstallLoader,
+    Future<bool> Function()? requestInstallPermission,
+    Future<void> Function(String path)? installer,
+    Future<String> Function()? profileLoader,
+  });
 
   Future<UpdateCheckResult> checkForUpdate() {
     throw UnsupportedError(
