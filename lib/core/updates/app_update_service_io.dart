@@ -11,6 +11,16 @@ import 'package:permission_handler/permission_handler.dart';
 
 enum UpdateStatus { current, available, unsupported, failed }
 
+class _DigestSink implements Sink<Digest> {
+  Digest? value;
+
+  @override
+  void add(Digest data) => value = data;
+
+  @override
+  void close() {}
+}
+
 class _ParsedVersion {
   const _ParsedVersion({
     required this.major,
@@ -112,7 +122,6 @@ class AppUpdateService {
     final latest = _parseVersion(tag);
     final installed = _parseVersion('${package.version}+build-${package.buildNumber}');
     final latestVersion = latest.label;
-    final installedVersion = installed.label;
     final releaseUrl = Uri.tryParse(decoded['html_url']?.toString() ?? '');
     if (releaseUrl == null ||
         releaseUrl.scheme != 'https' ||
@@ -214,7 +223,7 @@ class AppUpdateService {
       throw const FormatException('Tamaño de APK no válido.');
     }
     final sink = file.openWrite();
-    final hashSink = AccumulatorSink<Digest>();
+    final hashSink = _DigestSink();
     final hashConverter = sha256.startChunkedConversion(hashSink);
     var bytes = 0;
     try {
@@ -239,7 +248,7 @@ class AppUpdateService {
       if (await file.exists()) await file.delete();
       throw const FormatException('La descarga del APK quedó incompleta.');
     }
-    if (hashSink.events.single.toString().toLowerCase() != info.sha256) {
+    if (hashSink.value?.toString().toLowerCase() != info.sha256) {
       if (await file.exists()) await file.delete();
       throw const FormatException('El SHA-256 del APK no coincide con GitHub.');
     }
