@@ -511,8 +511,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         },
       );
 
-      if (decision?.level == RecoveryLevel.degraded && mounted) {
-        setState(() => _status = 'Reproducción degradada');
+      if (mounted) {
+        if (decision == null || decision.level == RecoveryLevel.degraded) {
+          setState(() => _status = 'Reproducción degradada');
+        } else if (decision.level == RecoveryLevel.failed) {
+          setState(() => _status = 'No hay una fuente reproducible');
+        }
       }
     } finally {
       _recovering = false;
