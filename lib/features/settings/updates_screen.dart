@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/updates/app_update_service.dart';
@@ -74,7 +73,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   @override
   Widget build(BuildContext context) {
     final info = _result?.info;
-    final android = Platform.isAndroid;
+    final android = defaultTargetPlatform == TargetPlatform.android;
     return Scaffold(
       appBar: AppBar(title: const Text('Actualizaciones')),
       body: ListView(
