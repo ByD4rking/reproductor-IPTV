@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/domain/entities/playlist.dart';
+import '../../core/domain/entities/media_content_profile.dart';
 import '../../core/domain/entities/stream_source.dart';
 import '../../core/playback/engine/playback_engine_error.dart';
 import '../../core/playback/engine/playback_request.dart';
@@ -149,8 +150,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final source = widget.entry.sources[_sourceIndex];
       final now = DateTime.now();
       if (!await _health.beginAttempt(source.id, now)) {
-        _advanceSource();
         attempts++;
+        if (widget.entry.sources.length > 1 && _autoSourceSwitching) {
+          _advanceSource();
+          continue;
+        }
+        // A single source may be temporarily blocked by its circuit breaker.
+        // Do not spin through the same URL or reset the watchdog clock: wait,
+        // then let the next bounded round probe it again.
+        if (mounted) {
+          setState(() => _status = 'Fuente en espera · reintentando');
+        }
+        await Future<void>.delayed(const Duration(seconds: 3));
         continue;
       }
 
@@ -160,11 +171,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final started = DateTime.now();
       _sourceAttemptStarted = started;
       try {
-        await _engine.prepare(PlaybackRequest(source: source));
+        await _engine
+            .prepare(PlaybackRequest(source: source))
+            .timeout(const Duration(seconds: 20));
         if (!_session.isCurrentOperation(operation) || _session.isStopped) {
           return;
         }
-        await _engine.play();
+        await _engine.play().timeout(const Duration(seconds: 10));
         _userPaused = false;
         _lastPosition = _engine.position;
         _lastBufferedAhead = _engine.buffered;
@@ -221,11 +234,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (_session.isCurrentOperation(operation)) {
             _lastPosition = _engine.position;
             _lastBufferedAhead = _engine.buffered;
-            _lastProgress = DateTime.now();
+            // Do not reset _lastProgress on a failed open. The watchdog uses
+            // its age to schedule another recovery round if no controller was
+            // created and the native engine emits no error.
             if (mounted) {
               setState(() {
                 _error = null;
-                _status = 'Reproduciendo';
+                _status = 'Reconectando…';
               });
             }
             continue;
@@ -269,7 +284,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _sourceIndex = _bestSourceIndex(excluding: _sourceIndex);
     _lastPosition = Duration.zero;
     _lastBufferedAhead = Duration.zero;
-    _lastProgress = DateTime.now();
+    // Keep the last real playback-progress timestamp. Resetting it while
+    // cycling through failed/circuit-open sources hides the stall from the
+    // watchdog and can leave a frozen channel reconnecting forever.
     _bufferHealthMonitor.reset();
     _stablePlaybackSince = null;
     _sourceAttemptStarted = null;
@@ -278,7 +295,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _checkHealth() async {
     if (_session.isStopped || _recovering || _healthCheckRunning) return;
     final controller = _engine.controller;
-    if (controller == null || !controller.value.isInitialized) return;
+    if (controller == null || !controller.value.isInitialized) {
+      // After a failed open, some engines leave no initialized controller and
+      // emit no further error. The ordinary stall detector cannot help because
+      // it needs a controller; schedule another bounded recovery round instead.
+      final now = DateTime.now();
+      final terminalState = _status == 'Reproducción degradada' ||
+          _status == 'No hay una fuente reproducible';
+      final connectingTimedOut = _status.startsWith('Conectando fuente') &&
+          _sourceAttemptStarted != null &&
+          now.difference(_sourceAttemptStarted!) >= const Duration(seconds: 20);
+      if ((terminalState &&
+              now.difference(_lastProgress) >= const Duration(seconds: 8) ||
+          connectingTimedOut) &&
+          !_userPaused &&
+          _autoRecovery) {
+        await _recover(markFailure: true);
+      }
+      return;
+    }
 
     // The native player can stop without emitting a useful error. Treat an
     // unexpected pause as a recoverable failure, but never fight an explicit
@@ -305,10 +340,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final buffering = controller.value.isBuffering;
       final ended = controller.value.isCompleted;
 
-      final bufferPolicy = _adaptiveBufferPolicy.decide(
-        mode: Duration.zero == controller.value.duration
+      final profile = widget.entry.mediaContentProfile;
+      final mediaMode = switch (profile.type) {
+        MediaContentType.live || MediaContentType.loopChannel =>
+          PlaybackMediaMode.live,
+        MediaContentType.vod || MediaContentType.seriesEpisode =>
+          PlaybackMediaMode.vod,
+        MediaContentType.unknown => controller.value.duration <= Duration.zero
             ? PlaybackMediaMode.live
             : PlaybackMediaMode.vod,
+      };
+      final bufferPolicy = _adaptiveBufferPolicy.decide(
+        mode: mediaMode,
         signals: PlaybackHealthSignals(
           lastProgressAge: progressAt.difference(_lastProgress),
           bufferedAhead: bufferedAhead,
@@ -446,7 +489,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ? null
         : widget.entry.sources[_sourceIndex];
     if (markFailure && source != null) {
-      await _health.recordFailure(source.id, DateTime.now());
+      // Health persistence must never be able to wedge the recovery lock.
+      try {
+        await _health.recordFailure(source.id, DateTime.now());
+      } catch (_) {
+        // Playback recovery remains available if local health storage fails.
+      }
       _sourceAttemptStarted = null;
     }
     _stablePlaybackSince = null;
@@ -458,7 +506,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (mounted) setState(() => _status = 'Recuperando conexión...');
 
     try {
-      await _engine.stop();
+      // Native pause/stop can stall too; never let one hung platform call
+      // hold the recovery lock forever.
+      try {
+        await _engine.stop().timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {},
+            );
+      } catch (_) {
+        // Continue with a new engine generation even if native stop fails.
+      }
       final decision = await _recoveryCoordinator.recover(
         userStopped: _session.isStopped,
         retryable: retryable,
@@ -486,8 +543,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         },
       );
 
-      if (decision?.level == RecoveryLevel.degraded && mounted) {
-        setState(() => _status = 'Reproducción degradada');
+      if (mounted) {
+        if (decision == null || decision.level == RecoveryLevel.degraded) {
+          setState(() => _status = 'Reproducción degradada');
+        } else if (decision.level == RecoveryLevel.failed) {
+          setState(() => _status = 'No hay una fuente reproducible');
+        }
       }
     } finally {
       _recovering = false;
@@ -532,44 +593,127 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget build(BuildContext context) {
     final controller = _engine.controller;
     if (controller == null || !controller.value.isInitialized) {
+      final waiting = _status.contains('espera') || _status.contains('Conectando');
+      final recovering = _recovering ||
+          _status.contains('Reconectando') ||
+          _status.contains('Recuperando');
+      final terminal = _status == 'No hay una fuente reproducible' ||
+          _status == 'Reproducción degradada';
+      final headline = recovering
+          ? 'Recuperando la señal'
+          : waiting
+              ? 'Esperando la fuente'
+              : terminal
+                  ? 'La señal no responde'
+                  : 'Preparando canal';
+      final detail = _error ??
+          (recovering
+              ? 'Reintentando la conexión automáticamente'
+              : waiting
+                  ? 'La fuente está temporalmente bloqueada; volveremos a probar'
+                  : terminal
+                      ? 'Seguiremos comprobando si la señal vuelve'
+                      : 'Conectando con la fuente de reproducción');
       return Scaffold(
+        backgroundColor: const Color(0xFF070B12),
         appBar: AppBar(
-          title: Text(widget.entry.channel.displayName),
+          backgroundColor: const Color(0xFF070B12),
+          title: Text(widget.entry.channel.displayName,
+              maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
             IconButton(
-              tooltip: 'Recuperar',
-              onPressed: _recovering ? null : _recover,
-              icon: const Icon(Icons.refresh),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Center(child: Text(_status)),
+              tooltip: 'Reintentar ahora',
+              onPressed: _recovering ? null : () => _recover(markFailure: false),
+              icon: const Icon(Icons.refresh_rounded),
             ),
           ],
         ),
-        backgroundColor: Colors.black,
         body: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(_recovering ? Icons.sync : Icons.tv_off, size: 72),
-                  const SizedBox(height: 16),
-                  Text(
-                    _error ?? _status,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                  const SizedBox(height: 18),
-                  FilledButton.icon(
-                    onPressed: _recovering ? null : _recover,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Reintentar'),
-                  ),
-                ],
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111A28),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 84,
+                      height: 84,
+                      decoration: BoxDecoration(
+                        color: recovering
+                            ? const Color(0xFF173B52)
+                            : const Color(0xFF1A2638),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Icon(
+                        recovering
+                            ? Icons.wifi_find_rounded
+                            : waiting
+                                ? Icons.hourglass_top_rounded
+                                : terminal
+                                    ? Icons.signal_wifi_connected_no_internet_4_rounded
+                                    : Icons.live_tv_rounded,
+                        size: 42,
+                        color: const Color(0xFF68D5FF),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    Text(
+                      headline,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 23,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      detail,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        fontSize: 14,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    if (!terminal) ...[
+                      const SizedBox(
+                        width: 190,
+                        child: LinearProgressIndicator(minHeight: 4),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _status,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.55),
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _recovering
+                            ? null
+                            : () => _recover(markFailure: false),
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Reintentar conexión'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

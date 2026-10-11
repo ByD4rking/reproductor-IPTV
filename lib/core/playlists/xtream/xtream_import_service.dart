@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../domain/entities/channel.dart';
+import '../../domain/entities/media_content_profile.dart';
 import '../../domain/entities/playlist.dart';
 import '../../domain/entities/stream_source.dart';
 import '../../network/url_policy.dart';
@@ -100,6 +101,11 @@ class XtreamImportService {
           ),
           category: category,
           logoUrl: safeIcon,
+          mediaContentProfile: const MediaContentProfile(
+            type: MediaContentType.live,
+            confidence: MediaContentConfidence.high,
+            evidence: MediaContentEvidence.declared,
+          ),
           sources: [
             StreamSource(
               id: 'xtream:$streamId:hls',

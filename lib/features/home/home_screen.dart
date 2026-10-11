@@ -38,7 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _searchDebounce;
   String _category = 'Todos';
   bool _showingChannels = false;
-  int _playlistSwitchGeneration = 0;
   Set<String> _favoriteChannelIds = <String>{};
   final Map<String, PlaylistEntry> _entryByChannelId = <String, PlaylistEntry>{};
   PlaylistOrganization _organization = const PlaylistOrganization();
@@ -358,27 +357,52 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Reproductor IPTV'),
         actions: [
           IconButton(
-            tooltip: 'Playlists',
-            onPressed: () async {
-              final selected = await Navigator.of(context).push<String>(
-                MaterialPageRoute(
-                  builder: (_) => PlaylistImportScreen(repository: _repository),
-                ),
-              );
-              if (selected != null) {
-                await _settings.setActivePlaylistId(selected);
-              }
-              await _loadLibrary();
-            },
-            icon: const Icon(Icons.playlist_play),
-          ),
-          IconButton(
             tooltip: 'Ajustes',
             onPressed: _openSettings,
             icon: const Icon(Icons.settings_outlined),
           ),
         ],
       ),
+      bottomNavigationBar: MediaQuery.sizeOf(context).width < 700
+          ? NavigationBar(
+              selectedIndex: 0,
+              onDestinationSelected: (index) {
+                final pages = <Widget>[
+                  const HomeScreen(),
+                  const FavoritesScreen(),
+                  const EpgScreen(),
+                  const SettingsScreen(),
+                ];
+                if (index > 0) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => pages[index]),
+                  );
+                }
+              },
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.live_tv_outlined),
+                  selectedIcon: Icon(Icons.live_tv_rounded),
+                  label: 'TV',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.star_outline_rounded),
+                  selectedIcon: Icon(Icons.star_rounded),
+                  label: 'Favoritos',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.event_note_outlined),
+                  selectedIcon: Icon(Icons.event_note_rounded),
+                  label: 'Guía',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings_rounded),
+                  label: 'Ajustes',
+                ),
+              ],
+            )
+          : null,
       drawer: NavigationDrawer(
         onDestinationSelected: (index) {
           Navigator.of(context).pop();
@@ -428,38 +452,38 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           }
 
-          Widget playlistSelector() => _PlaylistSwitcher(
-                playlists: _repository.playlists,
-                active: playlist,
-                onSelected: (selected) async {
-                  final generation = ++_playlistSwitchGeneration;
-                  final organization = await _organizationRepository.syncWithGroups(
-                    selected.id,
-                    selected.entries.map((entry) =>
-                        entry.category?.trim().isEmpty ?? true
-                            ? 'Sin categoría'
-                            : (entry.category?.trim() ?? 'Sin categoría')),
-                  );
-                  final favorites = await FavoriteRepository().load();
-                  if (!mounted || generation != _playlistSwitchGeneration) return;
-                  await _settings.setActivePlaylistId(selected.id);
-                  if (!mounted || generation != _playlistSwitchGeneration) return;
-                  _rebuildEntryIndex(selected);
-                  setState(() {
-                    _playlist = selected;
-                    _category = 'Todos';
-                    _showingChannels = false;
-                    _organization = organization;
-                    _favoriteChannelIds = favorites
-                        .where((favorite) =>
-                            favorite.preferredPlaylistId == selected.id)
-                        .map((favorite) => favorite.channelId)
-                        .toSet();
-                    _query = '';
-                    _searchIndex = SearchIndex()
-                      ..replace(selected.entries.map((entry) => entry.channel));
-                  });
-                },
+          Widget categoryHeading() => Padding(
+                padding: const EdgeInsets.fromLTRB(12, 2, 18, 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (_showingChannels)
+                      IconButton.filledTonal(
+                        tooltip: 'Volver a carpetas',
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(
+                          minWidth: 40,
+                          minHeight: 40,
+                        ),
+                        padding: EdgeInsets.zero,
+                        onPressed: () => setState(() {
+                          _showingChannels = false;
+                          _category = 'Todos';
+                          _query = '';
+                        }),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                    if (_showingChannels) const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _query.isNotEmpty ? 'Resultados de búsqueda' : _category,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                  ],
+                ),
               );
 
           Widget searchField() => TextField(
@@ -683,21 +707,81 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                     ),
-                    if (!wide && _showingChannels)
-                      IconButton.filledTonal(
-                        tooltip: 'Volver a carpetas',
-                        onPressed: () => setState(() {
-                          _showingChannels = false;
-                          _category = 'Todos';
-                          _query = '';
-                        }),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                      ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                playlistSelector(),
-                const SizedBox(height: 8),
+                Container(
+                  constraints: const BoxConstraints(minHeight: 104),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context).colorScheme.tertiary,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(
+                          Icons.live_tv_rounded,
+                          size: 30,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'TU TELEVISIÓN, EN UN SOLO LUGAR',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              '${playlist.entries.length} canales disponibles',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              playlist.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.86),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
                 searchField(),
               ],
             ),
@@ -713,13 +797,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       header,
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
-                        child: Text(
-                          _query.isNotEmpty ? 'Resultados de búsqueda' : _category,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ),
+                      categoryHeading(),
                       Expanded(child: channelGrid()),
                     ],
                   ),
@@ -737,13 +815,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
-                            child: Text(
-                              _query.isNotEmpty ? 'Resultados de búsqueda' : _category,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ),
+                          categoryHeading(),
                           Expanded(child: channelGrid()),
                         ],
                       )
@@ -1041,57 +1113,6 @@ class _ChannelCardState extends State<_ChannelCard> {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
-class _PlaylistSwitcher extends StatelessWidget {
-  const _PlaylistSwitcher({
-    required this.playlists,
-    required this.active,
-    required this.onSelected,
-  });
-
-  final List<Playlist> playlists;
-  final Playlist active;
-  final Future<void> Function(Playlist) onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Card(
-        child: ListTile(
-          leading: const Icon(Icons.playlist_play),
-          title: Text(active.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text('${active.entries.length} canales · lista activa'),
-          trailing: PopupMenuButton<String>(
-            tooltip: 'Cambiar playlist',
-            onSelected: (id) {
-              final selected = playlists.where((p) => p.id == id);
-              if (selected.isNotEmpty) onSelected(selected.first);
-            },
-            itemBuilder: (_) => playlists
-                .map((playlist) => PopupMenuItem<String>(
-                      value: playlist.id,
-                      child: Row(
-                        children: [
-                          Icon(playlist.id == active.id
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_off),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(playlist.name,
-                                maxLines: 1, overflow: TextOverflow.ellipsis),
-                          ),
-                        ],
-                      ),
-                    ))
-                .toList(),
           ),
         ),
       ),

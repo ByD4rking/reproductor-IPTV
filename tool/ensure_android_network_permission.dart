@@ -12,6 +12,8 @@ Future<void> main() async {
   var xml = await manifest.readAsString();
   const permission =
       '    <uses-permission android:name="android.permission.INTERNET" />\n';
+  const installPermission =
+      '    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n';
 
   var applicationIndex = xml.indexOf('<application');
   if (applicationIndex < 0) {
@@ -19,6 +21,15 @@ Future<void> main() async {
   }
 
   var changed = false;
+  if (!xml.contains('android.permission.REQUEST_INSTALL_PACKAGES')) {
+    xml = xml.replaceRange(applicationIndex, applicationIndex, installPermission);
+    applicationIndex = xml.indexOf('<application');
+    if (applicationIndex < 0) {
+      throw StateError('AndroidManifest perdió <application> al añadir permiso de instalación.');
+    }
+    changed = true;
+  }
+
   if (!xml.contains('android.permission.INTERNET')) {
     xml = xml.replaceRange(applicationIndex, applicationIndex, permission);
     applicationIndex = xml.indexOf('<application');
@@ -51,5 +62,13 @@ Future<void> main() async {
     stdout.writeln(
       'Android network permissions/configuration already present.',
     );
+  }
+
+  final verified = await manifest.readAsString();
+  if (!verified.contains('android.permission.INTERNET')) {
+    throw StateError('AndroidManifest no contiene INTERNET después de configurarlo.');
+  }
+  if (!verified.contains('android.permission.REQUEST_INSTALL_PACKAGES')) {
+    throw StateError('AndroidManifest no contiene REQUEST_INSTALL_PACKAGES después de configurarlo.');
   }
 }

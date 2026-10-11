@@ -55,6 +55,10 @@ class RecoveryCoordinator {
       );
 
       if (decision.level == RecoveryLevel.switchSource && !allowSourceSwitch) {
+        // A single-source channel must not permanently exhaust its retry
+        // budget. The player schedules another bounded recovery round.
+        _retryCount = 0;
+        _sourceChanges = 0;
         return const RecoveryDecision(
           level: RecoveryLevel.degraded,
           delay: Duration.zero,
@@ -86,6 +90,13 @@ class RecoveryCoordinator {
         case RecoveryLevel.failed:
         case RecoveryLevel.stopped:
           break;
+      }
+      // "Degraded" is a state for this recovery round, not a terminal state.
+      // Reset the budget so a later health-monitor round can try the source
+      // again after a prolonged outage.
+      if (decision.level == RecoveryLevel.degraded) {
+        _retryCount = 0;
+        _sourceChanges = 0;
       }
       return decision;
     } finally {

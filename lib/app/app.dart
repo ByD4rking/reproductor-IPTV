@@ -18,7 +18,7 @@ class ReproductorIptvApp extends StatelessWidget {
     );
 
     return MaterialApp(
-      title: 'Reproductor IPTV',
+      title: 'reproductor-IPTV 0.3.0 ALPHA',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

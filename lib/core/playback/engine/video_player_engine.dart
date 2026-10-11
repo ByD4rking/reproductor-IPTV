@@ -8,6 +8,7 @@ import 'playback_engine_error.dart';
 import 'playback_engine_state.dart';
 import 'playback_request.dart';
 import 'playback_tracks.dart';
+import 'stream_format_hint.dart';
 
 class VideoPlayerEngine implements PlaybackEngine {
   VideoPlayerEngine();
@@ -250,13 +251,10 @@ class VideoPlayerEngine implements PlaybackEngine {
   }
 
   Future<VideoFormat?> _formatHint(PlaybackRequest request) async {
-    // Let the native media stack sniff query-based IPTV URLs from their
-    // response headers. Probing here adds a second network transaction and
-    // breaks providers that authorize playback differently from probes.
-    final path = request.source.url.path.toLowerCase();
-    if (path.endsWith('.m3u8')) return VideoFormat.hls;
-    if (path.endsWith('.mpd')) return VideoFormat.dash;
-    return null;
+    // Never make an extra network request just to classify the URL. Use its
+    // path or declared query format so tokenized IPTV endpoints can still be
+    // opened with the correct native media source.
+    return streamFormatHint(request.source.url);
   }
 
   String _videoLabel(dynamic track) {

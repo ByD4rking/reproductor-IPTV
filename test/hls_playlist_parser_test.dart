@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:reproductor_iptv/core/domain/entities/media_content_profile.dart';
 
 import 'package:reproductor_iptv/core/playback/engine/hls_playlist_parser.dart';
 
@@ -42,7 +43,9 @@ void main() {
 
     expect(result.isValid, isTrue);
     expect(result.isMaster, isTrue);
-    expect(result.isLive, isTrue);
+    // A master playlist describes variants; it does not prove live vs VOD.
+    expect(result.isLive, isFalse);
+    expect(result.mediaContentProfile.type, MediaContentType.unknown);
     expect(result.uris, hasLength(2));
     expect(result.uris.first, Uri.parse('https://example.com/low/index.m3u8'));
     expect(result.uris.last, Uri.parse('https://example.com/high/index.m3u8'));

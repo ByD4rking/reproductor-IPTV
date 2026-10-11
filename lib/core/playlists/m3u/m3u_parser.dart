@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/channel.dart';
+import '../../domain/entities/media_content_profile.dart';
 import '../../domain/entities/playlist.dart';
 import '../../domain/entities/stream_source.dart';
 import '../../network/url_policy.dart';
@@ -77,6 +78,7 @@ class M3uParser {
     final entries = <PlaylistEntry>[];
     final byTvgId = <String, int>{};
     String? pendingExtInf;
+    final pendingVlcOptions = <String, String>{};
     var sourceIndex = 0;
 
     for (final line in lines) {
@@ -88,11 +90,35 @@ class M3uParser {
 
       if (value.startsWith('#EXTINF:')) {
         pendingExtInf = value;
+        pendingVlcOptions.clear();
+        continue;
+      }
+      if (value.startsWith('#EXTVLCOPT:') && pendingExtInf != null) {
+        final option = value.substring('#EXTVLCOPT:'.length);
+        final separator = option.indexOf('=');
+        if (separator > 0) {
+          final key = option.substring(0, separator).trim().toLowerCase();
+          var optionValue = option.substring(separator + 1).trim();
+          if (optionValue.length >= 2 &&
+              ((optionValue.startsWith('"') && optionValue.endsWith('"')) ||
+                  (optionValue.startsWith("'") && optionValue.endsWith("'")))) {
+            optionValue = optionValue.substring(1, optionValue.length - 1);
+          }
+          if (optionValue.isNotEmpty) pendingVlcOptions[key] = optionValue;
+        }
         continue;
       }
       if (value.startsWith('#') || pendingExtInf == null) continue;
 
-      final uri = Uri.tryParse(value);
+      final parsedUri = Uri.tryParse(value);
+      // Remote M3U playlists may use relative stream paths. Resolve them
+      // against the final playlist URL before applying the HTTP(S) policy;
+      // otherwise valid channels are silently discarded during import.
+      final uri = parsedUri == null
+          ? null
+          : parsedUri.hasScheme
+              ? parsedUri
+              : baseUri?.resolveUri(parsedUri);
       if (uri == null || !urlPolicy.accepts(uri)) {
         pendingExtInf = null;
         continue;
@@ -114,15 +140,21 @@ class M3uParser {
       final logoUrl = _resolveLogoUri(logoText, baseUri);
 
       final headers = <String, String>{};
-      final userAgent = attrs['http-user-agent']?.trim();
+      final userAgent = (pendingVlcOptions['http-user-agent'] ??
+              attrs['http-user-agent'])
+          ?.trim();
       if (userAgent != null && userAgent.isNotEmpty) {
         headers['User-Agent'] = userAgent;
       }
-      final referrer = attrs['http-referrer']?.trim();
+      final referrer = (pendingVlcOptions['http-referrer'] ??
+              pendingVlcOptions['http-referrer-url'] ??
+              attrs['http-referrer'])
+          ?.trim();
       if (referrer != null && referrer.isNotEmpty) {
         headers['Referer'] = referrer;
       }
-      final origin = attrs['http-origin']?.trim();
+      final origin =
+          (pendingVlcOptions['http-origin'] ?? attrs['http-origin'])?.trim();
       if (origin != null && origin.isNotEmpty) {
         headers['Origin'] = origin;
       }
@@ -144,9 +176,13 @@ class M3uParser {
             sources: List.unmodifiable([...existing.sources, source]),
             category: existing.category ?? _category(attrs),
             logoUrl: existing.logoUrl ?? logoUrl,
+            mediaContentProfile: existing.mediaContentProfile.isKnown
+                ? existing.mediaContentProfile
+                : MediaContentProfile.fromM3u(attributes: attrs, url: uri),
           );
           sourceIndex++;
           pendingExtInf = null;
+          pendingVlcOptions.clear();
           continue;
         }
       }
@@ -167,6 +203,10 @@ class M3uParser {
         sources: [source],
         category: _category(attrs),
         logoUrl: logoUrl,
+        mediaContentProfile: MediaContentProfile.fromM3u(
+          attributes: attrs,
+          url: uri,
+        ),
       );
       entries.add(entry);
       if (tvgId != null && tvgId.isNotEmpty) {
@@ -174,6 +214,7 @@ class M3uParser {
       }
       sourceIndex++;
       pendingExtInf = null;
+      pendingVlcOptions.clear();
     }
 
     if (entries.isEmpty) {
