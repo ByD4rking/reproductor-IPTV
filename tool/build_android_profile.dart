@@ -185,7 +185,7 @@ Future<void> _configureAndroidReleaseSigning() async {
     if (!source.contains(androidAnchor)) {
       throw StateError('Gradle Kotlin DSL no contiene android {.');
     }
-    const signingBlock = '''
+    final signingBlock = '''
     signingConfigs {
         create("release") {
             storeFile = file("$storePath")
