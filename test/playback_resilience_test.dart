@@ -242,6 +242,34 @@ void main() {
     expect(classifier.stalled().kind, PlaybackErrorKind.stalled);
   });
 
+  test('classifies permanent HTTP client failures as source-specific', () {
+    const classifier = PlaybackErrorClassifier();
+    for (final status in <int>[400, 405, 416, 422]) {
+      final error = classifier.classify(status, null);
+      expect(error.disposition, ErrorDisposition.switchSource, reason: 'HTTP $status');
+      expect(error.kind, PlaybackErrorKind.requestRejected);
+    }
+  });
+
+  test('keeps transient HTTP statuses retryable and parses explicit status text', () {
+    const classifier = PlaybackErrorClassifier();
+    for (final status in <int>[408, 425, 429, 500, 502, 503, 504]) {
+      expect(
+        classifier.classify(status, null).disposition,
+        ErrorDisposition.retry,
+        reason: 'HTTP $status',
+      );
+    }
+    expect(
+      classifier.classifyMessage('HTTP 416 Range Not Satisfiable').disposition,
+      ErrorDisposition.switchSource,
+    );
+    expect(
+      classifier.classifyMessage('HTTP 503 Service Unavailable').disposition,
+      ErrorDisposition.retry,
+    );
+  });
+
   test('classifies runtime player messages conservatively', () {
     const classifier = PlaybackErrorClassifier();
     expect(classifier.classifyMessage('HTTP 404 Not Found').kind,

@@ -9,6 +9,7 @@ enum PlaybackErrorKind {
   unsupportedFormat,
   stalled,
   decoder,
+  requestRejected,
   unknown,
 }
 
@@ -45,12 +46,23 @@ class PlaybackErrorClassifier {
       );
     }
     if (statusCode == 408 ||
+        statusCode == 425 ||
         statusCode == 429 ||
         (statusCode != null && statusCode >= 500)) {
       return const PlaybackError(
         kind: PlaybackErrorKind.network,
         message: 'Upstream/network error',
         disposition: ErrorDisposition.retry,
+      );
+    }
+    // Do not retry permanent client-side HTTP failures against the same URL.
+    // They usually indicate an invalid request, unsupported method/range, or
+    // a source-specific restriction; source selection can then move on safely.
+    if (statusCode != null && statusCode >= 400 && statusCode < 500) {
+      return const PlaybackError(
+        kind: PlaybackErrorKind.requestRejected,
+        message: 'Upstream rejected the playback request',
+        disposition: ErrorDisposition.switchSource,
       );
     }
     if (error is String) {
@@ -93,6 +105,16 @@ class PlaybackErrorClassifier {
 
   PlaybackError classifyMessage(String message) {
     final value = message.toLowerCase();
+    // Parse explicit HTTP status markers before keyword matching. This avoids
+    // treating a permanent 4xx response as a generic retryable network error.
+    final statusMatch = RegExp(
+      r'\bHTTP(?:/\d(?:\.\d)?)?\s+([45]\d{2})\b',
+      caseSensitive: false,
+    ).firstMatch(message);
+    if (statusMatch != null) {
+      final statusCode = int.tryParse(statusMatch.group(1)!);
+      if (statusCode != null) return classify(statusCode, null);
+    }
     if (value.contains('401') ||
         value.contains('403') ||
         value.contains('unauthorized') ||
@@ -126,7 +148,9 @@ class PlaybackErrorClassifier {
         disposition: ErrorDisposition.retry,
       );
     }
-    if (value.contains('429') ||
+    if (value.contains('408') ||
+        value.contains('425') ||
+        value.contains('429') ||
         value.contains('500') ||
         value.contains('502') ||
         value.contains('503') ||
