@@ -379,6 +379,46 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: MediaQuery.sizeOf(context).width < 700
+          ? NavigationBar(
+              selectedIndex: 0,
+              onDestinationSelected: (index) {
+                final pages = <Widget>[
+                  const HomeScreen(),
+                  const FavoritesScreen(),
+                  const EpgScreen(),
+                  const SettingsScreen(),
+                ];
+                if (index > 0) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => pages[index]),
+                  );
+                }
+              },
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.live_tv_outlined),
+                  selectedIcon: Icon(Icons.live_tv_rounded),
+                  label: 'TV',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.star_outline_rounded),
+                  selectedIcon: Icon(Icons.star_rounded),
+                  label: 'Favoritos',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.event_note_outlined),
+                  selectedIcon: Icon(Icons.event_note_rounded),
+                  label: 'Guía',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings_rounded),
+                  label: 'Ajustes',
+                ),
+              ],
+            )
+          : null,
       drawer: NavigationDrawer(
         onDestinationSelected: (index) {
           Navigator.of(context).pop();
