@@ -280,21 +280,34 @@ class VideoPlayerEngine implements PlaybackEngine {
   Future<void> play() async {
     final controller = _controller;
     if (controller == null) return;
+    final generation = _prepareGeneration;
     await controller.play();
-    _emitState(PlaybackEngineState.playing, _prepareGeneration);
+    // A play request can complete after a channel switch or stop. Never let
+    // that stale future publish a state for the newer playback session.
+    if (generation != _prepareGeneration ||
+        !identical(controller, _controller)) {
+      return;
+    }
+    _emitState(PlaybackEngineState.playing, generation);
   }
 
   @override
   Future<void> pause() async {
     final controller = _controller;
     if (controller == null) return;
+    final generation = _prepareGeneration;
     await controller.pause();
-    _emitState(PlaybackEngineState.paused, _prepareGeneration);
+    // Ignore completions from a controller that is no longer active.
+    if (generation != _prepareGeneration ||
+        !identical(controller, _controller)) {
+      return;
+    }
+    _emitState(PlaybackEngineState.paused, generation);
   }
 
   @override
   Future<void> stop() async {
-    _prepareGeneration++;
+    final generation = ++_prepareGeneration;
     _activeSourceId = null;
     _lastErrorDescription = null;
     final controller = _controller;
@@ -304,7 +317,13 @@ class VideoPlayerEngine implements PlaybackEngine {
       _controllerListener = null;
       await controller.pause();
     }
-    _emitState(PlaybackEngineState.idle, _prepareGeneration);
+    // If prepare() began while pause() was pending, stop must not overwrite
+    // the new session's state with a stale idle event.
+    if (generation != _prepareGeneration ||
+        !identical(controller, _controller)) {
+      return;
+    }
+    _emitState(PlaybackEngineState.idle, generation);
   }
 
   @override
