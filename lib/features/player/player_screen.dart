@@ -25,6 +25,7 @@ import '../../core/domain/entities/watch_history.dart';
 import '../../core/settings/settings_repository.dart';
 import '../../core/platform/tv_focus.dart';
 import '../../core/sources/source_ranker.dart';
+import '../../core/sources/source_rotation.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({required this.entry, super.key});
@@ -75,7 +76,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.initState();
     // Allow recovery to cycle through every known source, not just two.
     _recoveryCoordinator = RecoveryCoordinator(
-      policy: RecoveryPolicy(maxSourceChanges: widget.entry.sources.length),
+      policy: RecoveryPolicy(
+        maxSourceChanges: widget.entry.sources.length > 1
+            ? widget.entry.sources.length - 1
+            : 0,
+      ),
     );
     // Leave sensor orientation enabled by default; users can force landscape
     // from the player controls and tap again to restore automatic rotation.
@@ -145,15 +150,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
     required bool automatic,
     int? operationId,
     bool allowNestedRecovery = true,
+    bool tryAllSources = false,
   }) async {
     if (_session.isStopped || widget.entry.sources.isEmpty) return;
     final operation = operationId ?? _session.beginOperation();
     if (operation < 0) return;
 
     var attempts = 0;
+    final attemptLimit = tryAllSources && widget.entry.sources.length > 1
+        ? widget.entry.sources.length - 1
+        : widget.entry.sources.length + 3;
     while (!_session.isStopped &&
         _session.isCurrentOperation(operation) &&
-        attempts < widget.entry.sources.length + 3) {
+        attempts < attemptLimit) {
       final source = widget.entry.sources[_sourceIndex];
       final now = DateTime.now();
       if (!await _health.beginAttempt(source.id, now)) {
@@ -190,6 +199,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         attempts++;
         final classified = _errorClassifier.classify(null, error);
         if (!allowNestedRecovery) {
+          if (tryAllSources) {
+            _advanceSource();
+            continue;
+          }
           break;
         }
 
@@ -274,7 +287,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _advanceSource() {
     if (widget.entry.sources.isEmpty) return;
-    _sourceIndex = _bestSourceIndex(excluding: _sourceIndex);
+    _sourceIndex = SourceRotation.nextIndex(
+      currentIndex: _sourceIndex,
+      sourceCount: widget.entry.sources.length,
+    );
     _lastPosition = Duration.zero;
     _lastBufferedAhead = Duration.zero;
     _lastProgress = DateTime.now();
@@ -501,9 +517,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (_session.isCurrentOperation(operation)) {
             _advanceSource();
             await _openSource(
-                automatic: true,
-                operationId: operation,
-                allowNestedRecovery: false);
+              automatic: true,
+              operationId: operation,
+              allowNestedRecovery: false,
+              tryAllSources: true,
+            );
           }
         },
       );
