@@ -7,6 +7,7 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 import 'package:reproductor_iptv/core/domain/entities/channel.dart';
+import 'package:reproductor_iptv/core/domain/entities/media_content_profile.dart';
 import 'package:reproductor_iptv/core/domain/entities/playlist.dart';
 import 'package:reproductor_iptv/core/domain/entities/stream_source.dart';
 import 'package:reproductor_iptv/core/playlists/repository/persistent_playlist_repository.dart';
@@ -107,6 +108,38 @@ void main() {
     expect(repository.getById('one'), isNull);
     expect(repository.getById('two'), isNotNull);
     expect(storage.values.keys, contains('two'));
+  });
+
+  test('persists media content type and evidence across repository instances',
+      () async {
+    final storage = MemoryPlaylistStorage();
+    final first = PersistentPlaylistRepository(storage: storage);
+    final base = playlist('typed', 'Anime');
+    final typed = Playlist(
+      id: base.id,
+      name: base.name,
+      sourceUri: base.sourceUri,
+      entries: [
+        PlaylistEntry(
+          id: base.entries.first.id,
+          channel: base.entries.first.channel,
+          sources: base.entries.first.sources,
+          mediaContentProfile: const MediaContentProfile(
+            type: MediaContentType.loopChannel,
+            confidence: MediaContentConfidence.high,
+            evidence: MediaContentEvidence.declared,
+          ),
+        ),
+      ],
+    );
+    await first.upsert(typed);
+
+    final second = PersistentPlaylistRepository(storage: storage);
+    await second.load();
+    final profile = second.getById('typed')!.entries.single.mediaContentProfile;
+    expect(profile.type, MediaContentType.loopChannel);
+    expect(profile.confidence, MediaContentConfidence.high);
+    expect(profile.evidence, MediaContentEvidence.declared);
   });
 
   test('restores playlists and their URL after a new repository instance',
