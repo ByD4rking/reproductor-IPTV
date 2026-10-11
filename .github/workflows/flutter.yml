@@ -26,6 +26,8 @@ jobs:
 
       - run: flutter --version
       - run: flutter pub get
+      - name: Configure and verify Android ExoPlayer forward buffer
+        run: dart run tool/configure_android_exoplayer_buffer.dart
       - name: Format Dart sources
         run: dart format lib test integration_test tool
 
