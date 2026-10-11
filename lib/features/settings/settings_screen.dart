@@ -66,9 +66,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(),
           ListTile(
             leading: const Icon(Icons.storage_outlined),
-            title: const Text('Playlists guardadas'),
+            title: const Text('Playlists'),
             subtitle: Text(
-              '$_playlistCount listas almacenadas en los datos privados de la aplicación.',
+              'Administrar listas guardadas y cambiar la lista activa ($_playlistCount).',
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () async {
