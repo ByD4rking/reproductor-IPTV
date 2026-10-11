@@ -73,16 +73,9 @@ void main() {
   });
 
   test('rejects an APK asset without a SHA-256 digest', () async {
-    final result = await service(
-      releaseJson: release(digest: ''),
-    ).checkForUpdate();
-
-    // Missing digests are treated as invalid release metadata, not as an
-    // installable update.
-    expect(result.info.status, UpdateStatus.available);
-    expect(
-      () => result.info.sha256!.length,
-      returnsNormally,
+    await expectLater(
+      service(releaseJson: release(digest: '')).checkForUpdate(),
+      throwsFormatException,
     );
   });
 
