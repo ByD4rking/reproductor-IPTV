@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:video_player/video_player.dart';
 import 'package:reproductor_iptv/core/domain/entities/channel.dart';
 import 'package:reproductor_iptv/core/domain/entities/catchup.dart';
 import 'package:reproductor_iptv/core/domain/entities/stream_source.dart';
