@@ -321,6 +321,25 @@ void main() {
     expect(exhausted.level, RecoveryLevel.failed);
   });
 
+  test('recovery policy can budget switches for every playlist source', () {
+    const policy = RecoveryPolicy(maxRetries: 3, maxSourceChanges: 6);
+    final decision = policy.decide(
+      userStopped: false,
+      retryable: true,
+      retryCount: 3,
+      sourceChanges: 4,
+    );
+    expect(decision.level, RecoveryLevel.switchSource);
+
+    final exhausted = policy.decide(
+      userStopped: false,
+      retryable: true,
+      retryCount: 3,
+      sourceChanges: 6,
+    );
+    expect(exhausted.level, RecoveryLevel.degraded);
+  });
+
   test('cancel invalidates a delayed recovery', () async {
     final coordinator = RecoveryCoordinator();
     var called = false;
