@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/domain/entities/playlist.dart';
+import '../../core/domain/entities/media_content_profile.dart';
 import '../../core/domain/entities/stream_source.dart';
 import '../../core/playback/engine/playback_engine_error.dart';
 import '../../core/playback/engine/playback_request.dart';
@@ -305,10 +306,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final buffering = controller.value.isBuffering;
       final ended = controller.value.isCompleted;
 
-      final bufferPolicy = _adaptiveBufferPolicy.decide(
-        mode: Duration.zero == controller.value.duration
+      final profile = widget.entry.mediaContentProfile;
+      final mediaMode = switch (profile.type) {
+        MediaContentType.live || MediaContentType.loopChannel =>
+          PlaybackMediaMode.live,
+        MediaContentType.vod || MediaContentType.seriesEpisode =>
+          PlaybackMediaMode.vod,
+        MediaContentType.unknown => controller.value.duration <= Duration.zero
             ? PlaybackMediaMode.live
             : PlaybackMediaMode.vod,
+      };
+      final bufferPolicy = _adaptiveBufferPolicy.decide(
+        mode: mediaMode,
         signals: PlaybackHealthSignals(
           lastProgressAge: progressAt.difference(_lastProgress),
           bufferedAhead: bufferedAhead,
