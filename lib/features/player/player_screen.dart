@@ -306,14 +306,44 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final controller = _engine.controller;
     if (controller == null || !controller.value.isInitialized) return;
 
-    // The native player can stop without emitting a useful error. Treat an
-    // unexpected pause as a recoverable failure, but never fight an explicit
-    // user pause.
+    // Some platform backends briefly report isPlaying=false while HLS is
+    // buffering or switching segments. Do not tear down the native player
+    // after a single short gap: wait for a hard no-progress window and ensure
+    // the user did not pause. A completed VOD is terminal, not a reconnect.
     if (!controller.value.isPlaying) {
-      if (!_userPaused &&
-          _autoRecovery &&
-          DateTime.now().difference(_lastProgress) >=
-              const Duration(seconds: 5)) {
+      if (_userPaused || !_autoRecovery) return;
+      if (controller.value.isCompleted &&
+          controller.value.duration > Duration.zero) {
+        if (mounted && _status != 'Finalizado') {
+          setState(() => _status = 'Finalizado');
+        }
+        return;
+      }
+
+      final now = DateTime.now();
+      final position = _engine.position;
+      final bufferedAhead = _engine.buffered;
+      final playheadMoving = position > _lastPosition;
+      final dataArriving = bufferedAhead > _lastBufferedAhead;
+      _lastBufferedAhead = bufferedAhead;
+
+      if (playheadMoving) {
+        _lastPosition = position;
+        _lastProgress = now;
+        return;
+      }
+
+      final age = now.difference(_lastProgress);
+      // Live streams often report sparse/empty buffered ranges, so a zero
+      // buffer reading alone is not proof of a dead connection. Require a
+      // sustained 15-second lack of playback progress and no buffer growth.
+      if (_stallDetector.isHardStall(
+            age,
+            userPaused: _userPaused,
+            ended: controller.value.isCompleted &&
+                controller.value.duration > Duration.zero,
+          ) &&
+          !dataArriving) {
         await _recover(markFailure: true);
       }
       return;
