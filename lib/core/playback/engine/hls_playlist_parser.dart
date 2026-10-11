@@ -15,11 +15,13 @@ class HlsPlaylist {
   final Duration? targetDuration;
   final bool isLive;
 
-  MediaContentProfile get mediaContentProfile =>
-      MediaContentProfile.fromHlsManifest(
-        isMaster: isMaster,
-        hasEndList: !isLive && !isMaster,
-      );
+  MediaContentProfile get mediaContentProfile {
+    if (!isValid) return MediaContentProfile.unknown;
+    return MediaContentProfile.fromHlsManifest(
+      isMaster: isMaster,
+      hasEndList: !isLive && !isMaster,
+    );
+  }
 }
 
 class HlsPlaylistParser {
