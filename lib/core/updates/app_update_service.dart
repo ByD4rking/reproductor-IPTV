@@ -6,8 +6,24 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 enum UpdateStatus { current, available, unsupported, failed }
+
+class _ParsedVersion {
+  const _ParsedVersion({
+    required this.major,
+    required this.minor,
+    required this.patch,
+    required this.build,
+    required this.label,
+  });
+  final int major;
+  final int minor;
+  final int patch;
+  final int build;
+  final String label;
+}
 
 class AppUpdateInfo {
   const AppUpdateInfo({
@@ -89,8 +105,10 @@ class AppUpdateService {
     if (tag is! String || tag.trim().isEmpty) {
       throw const FormatException('La Release no tiene tag_name.');
     }
-    final latestVersion = _normalizeVersion(tag);
-    final installedVersion = _normalizeVersion(package.version);
+    final latest = _parseVersion(tag);
+    final installed = _parseVersion('${package.version}+build-${package.buildNumber}');
+    final latestVersion = latest.label;
+    final installedVersion = installed.label;
     final releaseUrl = Uri.tryParse(decoded['html_url']?.toString() ?? '');
     if (releaseUrl == null ||
         releaseUrl.scheme != 'https' ||
@@ -107,7 +125,7 @@ class AppUpdateService {
     final assets = assetsRaw is List ? assetsRaw : const [];
     final selected = _selectApkAsset(assets);
     final notes = (decoded['body'] ?? '').toString();
-    final comparison = _compareVersions(latestVersion, installedVersion);
+    final comparison = _compareParsedVersions(latest, installed);
     if (comparison <= 0) {
       return UpdateCheckResult(
         releaseUrl: releaseUrl,
@@ -254,19 +272,29 @@ class AppUpdateService {
     return universal.isEmpty ? null : universal.first;
   }
 
-  static String _normalizeVersion(String raw) {
+  static _ParsedVersion _parseVersion(String raw) {
     final value = raw.trim().replaceFirst(RegExp(r'^[vV]'), '');
-    final match = RegExp(r'^(\d+)\.(\d+)\.(\d+)(?:[+-].*)?$').firstMatch(value);
-    if (match == null) {
-      throw FormatException('Versión no compatible: $raw');
-    }
-    return '${int.parse(match.group(1)!)}.${int.parse(match.group(2)!)}.${int.parse(match.group(3)!)}';
+    final match = RegExp(
+      r'^(\d+)\.(\d+)\.(\d+)(?:[-+](?:build[-+]?)?(\d+))?.*$',
+    ).firstMatch(value);
+    if (match == null) throw FormatException('Versión no compatible: $raw');
+    final major = int.parse(match.group(1)!);
+    final minor = int.parse(match.group(2)!);
+    final patch = int.parse(match.group(3)!);
+    final build = int.tryParse(match.group(4) ?? '') ?? 0;
+    return _ParsedVersion(
+      major: major,
+      minor: minor,
+      patch: patch,
+      build: build,
+      label: '$major.$minor.$patch${build > 0 ? '+$build' : ''}',
+    );
   }
 
-  static int _compareVersions(String left, String right) {
-    final a = left.split('.').map(int.parse).toList();
-    final b = right.split('.').map(int.parse).toList();
-    for (var i = 0; i < 3; i++) {
+  static int _compareParsedVersions(_ParsedVersion left, _ParsedVersion right) {
+    final a = [left.major, left.minor, left.patch, left.build];
+    final b = [right.major, right.minor, right.patch, right.build];
+    for (var i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return a[i].compareTo(b[i]);
     }
     return 0;
@@ -274,13 +302,13 @@ class AppUpdateService {
 
   static Future<bool> _defaultCanInstall() async {
     if (!Platform.isAndroid) return false;
-    return false;
+    return Permission.requestInstallPackages.isGranted;
   }
 
   static Future<bool> _defaultRequestInstallPermission() async {
-    throw UnsupportedError(
-      'El permiso de instalación de Android requiere integración nativa.',
-    );
+    if (!Platform.isAndroid) return false;
+    final status = await Permission.requestInstallPackages.request();
+    return status.isGranted;
   }
 
   static Future<void> _defaultInstaller(String path) async {
