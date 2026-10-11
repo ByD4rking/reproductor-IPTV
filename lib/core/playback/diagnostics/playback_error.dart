@@ -108,7 +108,7 @@ class PlaybackErrorClassifier {
     // Parse explicit HTTP status markers before keyword matching. This avoids
     // treating a permanent 4xx response as a generic retryable network error.
     final statusMatch = RegExp(
-      r'\\bHTTP(?:/\\d(?:\\.\\d)?)?\\s+([45]\\d{2})\\b',
+      r'\bHTTP(?:/\d(?:\.\d)?)?\s+([45]\d{2})\b',
       caseSensitive: false,
     ).firstMatch(message);
     if (statusMatch != null) {
