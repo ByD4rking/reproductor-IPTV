@@ -16,6 +16,7 @@ import '../../core/playback/monitor/stall_detector.dart';
 import '../../core/playback/monitor/buffer_health_monitor.dart';
 import '../../core/playback/monitor/adaptive_buffer_policy.dart';
 import '../../core/playback/monitor/playback_health_signals.dart';
+import '../../core/playback/recovery/backoff.dart';
 import '../../core/playback/recovery/recovery_coordinator.dart';
 import '../../core/playback/recovery/recovery_policy.dart';
 import '../../core/playback/session/playback_session.dart';
@@ -37,10 +38,26 @@ class PlayerScreen extends StatefulWidget {
 class _PlayerScreenState extends State<PlayerScreen> {
   final _engine = VideoPlayerEngine();
   final _session = PlaybackSession('player-session');
-  final _stallDetector = const StallDetector();
+  // IPTV en vivo suele quedarse varios segundos esperando el siguiente
+  // fragmento. Con los valores por defecto (5 s / 15 s) cualquier bajón normal
+  // de red provocaba una reconexión, y reconectar reinicia el buffer y empeora
+  // el corte. Aquí se usa una ventana más tolerante.
+  final _stallDetector = const StallDetector(
+    minStall: Duration(seconds: 12),
+    hardStall: Duration(seconds: 30),
+  );
   final _bufferHealthMonitor = BufferHealthMonitor();
   final _adaptiveBufferPolicy = const AdaptiveBufferPolicy();
-  final _recoveryCoordinator = RecoveryCoordinator();
+  final _recoveryCoordinator = RecoveryCoordinator(
+    policy: const RecoveryPolicy(
+      maxRetries: 3,
+      maxSourceChanges: 2,
+      backoff: ExponentialBackoff(
+        base: Duration(seconds: 2),
+        max: Duration(seconds: 15),
+      ),
+    ),
+  );
   final _health = SourceHealthManager(
     repository: SourceHealthRepository(),
   );
@@ -319,10 +336,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
     // unexpected pause as a recoverable failure, but never fight an explicit
     // user pause.
     if (!controller.value.isPlaying) {
+      // En Android, isPlaying pasa a false mientras el reproductor está
+      // buffereando. Si está buffereando se le da más margen antes de
+      // reconectar; si está realmente detenido, se actúa antes.
+      final idleLimit = controller.value.isBuffering
+          ? const Duration(seconds: 20)
+          : const Duration(seconds: 8);
       if (!_userPaused &&
           _autoRecovery &&
-          DateTime.now().difference(_lastProgress) >=
-              const Duration(seconds: 5)) {
+          DateTime.now().difference(_lastProgress) >= idleLimit) {
         await _recover(markFailure: true);
       }
       return;
@@ -421,7 +443,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         setState(() => _status =
             buffer.degraded ? 'Buffer bajo · reproducción en curso' : 'Buffering');
       }
-      if ((stalled || buffer.severe) && _autoRecovery) {
+      // Un buffer vacío mientras siguen llegando datos no es una caída: solo
+      // se considera severo si no llega nada y dura bastante.
+      final severeAndSilent = buffer.severe &&
+          !dataArriving &&
+          buffer.lowDuration >= const Duration(seconds: 15);
+      if ((stalled || severeAndSilent) && _autoRecovery) {
         await _recover(markFailure: true);
       }
     } finally {
@@ -1104,3 +1131,4 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 }
+
