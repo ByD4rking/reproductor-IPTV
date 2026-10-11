@@ -404,7 +404,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         setState(() => _status =
             buffer.degraded ? 'Buffer bajo · recuperando...' : 'Buffering');
       }
-      if ((stalled || buffer.severe) && _autoRecovery) {
+      // Do not interrupt a moving stream solely because the platform reports
+      // little/no buffered-ahead data. Live HLS players can expose sparse or
+      // discontinuous buffered ranges while playback is healthy. Recover only
+      // when the playhead is actually stalled; low buffer remains diagnostic
+      // UI and will still be followed by recovery if progress stops.
+      if (stalled && _autoRecovery) {
         await _recover(markFailure: true);
       }
     } finally {
