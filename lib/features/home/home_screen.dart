@@ -42,6 +42,17 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<String, PlaylistEntry> _entryByChannelId = <String, PlaylistEntry>{};
   PlaylistOrganization _organization = const PlaylistOrganization();
 
+  // Cache derived channel collections across unrelated widget rebuilds.
+  // Large IPTV playlists can contain thousands of entries; recomputing both
+  // folder groups and the full filtered list on every setState wastes CPU.
+  Playlist? _derivedPlaylist;
+  String? _derivedQuery;
+  String? _derivedCategory;
+  Set<String>? _derivedFavorites;
+  PlaylistOrganization? _derivedOrganization;
+  List<PlaylistEntry> _cachedVisibleEntries = const <PlaylistEntry>[];
+  List<PlaylistGroup> _cachedGroups = const <PlaylistGroup>[];
+
   @override
   void initState() {
     super.initState();
@@ -182,40 +193,68 @@ class _HomeScreenState extends State<HomeScreen> {
       );
   }
 
-  List<PlaylistGroup> get _groups => PlaylistGroups.fromPlaylist(
-        _playlist!,
-        favoriteChannelIds: _favoriteChannelIds,
-        organization: _organization,
-      );
+  bool get _derivedStateMatches =>
+      identical(_derivedPlaylist, _playlist) &&
+      _derivedQuery == _query &&
+      _derivedCategory == _category &&
+      identical(_derivedFavorites, _favoriteChannelIds) &&
+      identical(_derivedOrganization, _organization);
+
+  List<PlaylistGroup> get _groups {
+    if (_derivedStateMatches) return _cachedGroups;
+    final playlist = _playlist;
+    if (playlist == null) return const <PlaylistGroup>[];
+    _cachedGroups = PlaylistGroups.fromPlaylist(
+      playlist,
+      favoriteChannelIds: _favoriteChannelIds,
+      organization: _organization,
+    );
+    _rememberDerivedState();
+    return _cachedGroups;
+  }
+
+  void _rememberDerivedState() {
+    _derivedPlaylist = _playlist;
+    _derivedQuery = _query;
+    _derivedCategory = _category;
+    _derivedFavorites = _favoriteChannelIds;
+    _derivedOrganization = _organization;
+  }
 
   List<PlaylistEntry> get _visibleEntries {
-    final playlist = _playlist!;
-    final index = _searchIndex!;
+    if (_derivedStateMatches) return _cachedVisibleEntries;
+    final playlist = _playlist;
+    final index = _searchIndex;
+    if (playlist == null || index == null) {
+      _cachedVisibleEntries = const <PlaylistEntry>[];
+      _rememberDerivedState();
+      return _cachedVisibleEntries;
+    }
+
     final candidates = _query.trim().isEmpty
         ? playlist.entries
         : index.search(_query)
             .map((channel) => _entryByChannelId[channel.id])
             .whereType<PlaylistEntry>();
-    return candidates
-        .where((e) {
-          if (_category == 'Todos') return true;
-          if (_category == 'Favoritos') {
-            return _favoriteChannelIds.contains(e.channel.id);
-          }
-          final assignedId = _organization.assignments[
-              PlaylistOrganizationRepository.entryKey(e)];
-          final assigned = assignedId == null
-              ? null
-              : _organization.folders.where((f) => f.id == assignedId);
-          if (assigned != null && assigned.isNotEmpty) {
-            return assigned.first.name == _category;
-          }
-          final category = e.category?.trim();
-          return (category == null || category.isEmpty)
-              ? _category == 'Sin categoría'
-              : category == _category;
-        })
-        .toList();
+    _cachedVisibleEntries = candidates.where((entry) {
+      if (_category == 'Todos') return true;
+      if (_category == 'Favoritos') {
+        return _favoriteChannelIds.contains(entry.channel.id);
+      }
+      final assignedId = _organization.assignments[
+          PlaylistOrganizationRepository.entryKey(entry)];
+      if (assignedId != null) {
+        for (final folder in _organization.folders) {
+          if (folder.id == assignedId) return folder.name == _category;
+        }
+      }
+      final category = entry.category?.trim();
+      return (category == null || category.isEmpty)
+          ? _category == 'Sin categoría'
+          : category == _category;
+    }).toList(growable: false);
+    _rememberDerivedState();
+    return _cachedVisibleEntries;
   }
 
   Future<void> _openSettings() async {
