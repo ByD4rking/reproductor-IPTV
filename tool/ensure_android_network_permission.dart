@@ -63,4 +63,12 @@ Future<void> main() async {
       'Android network permissions/configuration already present.',
     );
   }
+
+  final verified = await manifest.readAsString();
+  if (!verified.contains('android.permission.INTERNET')) {
+    throw StateError('AndroidManifest no contiene INTERNET después de configurarlo.');
+  }
+  if (!verified.contains('android.permission.REQUEST_INSTALL_PACKAGES')) {
+    throw StateError('AndroidManifest no contiene REQUEST_INSTALL_PACKAGES después de configurarlo.');
+  }
 }
