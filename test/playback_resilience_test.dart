@@ -329,6 +329,30 @@ void main() {
     expect(switches, 1);
   });
 
+  test('degraded recovery starts a fresh bounded retry round', () async {
+    final coordinator = RecoveryCoordinator();
+    var attempts = 0;
+    for (var i = 0; i < 5; i++) {
+      await coordinator.recover(
+        userStopped: false,
+        retryable: true,
+        reprepare: () async => attempts++,
+        switchSource: () async {},
+      );
+    }
+    expect(coordinator.retryCount, 0);
+    expect(coordinator.sourceChanges, 0);
+
+    final nextRound = await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      reprepare: () async => attempts++,
+      switchSource: () async {},
+    );
+    expect(nextRound?.level, RecoveryLevel.retry);
+    expect(attempts, 4);
+  });
+
   test('non-retryable failure switches source before exhausting source budget',
       () async {
     const policy = RecoveryPolicy(maxRetries: 2, maxSourceChanges: 2);
