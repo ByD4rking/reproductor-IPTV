@@ -1,3 +1,5 @@
+import '../../domain/entities/media_content_profile.dart';
+
 class HlsPlaylist {
   const HlsPlaylist({
     required this.isValid,
@@ -12,6 +14,12 @@ class HlsPlaylist {
   final List<Uri> uris;
   final Duration? targetDuration;
   final bool isLive;
+
+  MediaContentProfile get mediaContentProfile =>
+      MediaContentProfile.fromHlsManifest(
+        isMaster: isMaster,
+        hasEndList: !isLive && !isMaster,
+      );
 }
 
 class HlsPlaylistParser {
@@ -97,7 +105,10 @@ class HlsPlaylistParser {
 
     final isValid =
         hasStructure && (hasStreamInf || hasMediaSegment || hasPart);
-    final isLive = isValid && !lines.contains('#EXT-X-ENDLIST');
+    // A master playlist describes renditions, not whether the underlying
+    // content is live or VOD. Do not infer its media type from ENDLIST absence.
+    final isLive =
+        isValid && !isMaster && !lines.contains('#EXT-X-ENDLIST');
 
     return HlsPlaylist(
       isValid: isValid,
