@@ -93,7 +93,15 @@ class M3uParser {
       }
       if (value.startsWith('#') || pendingExtInf == null) continue;
 
-      final uri = Uri.tryParse(value);
+      final parsedUri = Uri.tryParse(value);
+      // Remote M3U playlists may use relative stream paths. Resolve them
+      // against the final playlist URL before applying the HTTP(S) policy;
+      // otherwise valid channels are silently discarded during import.
+      final uri = parsedUri == null
+          ? null
+          : parsedUri.hasScheme
+              ? parsedUri
+              : baseUri?.resolveUri(parsedUri);
       if (uri == null || !urlPolicy.accepts(uri)) {
         pendingExtInf = null;
         continue;
