@@ -25,6 +25,7 @@ import '../../core/domain/entities/watch_history.dart';
 import '../../core/settings/settings_repository.dart';
 import '../../core/platform/tv_focus.dart';
 import '../../core/sources/source_ranker.dart';
+import '../../core/sources/source_rotation.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({required this.entry, super.key});
@@ -39,7 +40,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final _stallDetector = const StallDetector();
   final _bufferHealthMonitor = BufferHealthMonitor();
   final _adaptiveBufferPolicy = const AdaptiveBufferPolicy();
-  final _recoveryCoordinator = RecoveryCoordinator();
+  late final RecoveryCoordinator _recoveryCoordinator;
   final _health = SourceHealthManager(
     repository: SourceHealthRepository(),
   );
@@ -66,12 +67,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _healthCheckRunning = false;
   bool _userPaused = false;
   bool _fullscreen = false;
+  bool _orientationForcedLandscape = false;
   bool _controlsVisible = true;
   Timer? _controlsTimer;
 
   @override
   void initState() {
     super.initState();
+    // Allow recovery to cycle through every known source, not just two.
+    _recoveryCoordinator = RecoveryCoordinator(
+      policy: RecoveryPolicy(
+        maxSourceChanges: widget.entry.sources.length > 1
+            ? widget.entry.sources.length - 1
+            : 0,
+      ),
+    );
+    // Leave sensor orientation enabled by default; users can force landscape
+    // from the player controls and tap again to restore automatic rotation.
+    unawaited(SystemChrome.setPreferredOrientations(const <DeviceOrientation>[]));
     _startedAt = DateTime.now();
     _session.start();
     _playbackErrorSubscription = _engine.errors.listen(_handleEngineError);
@@ -137,15 +150,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
     required bool automatic,
     int? operationId,
     bool allowNestedRecovery = true,
+    bool tryAllSources = false,
   }) async {
     if (_session.isStopped || widget.entry.sources.isEmpty) return;
     final operation = operationId ?? _session.beginOperation();
     if (operation < 0) return;
 
     var attempts = 0;
+    // When explicitly trying all sources, include every source exactly once.
+    // The previous length - 1 limit skipped the final source in the list.
+    final attemptLimit = tryAllSources
+        ? widget.entry.sources.length
+        : widget.entry.sources.length + 3;
     while (!_session.isStopped &&
         _session.isCurrentOperation(operation) &&
-        attempts < widget.entry.sources.length + 3) {
+        attempts < attemptLimit) {
       final source = widget.entry.sources[_sourceIndex];
       final now = DateTime.now();
       if (!await _health.beginAttempt(source.id, now)) {
@@ -182,6 +201,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         attempts++;
         final classified = _errorClassifier.classify(null, error);
         if (!allowNestedRecovery) {
+          if (tryAllSources) {
+            _advanceSource();
+            continue;
+          }
           break;
         }
 
@@ -266,7 +289,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _advanceSource() {
     if (widget.entry.sources.isEmpty) return;
-    _sourceIndex = _bestSourceIndex(excluding: _sourceIndex);
+    _sourceIndex = SourceRotation.nextIndex(
+      currentIndex: _sourceIndex,
+      sourceCount: widget.entry.sources.length,
+    );
     _lastPosition = Duration.zero;
     _lastBufferedAhead = Duration.zero;
     _lastProgress = DateTime.now();
@@ -280,14 +306,44 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final controller = _engine.controller;
     if (controller == null || !controller.value.isInitialized) return;
 
-    // The native player can stop without emitting a useful error. Treat an
-    // unexpected pause as a recoverable failure, but never fight an explicit
-    // user pause.
+    // Some platform backends briefly report isPlaying=false while HLS is
+    // buffering or switching segments. Do not tear down the native player
+    // after a single short gap: wait for a hard no-progress window and ensure
+    // the user did not pause. A completed VOD is terminal, not a reconnect.
     if (!controller.value.isPlaying) {
-      if (!_userPaused &&
-          _autoRecovery &&
-          DateTime.now().difference(_lastProgress) >=
-              const Duration(seconds: 5)) {
+      if (_userPaused || !_autoRecovery) return;
+      if (controller.value.isCompleted &&
+          controller.value.duration > Duration.zero) {
+        if (mounted && _status != 'Finalizado') {
+          setState(() => _status = 'Finalizado');
+        }
+        return;
+      }
+
+      final now = DateTime.now();
+      final position = _engine.position;
+      final bufferedAhead = _engine.buffered;
+      final playheadMoving = position > _lastPosition;
+      final dataArriving = bufferedAhead > _lastBufferedAhead;
+      _lastBufferedAhead = bufferedAhead;
+
+      if (playheadMoving) {
+        _lastPosition = position;
+        _lastProgress = now;
+        return;
+      }
+
+      final age = now.difference(_lastProgress);
+      // Live streams often report sparse/empty buffered ranges, so a zero
+      // buffer reading alone is not proof of a dead connection. Require a
+      // sustained 15-second lack of playback progress and no buffer growth.
+      if (_stallDetector.isHardStall(
+            age,
+            userPaused: _userPaused,
+            ended: controller.value.isCompleted &&
+                controller.value.duration > Duration.zero,
+          ) &&
+          !dataArriving) {
         await _recover(markFailure: true);
       }
       return;
@@ -378,7 +434,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         setState(() => _status =
             buffer.degraded ? 'Buffer bajo · recuperando...' : 'Buffering');
       }
-      if ((stalled || buffer.severe) && _autoRecovery) {
+      // Do not interrupt a moving stream solely because the platform reports
+      // little/no buffered-ahead data. Live HLS players can expose sparse or
+      // discontinuous buffered ranges while playback is healthy. Recover only
+      // when the playhead is actually stalled; low buffer remains diagnostic
+      // UI and will still be followed by recovery if progress stops.
+      if (stalled && _autoRecovery) {
         await _recover(markFailure: true);
       }
     } finally {
@@ -426,12 +487,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  Future<void> _toggleOrientation() async {
+    if (_orientationForcedLandscape) {
+      _orientationForcedLandscape = false;
+      await SystemChrome.setPreferredOrientations(const <DeviceOrientation>[]);
+    } else {
+      _orientationForcedLandscape = true;
+      await SystemChrome.setPreferredOrientations(const <DeviceOrientation>[
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
+    if (mounted) setState(() {});
+  }
+
   Future<void> _toggleFullscreen() async {
     _fullscreen = !_fullscreen;
     await SystemChrome.setEnabledSystemUIMode(
       _fullscreen ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
     );
     if (mounted) setState(() {});
+  }
+
+  Future<void> _retryInitialPlayback() async {
+    if (_session.isStopped || _recovering || widget.entry.sources.isEmpty) {
+      return;
+    }
+    final operation = _session.beginOperation();
+    if (operation < 0) return;
+    _sourceIndex = _bestSourceIndex();
+    _error = null;
+    if (mounted) setState(() => _status = 'Conectando fuente ${_sourceIndex + 1}');
+    await _openSource(
+      automatic: false,
+      operationId: operation,
+      tryAllSources: true,
+    );
   }
 
   Future<void> _recover(
@@ -442,22 +533,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
     // periodic health monitor can both enter recovery in the same event turn.
     _recovering = true;
 
-    final source = widget.entry.sources.isEmpty
-        ? null
-        : widget.entry.sources[_sourceIndex];
-    if (markFailure && source != null) {
-      await _health.recordFailure(source.id, DateTime.now());
-      _sourceAttemptStarted = null;
-    }
-    _stablePlaybackSince = null;
-    final operation = _session.beginOperation();
-    if (operation < 0) {
-      _recovering = false;
-      return;
-    }
-    if (mounted) setState(() => _status = 'Recuperando conexión...');
-
     try {
+      final source = widget.entry.sources.isEmpty
+          ? null
+          : widget.entry.sources[_sourceIndex];
+      if (markFailure && source != null) {
+        await _health.recordFailure(source.id, DateTime.now());
+        _sourceAttemptStarted = null;
+      }
+      _stablePlaybackSince = null;
+      final operation = _session.beginOperation();
+      if (operation < 0) return;
+      if (mounted) setState(() => _status = 'Recuperando conexión...');
+
       await _engine.stop();
       final decision = await _recoveryCoordinator.recover(
         userStopped: _session.isStopped,
@@ -479,9 +567,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (_session.isCurrentOperation(operation)) {
             _advanceSource();
             await _openSource(
-                automatic: true,
-                operationId: operation,
-                allowNestedRecovery: false);
+              automatic: true,
+              operationId: operation,
+              allowNestedRecovery: false,
+              tryAllSources: true,
+            );
           }
         },
       );
@@ -516,6 +606,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _health.dispose();
     _engine.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    unawaited(SystemChrome.setPreferredOrientations(const <DeviceOrientation>[]));
     super.dispose();
   }
 
@@ -532,15 +623,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget build(BuildContext context) {
     final controller = _engine.controller;
     if (controller == null || !controller.value.isInitialized) {
+      // Opening a channel is an automatic operation, not a user action.
+      // Keep the loading surface passive while preparation/recovery is active;
+      // only expose manual retry after the automatic attempt has failed.
+      final opening = _recovering ||
+          _status == 'Preparando' ||
+          _status.startsWith('Conectando fuente') ||
+          _status == 'Recuperando conexión...';
       return Scaffold(
         appBar: AppBar(
           title: Text(widget.entry.channel.displayName),
           actions: [
-            IconButton(
-              tooltip: 'Recuperar',
-              onPressed: _recovering ? null : _recover,
-              icon: const Icon(Icons.refresh),
-            ),
+            if (!opening)
+              IconButton(
+                tooltip: 'Intentar de nuevo',
+                onPressed: _retryInitialPlayback,
+                icon: const Icon(Icons.refresh),
+              ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Center(child: Text(_status)),
@@ -556,19 +655,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(_recovering ? Icons.sync : Icons.tv_off, size: 72),
+                  if (opening)
+                    const CircularProgressIndicator()
+                  else
+                    const Icon(Icons.tv_off, size: 72),
                   const SizedBox(height: 16),
                   Text(
-                    _error ?? _status,
+                    opening ? _status : (_error ?? _status),
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 18),
                   ),
-                  const SizedBox(height: 18),
-                  FilledButton.icon(
-                    onPressed: _recovering ? null : _recover,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Reintentar'),
-                  ),
+                  if (!opening) ...[
+                    const SizedBox(height: 18),
+                    FilledButton.icon(
+                      onPressed: _retryInitialPlayback,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Intentar de nuevo'),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -807,6 +911,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 tooltip: 'Recuperar señal',
                                 onPressed: _recovering ? null : _recover,
                                 icon: const Icon(Icons.refresh_rounded),
+                              ),
+                              IconButton(
+                                tooltip: _orientationForcedLandscape
+                                    ? 'Restaurar rotación automática'
+                                    : 'Girar pantalla horizontal',
+                                onPressed: _toggleOrientation,
+                                icon: Icon(
+                                  _orientationForcedLandscape
+                                      ? Icons.screen_rotation_alt_rounded
+                                      : Icons.screen_rotation_rounded,
+                                ),
                               ),
                               const Spacer(),
                               IconButton(
