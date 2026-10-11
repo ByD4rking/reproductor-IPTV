@@ -353,6 +353,24 @@ void main() {
     expect(attempts, 3);
   });
 
+  test('single-source recovery reprepares after retry budget instead of stopping', () async {
+    final coordinator = RecoveryCoordinator(
+      policy: const RecoveryPolicy(maxRetries: 0, maxSourceChanges: 2),
+      singleSourceRetryDelay: Duration.zero,
+    );
+    var reparses = 0;
+    final decision = await coordinator.recover(
+      userStopped: false,
+      retryable: true,
+      allowSourceSwitch: false,
+      reprepare: () async => reparses++,
+      switchSource: () async {},
+    );
+    expect(decision?.level, RecoveryLevel.reprepare);
+    expect(reparses, 1);
+    expect(coordinator.retryCount, 0);
+  });
+
   test('non-retryable failure switches source before exhausting source budget',
       () async {
     const policy = RecoveryPolicy(maxRetries: 2, maxSourceChanges: 2);

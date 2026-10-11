@@ -47,8 +47,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Ajustes')),
       body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          SwitchListTile(
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Theme.of(context).colorScheme.primaryContainer,
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                  ],
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.tune_rounded,
+                      size: 32, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(height: 12),
+                  Text('Controla tu experiencia',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          )),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Reproducción, listas y actualizaciones en un solo lugar.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+            child: Text('REPRODUCCIÓN',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    )),
+          ),
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile(
             value: _settings.autoRecovery,
             title: const Text('Recuperación automática'),
             subtitle: const Text(
@@ -56,15 +106,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (value) =>
                 _save(_settings.copyWith(autoRecovery: value)),
           ),
-          SwitchListTile(
-            value: _settings.autoSourceSwitching,
-            title: const Text('Cambio automático de fuente'),
-            subtitle: const Text(
-                'Cambiar a otra fuente del mismo canal cuando corresponda.'),
-            onChanged: (value) =>
-                _save(_settings.copyWith(autoSourceSwitching: value)),
+                SwitchListTile(
+                  value: _settings.autoSourceSwitching,
+                  title: const Text('Cambio automático de fuente'),
+                  subtitle: const Text(
+                      'Cambiar a otra fuente del mismo canal cuando corresponda.'),
+                  onChanged: (value) =>
+                      _save(_settings.copyWith(autoSourceSwitching: value)),
+                ),
+              ],
+            ),
           ),
-          const Divider(),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+            child: Text('BIBLIOTECA Y SISTEMA',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    )),
+          ),
+          Card(
+            child: Column(
+              children: [
           ListTile(
             leading: const Icon(Icons.storage_outlined),
             title: const Text('Playlists'),
@@ -97,22 +162,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.system_update_alt),
-            title: const Text('Actualizaciones'),
-            subtitle: const Text(
-              'Buscar, descargar y preparar la instalación de una nueva versión.',
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const UpdatesScreen(),
+                ListTile(
+                  leading: const Icon(Icons.system_update_alt),
+                  title: const Text('Actualizaciones'),
+                  subtitle: const Text(
+                    'Buscar, descargar y preparar la instalación de una nueva versión.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const UpdatesScreen(),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
+              ],
+            ),
           ),
-          const Divider(),
+          const SizedBox(height: 12),
           const ListTile(
             leading: Icon(Icons.science_outlined),
             title: Text('reproductor-IPTV 0.3.0 · ALPHA'),

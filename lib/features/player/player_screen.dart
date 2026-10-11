@@ -608,7 +608,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   : 'Preparando canal';
       final detail = _error ??
           (recovering
-              ? 'Reintentando la conexión automáticamente'
+              ? 'Intento ${_recoveryCoordinator.retryCount + 1}. Reintentando la conexión automáticamente; si esta fuente no responde, se volverá a comprobar tras una espera.'
               : waiting
                   ? 'La fuente está temporalmente bloqueada; volveremos a probar'
                   : terminal
