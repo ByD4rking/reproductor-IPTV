@@ -38,7 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _searchDebounce;
   String _category = 'Todos';
   bool _showingChannels = false;
-  int _playlistSwitchGeneration = 0;
   Set<String> _favoriteChannelIds = <String>{};
   final Map<String, PlaylistEntry> _entryByChannelId = <String, PlaylistEntry>{};
   PlaylistOrganization _organization = const PlaylistOrganization();
